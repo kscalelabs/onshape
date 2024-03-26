@@ -1,0 +1,11 @@
+# requirements.txt
+
+omegaconf
+requests
+networkx
+numpy
+numpy-stl
+pydantic
+
+# Types
+types-requests

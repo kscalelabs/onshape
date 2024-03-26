@@ -1,0 +1,1557 @@
+{
+  "rootAssembly": {
+    "occurrences": [
+      {
+        "hidden": false,
+        "fixed": false,
+        "transform": [
+          1.0,
+          0.0,
+          0.0,
+          0.16426666604248114,
+          0.0,
+          1.0,
+          0.0,
+          0.1098876878091458,
+          0.0,
+          0.0,
+          1.0,
+          0.039028626194922325,
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "path": [
+          "MZFiU9Rz40B4/jV4o",
+          "MpH74xSUygxx8ApPs"
+        ]
+      },
+      {
+        "hidden": false,
+        "fixed": false,
+        "transform": [
+          1.0,
+          0.0,
+          0.0,
+          0.06089258903530664,
+          0.0,
+          1.0,
+          0.0,
+          0.022417336090779658,
+          0.0,
+          0.0,
+          1.0,
+          -0.0026523330912458926,
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "path": [
+          "MhOF4fR+TtrxDhszL",
+          "MpH74xSUygxx8ApPs"
+        ]
+      },
+      {
+        "hidden": false,
+        "fixed": false,
+        "transform": [
+          0.7616480560160568,
+          0.6479909249110279,
+          1.6671266516473398e-292,
+          -0.07937413241915828,
+          -0.6479909249110279,
+          0.7616480560160568,
+          -2.3529755482873133e-292,
+          -0.18184553903152753,
+          -7.051393411398316e-29,
+          -2.322314171856647e-28,
+          0.9999999999999999,
+          -0.006505456027367587,
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "path": [
+          "MhOF4fR+TtrxDhszL",
+          "MpH74xSUygxx8ApPs",
+          "Mj+ctJjVym8DgUVU5"
+        ]
+      },
+      {
+        "hidden": false,
+        "fixed": false,
+        "transform": [
+          0.9420006304027396,
+          -0.335611102797418,
+          -1.8878384217998826e-19,
+          -0.07937413241915806,
+          0.335611102797418,
+          0.9420006304027396,
+          5.298826434814142e-19,
+          -0.18184553903152773,
+          -1.7823822737416475e-28,
+          -5.625077374316564e-19,
+          0.9999999999999996,
+          -0.006505456027367587,
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "path": [
+          "MhOF4fR+TtrxDhszL",
+          "MpH74xSUygxx8ApPs",
+          "MPwAhnc5tBqEBuYLO"
+        ]
+      },
+      {
+        "hidden": false,
+        "fixed": false,
+        "transform": [
+          0.8230401921347166,
+          0.5679831354281653,
+          -1.1906520192205665e-15,
+          -0.39625474942144034,
+          0.5679831354281638,
+          -0.8230401921347174,
+          -1.403399199077339e-15,
+          0.16807054783719988,
+          -1.7770615440142227e-15,
+          4.787836793695538e-16,
+          -1.0,
+          -0.023705456027367594,
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "path": [
+          "MZFiU9Rz40B4/jV4o",
+          "MpH74xSUygxx8ApPs",
+          "MpoFgoLx8BjQbyqw8"
+        ]
+      },
+      {
+        "hidden": false,
+        "fixed": false,
+        "transform": [
+          1.0,
+          0.0,
+          0.0,
+          -0.0910290241065877,
+          0.0,
+          1.0,
+          0.0,
+          -0.0553148553303119,
+          0.0,
+          0.0,
+          1.0,
+          0.012317347308853713,
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "path": [
+          "MhOF4fR+TtrxDhszL",
+          "M6i8atUz2mFmTPA5m"
+        ]
+      },
+      {
+        "hidden": false,
+        "fixed": false,
+        "transform": [
+          -0.9420006304027493,
+          0.3356111027974215,
+          -1.3032004754191737e-273,
+          -0.07937413241915807,
+          -0.3356111027974215,
+          -0.9420006304027493,
+          1.20230165106012e-274,
+          -0.18184553903152767,
+          1.8963009901065674e-28,
+          -2.3163283821985657e-28,
+          0.9999999999999996,
+          -0.006505456027367586,
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "path": [
+          "MhOF4fR+TtrxDhszL",
+          "MpH74xSUygxx8ApPs",
+          "MpoFgoLx8BjQbyqw8"
+        ]
+      },
+      {
+        "hidden": false,
+        "fixed": false,
+        "transform": [
+          0.7616480560160568,
+          0.6479909249110279,
+          1.6671266516473398e-292,
+          -0.19362134082156682,
+          -0.6479909249110279,
+          0.7616480560160568,
+          -2.3529755482873133e-292,
+          -0.08464690029487339,
+          -7.051393411398316e-29,
+          -2.322314171856647e-28,
+          0.9999999999999999,
+          -0.006505456027367588,
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "path": [
+          "MhOF4fR+TtrxDhszL",
+          "MXMjIkD+l2beWZJzL"
+        ]
+      },
+      {
+        "hidden": false,
+        "fixed": false,
+        "transform": [
+          -0.335611102797397,
+          -0.942000630402674,
+          0.0,
+          -0.19362134082156682,
+          0.942000630402674,
+          -0.335611102797397,
+          0.0,
+          -0.08464690029487348,
+          0.0,
+          0.0,
+          1.0,
+          -0.006505456027367587,
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "path": [
+          "MhOF4fR+TtrxDhszL",
+          "M6i8atUz2mFmTPA5m",
+          "MpoFgoLx8BjQbyqw8"
+        ]
+      },
+      {
+        "hidden": false,
+        "fixed": false,
+        "transform": [
+          -0.903407920269274,
+          0.4287821470102011,
+          -6.810624910392696e-16,
+          -0.26074356138104926,
+          0.4287821470102013,
+          0.9034079202692732,
+          -1.5777466325911815e-15,
+          0.10375322578566983,
+          -6.12323399573656e-17,
+          -1.71737624121698e-15,
+          -0.9999999999999999,
+          -0.02370545602736758,
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "path": [
+          "MZFiU9Rz40B4/jV4o",
+          "MXMjIkD+l2beWZJzL"
+        ]
+      },
+      {
+        "hidden": false,
+        "fixed": false,
+        "transform": [
+          0.3356111027973969,
+          -0.942000630402674,
+          0.0,
+          -0.26074356138104926,
+          -0.9420006304026742,
+          -0.335611102797397,
+          0.0,
+          0.10375322578566987,
+          0.0,
+          0.0,
+          -1.0,
+          -0.02370545602736758,
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "path": [
+          "MZFiU9Rz40B4/jV4o",
+          "M6i8atUz2mFmTPA5m",
+          "MpoFgoLx8BjQbyqw8"
+        ]
+      },
+      {
+        "hidden": false,
+        "fixed": false,
+        "transform": [
+          -0.903407920269274,
+          0.4287821470102011,
+          -6.810624910392696e-16,
+          -0.3962547494214404,
+          0.4287821470102013,
+          0.9034079202692732,
+          -1.5777466325911815e-15,
+          0.1680705478372,
+          -6.12323399573656e-17,
+          -1.71737624121698e-15,
+          -0.9999999999999999,
+          -0.023705456027367594,
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "path": [
+          "MZFiU9Rz40B4/jV4o",
+          "MpH74xSUygxx8ApPs",
+          "Mj+ctJjVym8DgUVU5"
+        ]
+      },
+      {
+        "hidden": false,
+        "fixed": false,
+        "transform": [
+          -0.8230401921347215,
+          -0.5679831354281702,
+          -1.1848160501685341e-15,
+          -0.39625474942144034,
+          -0.5679831354281687,
+          0.8230401921347243,
+          -1.3724889371062296e-15,
+          0.16807054783719982,
+          1.7547017994130995e-15,
+          -4.566580234183567e-16,
+          -1.0,
+          -0.023705456027367594,
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "path": [
+          "MZFiU9Rz40B4/jV4o",
+          "MpH74xSUygxx8ApPs",
+          "MPwAhnc5tBqEBuYLO"
+        ]
+      },
+      {
+        "hidden": false,
+        "fixed": false,
+        "transform": [
+          1.0,
+          0.0,
+          0.0,
+          0.04745278361428473,
+          0.0,
+          1.0,
+          0.0,
+          0.058040453194118435,
+          0.0,
+          0.0,
+          1.0,
+          0.04644497897586283,
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "path": [
+          "MZFiU9Rz40B4/jV4o"
+        ]
+      },
+      {
+        "hidden": false,
+        "fixed": false,
+        "transform": [
+          0.942000630402715,
+          -0.3356111027974087,
+          -4.012489070353311e-18,
+          -0.22067422697956568,
+          0.3356111027974087,
+          0.942000630402715,
+          1.126234264100183e-17,
+          -0.23218720445113938,
+          -7.208255040055883e-29,
+          -1.1955769749498862e-17,
+          1.0,
+          -0.0065054560273675845,
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "path": [
+          "MhOF4fR+TtrxDhszL",
+          "MquKeVQKu7w/Ke6u/"
+        ]
+      },
+      {
+        "hidden": false,
+        "fixed": false,
+        "transform": [
+          -0.8230401921347027,
+          -0.5679831354281544,
+          -1.2022172438576447e-15,
+          -0.27279872060123467,
+          -0.5679831354281536,
+          0.8230401921347057,
+          -1.4198418100793356e-15,
+          0.25326801815142297,
+          1.795919314473107e-15,
+          -4.857477565365285e-16,
+          -1.0,
+          -0.023705456027367865,
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "path": [
+          "MZFiU9Rz40B4/jV4o",
+          "MquKeVQKu7w/Ke6u/"
+        ]
+      },
+      {
+        "hidden": false,
+        "fixed": false,
+        "transform": [
+          1.0,
+          0.0,
+          0.0,
+          -0.05592129339288976,
+          0.0,
+          1.0,
+          0.0,
+          -0.02942989852424771,
+          0.0,
+          0.0,
+          1.0,
+          0.004764019689694615,
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "path": [
+          "MhOF4fR+TtrxDhszL"
+        ]
+      },
+      {
+        "hidden": false,
+        "fixed": false,
+        "transform": [
+          -0.903407920269274,
+          0.4287821470102011,
+          -6.810624910392696e-16,
+          -0.26074356138104926,
+          0.4287821470102013,
+          0.9034079202692732,
+          -1.5777466325911815e-15,
+          0.10375322578566983,
+          -6.12323399573656e-17,
+          -1.71737624121698e-15,
+          -0.9999999999999999,
+          -0.02370545602736758,
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "path": [
+          "MZFiU9Rz40B4/jV4o",
+          "M6i8atUz2mFmTPA5m",
+          "Mj+ctJjVym8DgUVU5"
+        ]
+      },
+      {
+        "hidden": false,
+        "fixed": true,
+        "transform": [
+          0.3356111027974104,
+          0.9420006304027116,
+          0.0,
+          -0.1936213408215667,
+          -0.9420006304027116,
+          0.3356111027974104,
+          0.0,
+          -0.08464690029487287,
+          0.0,
+          0.0,
+          1.0,
+          -0.006505456027367587,
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "path": [
+          "MhOF4fR+TtrxDhszL",
+          "MFjEkV4Cf+9fmF4ga"
+        ]
+      },
+      {
+        "hidden": false,
+        "fixed": false,
+        "transform": [
+          -0.3356111027974092,
+          0.9420006304027085,
+          0.0,
+          -0.26074356138104926,
+          0.9420006304027089,
+          0.3356111027974092,
+          0.0,
+          0.10375322578566984,
+          0.0,
+          0.0,
+          -1.0,
+          -0.02370545602736758,
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "path": [
+          "MZFiU9Rz40B4/jV4o",
+          "M6i8atUz2mFmTPA5m",
+          "MPwAhnc5tBqEBuYLO"
+        ]
+      },
+      {
+        "hidden": false,
+        "fixed": false,
+        "transform": [
+          0.7616480560160568,
+          0.6479909249110279,
+          1.6671266516473398e-292,
+          -0.19362134082156682,
+          -0.6479909249110279,
+          0.7616480560160568,
+          -2.3529755482873133e-292,
+          -0.08464690029487339,
+          -7.051393411398316e-29,
+          -2.322314171856647e-28,
+          0.9999999999999999,
+          -0.006505456027367588,
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "path": [
+          "MhOF4fR+TtrxDhszL",
+          "M6i8atUz2mFmTPA5m",
+          "Mj+ctJjVym8DgUVU5"
+        ]
+      },
+      {
+        "hidden": false,
+        "fixed": false,
+        "transform": [
+          1.0,
+          0.0,
+          0.0,
+          0.012345052900586795,
+          0.0,
+          1.0,
+          0.0,
+          0.03215549638805425,
+          0.0,
+          0.0,
+          1.0,
+          0.05399830659502193,
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "path": [
+          "MZFiU9Rz40B4/jV4o",
+          "M6i8atUz2mFmTPA5m"
+        ]
+      },
+      {
+        "hidden": false,
+        "fixed": false,
+        "transform": [
+          0.3356111027974093,
+          0.9420006304027085,
+          0.0,
+          -0.19362134082156687,
+          -0.9420006304027085,
+          0.3356111027974093,
+          0.0,
+          -0.08464690029487351,
+          0.0,
+          0.0,
+          1.0,
+          -0.006505456027367587,
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "path": [
+          "MhOF4fR+TtrxDhszL",
+          "M6i8atUz2mFmTPA5m",
+          "MPwAhnc5tBqEBuYLO"
+        ]
+      },
+      {
+        "hidden": false,
+        "fixed": false,
+        "transform": [
+          -0.3356111027974104,
+          0.9420006304027116,
+          0.0,
+          -0.2607435613810488,
+          0.9420006304027116,
+          0.3356111027974104,
+          0.0,
+          0.10375322578566949,
+          0.0,
+          0.0,
+          -1.0,
+          -0.02370545602736758,
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "path": [
+          "MZFiU9Rz40B4/jV4o",
+          "MFjEkV4Cf+9fmF4ga"
+        ]
+      }
+    ],
+    "instances": [
+      {
+        "name": "Test Assembly <1>",
+        "suppressed": false,
+        "id": "MhOF4fR+TtrxDhszL",
+        "type": "Assembly",
+        "fullConfiguration": "default",
+        "configuration": "default",
+        "documentMicroversion": "28c9f60e682a32591585b937",
+        "documentId": "4584269abd10dfa729ae83af",
+        "elementId": "ae74da7e2c35297ad3c6a910"
+      },
+      {
+        "name": "Test Assembly <2>",
+        "suppressed": false,
+        "id": "MZFiU9Rz40B4/jV4o",
+        "type": "Assembly",
+        "fullConfiguration": "default",
+        "configuration": "default",
+        "documentMicroversion": "28c9f60e682a32591585b937",
+        "documentId": "4584269abd10dfa729ae83af",
+        "elementId": "ae74da7e2c35297ad3c6a910"
+      }
+    ],
+    "patterns": [],
+    "features": [
+      {
+        "id": "MdW7r56VLVTzkRxPS",
+        "suppressed": false,
+        "featureType": "mate",
+        "featureData": {
+          "mateType": "FASTENED",
+          "matedEntities": [
+            {
+              "matedOccurrence": [
+                "MZFiU9Rz40B4/jV4o",
+                "MFjEkV4Cf+9fmF4ga"
+              ],
+              "matedCS": {
+                "xAxis": [
+                  0.0,
+                  1.0,
+                  0.0
+                ],
+                "yAxis": [
+                  0.0,
+                  0.0,
+                  -1.0
+                ],
+                "zAxis": [
+                  -1.0,
+                  0.0,
+                  0.0
+                ],
+                "origin": [
+                  -0.1,
+                  7.30029462806906e-18,
+                  -0.008599999999999998
+                ]
+              }
+            },
+            {
+              "matedOccurrence": [
+                "MhOF4fR+TtrxDhszL",
+                "MFjEkV4Cf+9fmF4ga"
+              ],
+              "matedCS": {
+                "xAxis": [
+                  0.0,
+                  1.0,
+                  0.0
+                ],
+                "yAxis": [
+                  0.0,
+                  -0.0,
+                  1.0
+                ],
+                "zAxis": [
+                  1.0,
+                  -0.0,
+                  -0.0
+                ],
+                "origin": [
+                  -0.1,
+                  7.30029462806906e-18,
+                  -0.008599999999999998
+                ]
+              }
+            }
+          ],
+          "name": "Fastened 1"
+        }
+      },
+      {
+        "id": "MLGCyBaCxMNrYP6Md",
+        "suppressed": false,
+        "featureType": "mateRelation",
+        "featureData": {
+          "relationType": "GEAR",
+          "mates": [
+            {
+              "featureId": "MK40iRFQrZWZ/PPjx",
+              "occurrence": [
+                "MhOF4fR+TtrxDhszL",
+                "M6i8atUz2mFmTPA5m"
+              ]
+            },
+            {
+              "featureId": "MK40iRFQrZWZ/PPjx",
+              "occurrence": [
+                "MZFiU9Rz40B4/jV4o",
+                "M6i8atUz2mFmTPA5m"
+              ]
+            }
+          ],
+          "reverseDirection": false,
+          "relationRatio": 1.5,
+          "name": "Gear 1"
+        }
+      },
+      {
+        "id": "MBXg+03ok1yQKIOBR",
+        "suppressed": false,
+        "featureType": "mateRelation",
+        "featureData": {
+          "relationType": "GEAR",
+          "mates": [
+            {
+              "featureId": "MK40iRFQrZWZ/PPjx",
+              "occurrence": [
+                "MhOF4fR+TtrxDhszL",
+                "MpH74xSUygxx8ApPs"
+              ]
+            },
+            {
+              "featureId": "MK40iRFQrZWZ/PPjx",
+              "occurrence": [
+                "MZFiU9Rz40B4/jV4o",
+                "MpH74xSUygxx8ApPs"
+              ]
+            }
+          ],
+          "reverseDirection": false,
+          "relationRatio": 1.0,
+          "name": "Gear 2"
+        }
+      }
+    ],
+    "fullConfiguration": "default",
+    "configuration": "default",
+    "documentMicroversion": "28c9f60e682a32591585b937",
+    "documentId": "4584269abd10dfa729ae83af",
+    "elementId": "e1191d4fc8ce5e061d097099"
+  },
+  "subAssemblies": [
+    {
+      "instances": [
+        {
+          "name": "RMD_X8_P6_Assem <1>",
+          "suppressed": false,
+          "id": "M6i8atUz2mFmTPA5m",
+          "type": "Assembly",
+          "fullConfiguration": "maxRotation=0.7853981633974483+radian;minRotation=-0.7853981633974483+radian",
+          "configuration": "maxRotation=0.7853981633974483+radian;minRotation=-0.7853981633974483+radian",
+          "documentMicroversion": "28c9f60e682a32591585b937",
+          "documentId": "4584269abd10dfa729ae83af",
+          "elementId": "802252521e4b28c797b720f9"
+        },
+        {
+          "name": "RMD_X8_P6_Assem <2>",
+          "suppressed": false,
+          "id": "MpH74xSUygxx8ApPs",
+          "type": "Assembly",
+          "fullConfiguration": "maxRotation=1.0471975511965976+radian;minRotation=-1.0471975511965976+radian",
+          "configuration": "maxRotation=1.0471975511965976+radian;minRotation=-1.0471975511965976+radian",
+          "documentMicroversion": "28c9f60e682a32591585b937",
+          "documentId": "4584269abd10dfa729ae83af",
+          "elementId": "802252521e4b28c797b720f9"
+        },
+        {
+          "name": "Connector <1>",
+          "suppressed": false,
+          "id": "MXMjIkD+l2beWZJzL",
+          "type": "Part",
+          "isStandardContent": false,
+          "partId": "JXD",
+          "fullConfiguration": "default",
+          "configuration": "default",
+          "documentMicroversion": "28c9f60e682a32591585b937",
+          "documentId": "4584269abd10dfa729ae83af",
+          "elementId": "04f239ef8e3acbe934858495"
+        },
+        {
+          "name": "Left <1>",
+          "suppressed": false,
+          "id": "MFjEkV4Cf+9fmF4ga",
+          "type": "Part",
+          "isStandardContent": false,
+          "partId": "JND",
+          "fullConfiguration": "default",
+          "configuration": "default",
+          "documentMicroversion": "28c9f60e682a32591585b937",
+          "documentId": "4584269abd10dfa729ae83af",
+          "elementId": "04f239ef8e3acbe934858495"
+        },
+        {
+          "name": "Right <1>",
+          "suppressed": false,
+          "id": "MquKeVQKu7w/Ke6u/",
+          "type": "Part",
+          "isStandardContent": false,
+          "partId": "JaD",
+          "fullConfiguration": "default",
+          "configuration": "default",
+          "documentMicroversion": "28c9f60e682a32591585b937",
+          "documentId": "4584269abd10dfa729ae83af",
+          "elementId": "04f239ef8e3acbe934858495"
+        }
+      ],
+      "patterns": [],
+      "features": [
+        {
+          "id": "M0crA3lZyMDtHicyR",
+          "suppressed": false,
+          "featureType": "mate",
+          "featureData": {
+            "mateType": "FASTENED",
+            "matedEntities": [
+              {
+                "matedOccurrence": [
+                  "MXMjIkD+l2beWZJzL"
+                ],
+                "matedCS": {
+                  "xAxis": [
+                    1.0,
+                    0.0,
+                    0.0
+                  ],
+                  "yAxis": [
+                    0.0,
+                    -1.0,
+                    0.0
+                  ],
+                  "zAxis": [
+                    0.0,
+                    0.0,
+                    -1.0
+                  ],
+                  "origin": [
+                    0.042,
+                    2.4719809532669498e-17,
+                    0.0294
+                  ]
+                }
+              },
+              {
+                "matedOccurrence": [
+                  "M6i8atUz2mFmTPA5m",
+                  "Mj+ctJjVym8DgUVU5"
+                ],
+                "matedCS": {
+                  "xAxis": [
+                    1.0,
+                    0.0,
+                    0.0
+                  ],
+                  "yAxis": [
+                    0.0,
+                    -1.0,
+                    0.0
+                  ],
+                  "zAxis": [
+                    -0.0,
+                    -0.0,
+                    -1.0
+                  ],
+                  "origin": [
+                    0.042,
+                    2.4719809532669498e-17,
+                    0.0294
+                  ]
+                }
+              }
+            ],
+            "name": "Fastened 1"
+          }
+        },
+        {
+          "id": "MNyu0r7nkc3xPxQHW",
+          "suppressed": false,
+          "featureType": "mate",
+          "featureData": {
+            "mateType": "FASTENED",
+            "matedEntities": [
+              {
+                "matedOccurrence": [
+                  "M6i8atUz2mFmTPA5m",
+                  "MpoFgoLx8BjQbyqw8"
+                ],
+                "matedCS": {
+                  "xAxis": [
+                    1.0,
+                    0.0,
+                    0.0
+                  ],
+                  "yAxis": [
+                    0.0,
+                    -1.0,
+                    0.0
+                  ],
+                  "zAxis": [
+                    0.0,
+                    0.0,
+                    -1.0
+                  ],
+                  "origin": [
+                    -0.0134233937586588,
+                    0.00775,
+                    -0.0036
+                  ]
+                }
+              },
+              {
+                "matedOccurrence": [
+                  "MFjEkV4Cf+9fmF4ga"
+                ],
+                "matedCS": {
+                  "xAxis": [
+                    -1.0,
+                    -0.0,
+                    -0.0
+                  ],
+                  "yAxis": [
+                    0.0,
+                    1.0,
+                    0.0
+                  ],
+                  "zAxis": [
+                    -0.0,
+                    -0.0,
+                    -1.0
+                  ],
+                  "origin": [
+                    0.0134233937586588,
+                    -0.00775,
+                    -0.0036
+                  ]
+                }
+              }
+            ],
+            "name": "Fastened 2"
+          }
+        },
+        {
+          "id": "MNUBkxxvZDdkGMDsN",
+          "suppressed": false,
+          "featureType": "mate",
+          "featureData": {
+            "mateType": "FASTENED",
+            "matedEntities": [
+              {
+                "matedOccurrence": [
+                  "MXMjIkD+l2beWZJzL"
+                ],
+                "matedCS": {
+                  "xAxis": [
+                    1.0,
+                    0.0,
+                    0.0
+                  ],
+                  "yAxis": [
+                    0.0,
+                    -1.0,
+                    0.0
+                  ],
+                  "zAxis": [
+                    0.0,
+                    0.0,
+                    -1.0
+                  ],
+                  "origin": [
+                    0.10799999999999998,
+                    -2.765454225469924e-17,
+                    0.0294
+                  ]
+                }
+              },
+              {
+                "matedOccurrence": [
+                  "MpH74xSUygxx8ApPs",
+                  "Mj+ctJjVym8DgUVU5"
+                ],
+                "matedCS": {
+                  "xAxis": [
+                    1.0,
+                    0.0,
+                    0.0
+                  ],
+                  "yAxis": [
+                    0.0,
+                    -1.0,
+                    0.0
+                  ],
+                  "zAxis": [
+                    -0.0,
+                    -0.0,
+                    -1.0
+                  ],
+                  "origin": [
+                    -0.042,
+                    -2.7755575615628898e-17,
+                    0.0294
+                  ]
+                }
+              }
+            ],
+            "name": "Fastened 3"
+          }
+        },
+        {
+          "id": "MijN6E8WhCf7IGAkV",
+          "suppressed": false,
+          "featureType": "mate",
+          "featureData": {
+            "mateType": "FASTENED",
+            "matedEntities": [
+              {
+                "matedOccurrence": [
+                  "MpH74xSUygxx8ApPs",
+                  "MpoFgoLx8BjQbyqw8"
+                ],
+                "matedCS": {
+                  "xAxis": [
+                    1.0,
+                    0.0,
+                    0.0
+                  ],
+                  "yAxis": [
+                    0.0,
+                    -1.0,
+                    0.0
+                  ],
+                  "zAxis": [
+                    0.0,
+                    0.0,
+                    -1.0
+                  ],
+                  "origin": [
+                    0.0134233937586588,
+                    0.00775,
+                    -0.0036
+                  ]
+                }
+              },
+              {
+                "matedOccurrence": [
+                  "MquKeVQKu7w/Ke6u/"
+                ],
+                "matedCS": {
+                  "xAxis": [
+                    -1.0,
+                    -0.0,
+                    -0.0
+                  ],
+                  "yAxis": [
+                    0.0,
+                    1.0,
+                    0.0
+                  ],
+                  "zAxis": [
+                    -0.0,
+                    -0.0,
+                    -1.0
+                  ],
+                  "origin": [
+                    0.1365766062413412,
+                    -0.00775,
+                    -0.0036
+                  ]
+                }
+              }
+            ],
+            "name": "Fastened 4"
+          }
+        }
+      ],
+      "fullConfiguration": "default",
+      "configuration": "default",
+      "documentMicroversion": "28c9f60e682a32591585b937",
+      "documentId": "4584269abd10dfa729ae83af",
+      "elementId": "ae74da7e2c35297ad3c6a910"
+    },
+    {
+      "instances": [
+        {
+          "name": "RMD_X8_P6_1 <1>",
+          "suppressed": false,
+          "id": "MpoFgoLx8BjQbyqw8",
+          "type": "Part",
+          "isStandardContent": false,
+          "partId": "JFD",
+          "fullConfiguration": "default",
+          "configuration": "default",
+          "documentMicroversion": "28c9f60e682a32591585b937",
+          "documentId": "4584269abd10dfa729ae83af",
+          "elementId": "39bedc902ada27a8e160a790"
+        },
+        {
+          "name": "RMD_X8_P6_2 <2>",
+          "suppressed": false,
+          "id": "Mj+ctJjVym8DgUVU5",
+          "type": "Part",
+          "isStandardContent": false,
+          "partId": "JFH",
+          "fullConfiguration": "default",
+          "configuration": "default",
+          "documentMicroversion": "28c9f60e682a32591585b937",
+          "documentId": "4584269abd10dfa729ae83af",
+          "elementId": "39bedc902ada27a8e160a790"
+        },
+        {
+          "name": "RMD_X8_P6_3 <3>",
+          "suppressed": false,
+          "id": "MPwAhnc5tBqEBuYLO",
+          "type": "Part",
+          "isStandardContent": false,
+          "partId": "JFL",
+          "fullConfiguration": "default",
+          "configuration": "default",
+          "documentMicroversion": "28c9f60e682a32591585b937",
+          "documentId": "4584269abd10dfa729ae83af",
+          "elementId": "39bedc902ada27a8e160a790"
+        }
+      ],
+      "patterns": [],
+      "features": [
+        {
+          "id": "M/DZvpocUeIP/iCSk",
+          "suppressed": false,
+          "featureType": "mate",
+          "featureData": {
+            "mateType": "FASTENED",
+            "matedEntities": [
+              {
+                "matedOccurrence": [
+                  "MpoFgoLx8BjQbyqw8"
+                ],
+                "matedCS": {
+                  "xAxis": [
+                    1.0,
+                    0.0,
+                    0.0
+                  ],
+                  "yAxis": [
+                    0.0,
+                    -1.0,
+                    0.0
+                  ],
+                  "zAxis": [
+                    0.0,
+                    0.0,
+                    -1.0
+                  ],
+                  "origin": [
+                    5.67657957300288e-17,
+                    2.7315414743828196e-17,
+                    -0.0036
+                  ]
+                }
+              },
+              {
+                "matedOccurrence": [
+                  "MPwAhnc5tBqEBuYLO"
+                ],
+                "matedCS": {
+                  "xAxis": [
+                    -1.0,
+                    -0.0,
+                    -0.0
+                  ],
+                  "yAxis": [
+                    -0.0,
+                    1.0,
+                    0.0
+                  ],
+                  "zAxis": [
+                    0.0,
+                    0.0,
+                    -1.0
+                  ],
+                  "origin": [
+                    -6.177400718255678e-17,
+                    1.23474484854211e-17,
+                    -0.0036
+                  ]
+                }
+              }
+            ],
+            "name": "Fastened 1"
+          }
+        },
+        {
+          "id": "MK40iRFQrZWZ/PPjx",
+          "suppressed": false,
+          "featureType": "mate",
+          "featureData": {
+            "mateType": "REVOLUTE",
+            "matedEntities": [
+              {
+                "matedOccurrence": [
+                  "MpoFgoLx8BjQbyqw8"
+                ],
+                "matedCS": {
+                  "xAxis": [
+                    1.0,
+                    0.0,
+                    0.0
+                  ],
+                  "yAxis": [
+                    0.0,
+                    1.0,
+                    0.0
+                  ],
+                  "zAxis": [
+                    0.0,
+                    0.0,
+                    1.0
+                  ],
+                  "origin": [
+                    4.6797817006449e-17,
+                    3.5264684541179096e-17,
+                    -0.0031
+                  ]
+                }
+              },
+              {
+                "matedOccurrence": [
+                  "Mj+ctJjVym8DgUVU5"
+                ],
+                "matedCS": {
+                  "xAxis": [
+                    -1.0,
+                    -0.0,
+                    -0.0
+                  ],
+                  "yAxis": [
+                    0.0,
+                    -1.0,
+                    0.0
+                  ],
+                  "zAxis": [
+                    -0.0,
+                    -0.0,
+                    1.0
+                  ],
+                  "origin": [
+                    -5.63337527607781e-19,
+                    5.669937756276009e-35,
+                    -0.0031
+                  ]
+                }
+              }
+            ],
+            "name": "dof_x8"
+          }
+        }
+      ],
+      "fullConfiguration": "maxRotation=0.7853981633974483+radian;minRotation=-0.7853981633974483+radian",
+      "configuration": "maxRotation=0.7853981633974483+radian;minRotation=-0.7853981633974483+radian",
+      "documentMicroversion": "28c9f60e682a32591585b937",
+      "documentId": "4584269abd10dfa729ae83af",
+      "elementId": "802252521e4b28c797b720f9"
+    },
+    {
+      "instances": [
+        {
+          "name": "RMD_X8_P6_1 <1>",
+          "suppressed": false,
+          "id": "MpoFgoLx8BjQbyqw8",
+          "type": "Part",
+          "isStandardContent": false,
+          "partId": "JFD",
+          "fullConfiguration": "default",
+          "configuration": "default",
+          "documentMicroversion": "28c9f60e682a32591585b937",
+          "documentId": "4584269abd10dfa729ae83af",
+          "elementId": "39bedc902ada27a8e160a790"
+        },
+        {
+          "name": "RMD_X8_P6_2 <2>",
+          "suppressed": false,
+          "id": "Mj+ctJjVym8DgUVU5",
+          "type": "Part",
+          "isStandardContent": false,
+          "partId": "JFH",
+          "fullConfiguration": "default",
+          "configuration": "default",
+          "documentMicroversion": "28c9f60e682a32591585b937",
+          "documentId": "4584269abd10dfa729ae83af",
+          "elementId": "39bedc902ada27a8e160a790"
+        },
+        {
+          "name": "RMD_X8_P6_3 <3>",
+          "suppressed": false,
+          "id": "MPwAhnc5tBqEBuYLO",
+          "type": "Part",
+          "isStandardContent": false,
+          "partId": "JFL",
+          "fullConfiguration": "default",
+          "configuration": "default",
+          "documentMicroversion": "28c9f60e682a32591585b937",
+          "documentId": "4584269abd10dfa729ae83af",
+          "elementId": "39bedc902ada27a8e160a790"
+        }
+      ],
+      "patterns": [],
+      "features": [
+        {
+          "id": "M/DZvpocUeIP/iCSk",
+          "suppressed": false,
+          "featureType": "mate",
+          "featureData": {
+            "mateType": "FASTENED",
+            "matedEntities": [
+              {
+                "matedOccurrence": [
+                  "MpoFgoLx8BjQbyqw8"
+                ],
+                "matedCS": {
+                  "xAxis": [
+                    1.0,
+                    0.0,
+                    0.0
+                  ],
+                  "yAxis": [
+                    0.0,
+                    -1.0,
+                    0.0
+                  ],
+                  "zAxis": [
+                    0.0,
+                    0.0,
+                    -1.0
+                  ],
+                  "origin": [
+                    5.67657957300288e-17,
+                    2.7315414743828196e-17,
+                    -0.0036
+                  ]
+                }
+              },
+              {
+                "matedOccurrence": [
+                  "MPwAhnc5tBqEBuYLO"
+                ],
+                "matedCS": {
+                  "xAxis": [
+                    -1.0,
+                    -0.0,
+                    -0.0
+                  ],
+                  "yAxis": [
+                    -0.0,
+                    1.0,
+                    0.0
+                  ],
+                  "zAxis": [
+                    0.0,
+                    0.0,
+                    -1.0
+                  ],
+                  "origin": [
+                    -6.177400718255678e-17,
+                    1.23474484854211e-17,
+                    -0.0036
+                  ]
+                }
+              }
+            ],
+            "name": "Fastened 1"
+          }
+        },
+        {
+          "id": "MK40iRFQrZWZ/PPjx",
+          "suppressed": false,
+          "featureType": "mate",
+          "featureData": {
+            "mateType": "REVOLUTE",
+            "matedEntities": [
+              {
+                "matedOccurrence": [
+                  "MpoFgoLx8BjQbyqw8"
+                ],
+                "matedCS": {
+                  "xAxis": [
+                    1.0,
+                    0.0,
+                    0.0
+                  ],
+                  "yAxis": [
+                    0.0,
+                    1.0,
+                    0.0
+                  ],
+                  "zAxis": [
+                    0.0,
+                    0.0,
+                    1.0
+                  ],
+                  "origin": [
+                    4.6797817006449e-17,
+                    3.5264684541179096e-17,
+                    -0.0031
+                  ]
+                }
+              },
+              {
+                "matedOccurrence": [
+                  "Mj+ctJjVym8DgUVU5"
+                ],
+                "matedCS": {
+                  "xAxis": [
+                    -1.0,
+                    -0.0,
+                    -0.0
+                  ],
+                  "yAxis": [
+                    0.0,
+                    -1.0,
+                    0.0
+                  ],
+                  "zAxis": [
+                    -0.0,
+                    -0.0,
+                    1.0
+                  ],
+                  "origin": [
+                    -5.63337527607781e-19,
+                    5.669937756276009e-35,
+                    -0.0031
+                  ]
+                }
+              }
+            ],
+            "name": "dof_x8"
+          }
+        }
+      ],
+      "fullConfiguration": "maxRotation=1.0471975511965976+radian;minRotation=-1.0471975511965976+radian",
+      "configuration": "maxRotation=1.0471975511965976+radian;minRotation=-1.0471975511965976+radian",
+      "documentMicroversion": "28c9f60e682a32591585b937",
+      "documentId": "4584269abd10dfa729ae83af",
+      "elementId": "802252521e4b28c797b720f9"
+    }
+  ],
+  "parts": [
+    {
+      "isStandardContent": false,
+      "partId": "JFL",
+      "bodyType": "solid",
+      "fullConfiguration": "default",
+      "configuration": "default",
+      "documentMicroversion": "28c9f60e682a32591585b937",
+      "documentId": "4584269abd10dfa729ae83af",
+      "elementId": "39bedc902ada27a8e160a790"
+    },
+    {
+      "isStandardContent": false,
+      "partId": "JFD",
+      "bodyType": "solid",
+      "fullConfiguration": "default",
+      "configuration": "default",
+      "documentMicroversion": "28c9f60e682a32591585b937",
+      "documentId": "4584269abd10dfa729ae83af",
+      "elementId": "39bedc902ada27a8e160a790"
+    },
+    {
+      "isStandardContent": false,
+      "partId": "JFH",
+      "bodyType": "solid",
+      "fullConfiguration": "default",
+      "configuration": "default",
+      "documentMicroversion": "28c9f60e682a32591585b937",
+      "documentId": "4584269abd10dfa729ae83af",
+      "elementId": "39bedc902ada27a8e160a790"
+    },
+    {
+      "isStandardContent": false,
+      "partId": "JND",
+      "bodyType": "solid",
+      "fullConfiguration": "default",
+      "configuration": "default",
+      "documentMicroversion": "28c9f60e682a32591585b937",
+      "documentId": "4584269abd10dfa729ae83af",
+      "elementId": "04f239ef8e3acbe934858495"
+    },
+    {
+      "isStandardContent": false,
+      "partId": "JXD",
+      "bodyType": "solid",
+      "fullConfiguration": "default",
+      "configuration": "default",
+      "documentMicroversion": "28c9f60e682a32591585b937",
+      "documentId": "4584269abd10dfa729ae83af",
+      "elementId": "04f239ef8e3acbe934858495"
+    },
+    {
+      "isStandardContent": false,
+      "partId": "JaD",
+      "bodyType": "solid",
+      "fullConfiguration": "default",
+      "configuration": "default",
+      "documentMicroversion": "28c9f60e682a32591585b937",
+      "documentId": "4584269abd10dfa729ae83af",
+      "elementId": "04f239ef8e3acbe934858495"
+    }
+  ],
+  "partStudioFeatures": []
+}
