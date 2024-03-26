@@ -29,3 +29,4 @@ kol show-urdf robot/<urdf-name>.urdf
 
 - [OnShape API explorer](https://cad.onshape.com/glassworks/explorer/#/Assembly/getFeatures)
 - [OnShape API documentation](https://onshape-public.github.io/docs/api-intro/)
+- [OnShape-to-Robot Library](https://github.com/Rhoban/onshape-to-robot)
