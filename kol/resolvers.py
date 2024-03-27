@@ -7,10 +7,15 @@ logger = logging.getLogger(__name__)
 
 
 class ExpressionResolver:
-    def __init__(self, configuration_parameters: dict[str, str]) -> None:
+    def __init__(self, configuration: str) -> None:
         super().__init__()
 
-        self.configuration_parameters = configuration_parameters
+        # Parses the configuration string to a dictionary.
+        self.configuration_parameters: dict[str, str] = {}
+        if configuration != "default":
+            for kv in configuration.split(";"):
+                key, value = kv.split("=")
+                self.configuration_parameters[key] = value
 
     def read_expression(self, expression: str) -> float:
         """Reads an expression and returns a float value.
@@ -57,66 +62,3 @@ class ExpressionResolver:
                 return float(value) * 0.3048
             case _:
                 raise ValueError(f"{unit} unit isn't supported")
-
-    def read_parameter_value(self, parameter: dict, name: str) -> float:
-        if parameter["typeName"] == "BTMParameterNullableQuantity":
-            return self.read_expression(parameter["message"]["expression"])
-
-        if parameter["typeName"] == "BTMParameterConfigured":
-            message = parameter["message"]
-            parameter_value = self.configuration_parameters[message["configurationParameterId"]]
-
-            for value in message["values"]:
-                if value["typeName"] == "BTMConfiguredValueByBoolean":
-                    boolean_value = parameter_value == "true"
-                    if value["message"]["booleanValue"] == boolean_value:
-                        return self.read_expression(value["message"]["value"]["message"]["expression"])
-                elif value["typeName"] == "BTMConfiguredValueByEnum":
-                    if value["message"]["enumValue"] == parameter_value:
-                        return self.read_expression(value["message"]["value"]["message"]["expression"])
-                else:
-                    raise ValueError(f"Can't read value of parameter {name} configured with {value['typeName']}")
-            raise ValueError(f"Could not find the value for {name}")
-        raise ValueError(f"Unknown feature type for {name}: {parameter['typeName']}")
-
-
-class JointLimitResolver:
-    def __init__(self, joint_features: dict, expression_resolver: ExpressionResolver) -> None:
-        super().__init__()
-
-        self.joint_features = joint_features
-        self.expression_resolver = expression_resolver
-
-    def get_limits(self, joint_type: str, name: str) -> tuple[float, float] | None:
-        enabled = False
-        minimum, maximum = 0.0, 0.0
-
-        if joint_type not in ("revolute", "prismatic", "continuous"):
-            logger.warning("Unknown joint type: %s", joint_type)
-
-        for feature in self.joint_features["features"]:
-            if name != feature["message"]["name"]:
-                continue
-
-            for parameter in feature["message"]["parameters"]:
-                if parameter["message"]["parameterId"] == "limitsEnabled":
-                    enabled = parameter["message"]["value"]
-
-                match joint_type:
-                    case "revolute":
-                        if parameter["message"]["parameterId"] == "limitAxialZMin":
-                            minimum = self.expression_resolver.read_parameter_value(parameter, name)
-                        if parameter["message"]["parameterId"] == "limitAxialZMax":
-                            maximum = self.expression_resolver.read_parameter_value(parameter, name)
-
-                    case "prismatic":
-                        if parameter["message"]["parameterId"] == "limitZMin":
-                            minimum = self.expression_resolver.read_parameter_value(parameter, name)
-                        if parameter["message"]["parameterId"] == "limitZMax":
-                            maximum = self.expression_resolver.read_parameter_value(parameter, name)
-
-        if enabled:
-            return (minimum, maximum)
-        if joint_type != "continuous":
-            logger.warning("Joint %s of type %s has no limits", name, joint_type)
-        return None

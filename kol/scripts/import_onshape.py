@@ -30,8 +30,9 @@ from kol.onshape.schema.assembly import (
     clean_name,
 )
 from kol.onshape.schema.common import ElementUid
-from kol.onshape.schema.features import Features
+from kol.onshape.schema.features import Feature, Features, ParameterNullableQuantity
 from kol.onshape.schema.part import PartDynamics, PartMetadata
+from kol.resolvers import ExpressionResolver
 
 logger = logging.getLogger(__name__)
 
@@ -54,7 +55,7 @@ def get_link_for_part(
     part_dynamics: dict[ElementUid, PartDynamics],
     mate_to_part_tf: np.matrix,
 ) -> urdf.Link:
-    part_instance = assembly.path_to_part_instance[key]
+    part_instance = assembly.key_to_part_instance[key]
     part_file_name = f"package:///meshes/{part_file_names[part_instance.key]}"
     part_color = part_colors[part_instance.key]
     part_dynamic = part_dynamics[part_instance.key].bodies[part_instance.partId]
@@ -225,6 +226,43 @@ def get_assembly_features(
     return assembly_features
 
 
+@dataclass
+class JointInformation:
+    z_min_expression: str | None
+    z_max_expression: str | None
+    axial_z_min_expression: str | None
+    axial_z_max_expression: str | None
+
+
+def get_joint_information(
+    cache_dir: Path | None,
+    assembly: Assembly,
+    api: OnshapeApi,
+) -> dict[tuple[ElementUid, str], JointInformation]:
+    # Retrieves the features for the root assembly and each subassembly.
+    assembly_features = get_assembly_features(cache_dir, assembly, api)
+
+    def get_feature_float_value(key: str, feature: Feature) -> str | None:
+        if not isinstance(attrib := feature.message.parameter_dict.get(key), ParameterNullableQuantity):
+            return None
+        if attrib.message.isNull:
+            return None
+        return attrib.message.expression
+
+    # Gets the joint information for each feature from the assembly features.
+    joint_information: dict[tuple[ElementUid, str], JointInformation] = {}
+    for assembly_key, assembly_feature in assembly_features.items():
+        for feature in assembly_feature.features:
+            joint_information[(assembly_key, feature.message.featureId)] = JointInformation(
+                z_min_expression=get_feature_float_value("limitZMin", feature),
+                z_max_expression=get_feature_float_value("limitZMax", feature),
+                axial_z_min_expression=get_feature_float_value("limitAxialZMin", feature),
+                axial_z_max_expression=get_feature_float_value("limitAxialZMax", feature),
+            )
+
+    return joint_information
+
+
 def download_parts(
     cache_dir: Path | None,
     meshes_dir: Path,
@@ -290,14 +328,14 @@ def download_parts(
             logger.info("Using cached STL file %s", output_path)
 
     # Ensure that none of the features use assembly instances.
-    for path, mate_feature in assembly.path_to_mate_feature.items():
+    for path, mate_feature in assembly.key_to_mate_feature.items():
         for mate_pair in itertools.combinations(mate_feature.featureData.matedEntities, 2):
             for mate_i in mate_pair:
                 mate_path = path[:-1] + mate_i.key
-                if mate_path not in assembly.path_to_part_instance:
+                if mate_path not in assembly.key_to_part_instance:
                     raise ValueError(
-                        f'Feature "{" / ".join(assembly.path_to_name.get(path, path))}" connects to an assembly '
-                        f'"{" / ".join(assembly.path_to_name.get(mate_path, mate_path))}", which is not supported'
+                        f'Feature "{" / ".join(assembly.key_to_name.get(path, path))}" connects to an assembly '
+                        f'"{" / ".join(assembly.key_to_name.get(mate_path, mate_path))}", which is not supported'
                     )
 
     return part_file_names, part_colors, part_dynamics
@@ -305,28 +343,28 @@ def download_parts(
 
 def get_assembly_graph(assembly: Assembly) -> nx.Graph:
     graph = nx.Graph()
-    for path, _ in assembly.path_to_part_instance.items():
+    for path, _ in assembly.key_to_part_instance.items():
         graph.add_node(path)
 
     def add_edge_safe(node_a: Key, node_b: Key, name: str) -> None:
         if node_a not in graph:
-            raise ValueError(f"Node {assembly.path_to_name.get(node_a, node_a)} not found in graph")
+            raise ValueError(f"Node {assembly.key_to_name.get(node_a, node_a)} not found in graph")
         if node_b not in graph:
-            raise ValueError(f"Node {assembly.path_to_name.get(node_b, node_b)} not found in graph")
+            raise ValueError(f"Node {assembly.key_to_name.get(node_b, node_b)} not found in graph")
         graph.add_edge(node_a, node_b, name=name)
 
     # Add edges between nodes that have a feature connecting them.
-    for path, mate_feature in assembly.path_to_mate_feature.items():
+    for path, mate_feature in assembly.key_to_mate_feature.items():
         for mate_pair in itertools.combinations(mate_feature.featureData.matedEntities, 2):
-            name = " / ".join(assembly.path_to_name.get(path, path))
+            name = " / ".join(assembly.key_to_name.get(path, path))
             add_edge_safe(path[:-1] + mate_pair[0].key, path[:-1] + mate_pair[1].key, name)
 
     # Logs all of the nodes and edges in the graph.
     for edge in graph.edges:
         logger.debug(
             'Edge: Part "%s" -> Path "%s" (Feature "%s")',
-            " / ".join(assembly.path_to_name.get(edge[0], edge[0])),
-            " / ".join(assembly.path_to_name.get(edge[1], edge[1])),
+            " / ".join(assembly.key_to_name.get(edge[0], edge[0])),
+            " / ".join(assembly.key_to_name.get(edge[1], edge[1])),
             graph.edges[edge]["name"],
         )
 
@@ -336,7 +374,7 @@ def get_assembly_graph(assembly: Assembly) -> nx.Graph:
 
         components: list[str] = []
         for component in nx.connected_components(graph):
-            component_list = sorted([" / ".join(assembly.path_to_name.get(c, c)) for c in component])
+            component_list = sorted([" / ".join(assembly.key_to_name.get(c, c)) for c in component])
             components.append("\n      ".join(component_list))
         components_string = "\n\n".join(f"  {i + 1: <3} {component}" for i, component in enumerate(components))
 
@@ -353,8 +391,8 @@ def get_assembly_graph(assembly: Assembly) -> nx.Graph:
                     break
                 logger.error(
                     "Parallel connection: %s -> %s",
-                    " / ".join(assembly.path_to_name.get(cycle[i], cycle[i])),
-                    " / ".join(assembly.path_to_name.get(cycle[i + 1], cycle[i + 1])),
+                    " / ".join(assembly.key_to_name.get(cycle[i], cycle[i])),
+                    " / ".join(assembly.key_to_name.get(cycle[i + 1], cycle[i + 1])),
                 )
         raise ValueError("The assembly has parallel connections! URDF export requires no parallel connections.")
 
@@ -370,7 +408,7 @@ def get_central_node_and_ordered_joint_list(assembly: Assembly) -> tuple[Key, li
     # Gets the most central node in the graph.
     closeness_centrality = nx.closeness_centrality(graph)
     central_node: Key = max(closeness_centrality, key=closeness_centrality.get)
-    logger.debug("Central node: %s", " / ".join(assembly.path_to_name.get(central_node, central_node)))
+    logger.debug("Central node: %s", " / ".join(assembly.key_to_name.get(central_node, central_node)))
 
     # Get BFS ordering from the central node to establish parent-child.
     digraph = nx.bfs_tree(graph, central_node)
@@ -379,7 +417,7 @@ def get_central_node_and_ordered_joint_list(assembly: Assembly) -> tuple[Key, li
 
     # Creates a topologically-sorted list of joints.
     joint_list: list[Joint] = []
-    for joint_key, mate_feature in assembly.path_to_mate_feature.items():
+    for joint_key, mate_feature in assembly.key_to_mate_feature.items():
         lhs_entity, rhs_entity = mate_feature.featureData.matedEntities
         lhs_key, rhs_key = joint_key[:-1] + lhs_entity.key, joint_key[:-1] + rhs_entity.key
         lhs_is_first = node_level[lhs_key] < node_level[rhs_key]
@@ -400,7 +438,7 @@ class MimicRelation:
 
 def get_relations(assembly: Assembly) -> dict[Key, MimicRelation]:
     relations: dict[Key, MimicRelation] = {}
-    for path, mate_relation_feature in assembly.path_to_mate_relation_feature.items():
+    for path, mate_relation_feature in assembly.key_to_mate_relation_feature.items():
         relation_type = mate_relation_feature.featureData.relationType
 
         match relation_type:
@@ -426,8 +464,15 @@ def get_joint(
     mate_type: MateType,
     relations: dict[Key, MimicRelation],
     origin: urdf.Origin,
+    info: JointInformation,
+    resolver: ExpressionResolver,
+    default_prismatic_joint_limits: urdf.JointLimits,
+    default_revolute_joint_limits: urdf.JointLimits,
     name: str,
 ) -> urdf.BaseJoint:
+    def resolve(expression: str | None) -> float | None:
+        return None if expression is None else resolver.read_expression(expression)
+
     match mate_type:
         case MateType.FASTENED:
             parent, child = assembly.key_name(parent_key, "link"), assembly.key_name(child_key, "link")
@@ -441,13 +486,22 @@ def get_joint(
         case MateType.REVOLUTE:
             parent, child = assembly.key_name(parent_key, "link"), assembly.key_name(child_key, "link")
             mimic_joint = relations.get(child_key)
+
+            min_value = resolve(info.axial_z_min_expression)
+            max_value = resolve(info.axial_z_max_expression)
+
             return urdf.RevoluteJoint(
                 name=name,
                 parent=parent,
                 child=child,
                 origin=origin,
                 axis=urdf.Axis((0.0, 0.0, 1.0)),
-                limits=urdf.JointLimits(1.0, 1.0),  # TODO: Fix this.
+                limits=urdf.JointLimits(
+                    effort=default_revolute_joint_limits.effort,
+                    velocity=default_revolute_joint_limits.velocity,
+                    lower=min_value,
+                    upper=max_value,
+                ),
                 mimic=(
                     None
                     if mimic_joint is None
@@ -462,13 +516,22 @@ def get_joint(
         case MateType.SLIDER:
             parent, child = assembly.key_name(parent_key, "link"), assembly.key_name(child_key, "link")
             mimic_joint = relations.get(child_key)
+
+            min_value = resolve(info.z_min_expression)
+            max_value = resolve(info.z_max_expression)
+
             return urdf.PrismaticJoint(
                 name=name,
                 parent=parent,
                 child=child,
                 origin=origin,
                 axis=urdf.Axis((0.0, 0.0, 1.0)),
-                limits=urdf.JointLimits(1.0, 1.0),  # TODO: Fix this.
+                limits=urdf.JointLimits(
+                    effort=default_prismatic_joint_limits.effort,
+                    velocity=default_prismatic_joint_limits.velocity,
+                    lower=min_value,
+                    upper=max_value,
+                ),
                 mimic=(
                     None
                     if mimic_joint is None
@@ -509,6 +572,8 @@ def import_onshape(
     ignore_cache: bool = False,
     clear_cache: bool = False,
     clear_meshes: bool = False,
+    default_prismatic_joint_limits: urdf.JointLimits = urdf.JointLimits(80.0, 5.0),
+    default_revolute_joint_limits: urdf.JointLimits = urdf.JointLimits(80.0, 5.0),
     configuration: str = "default",
 ) -> None:
     """Import the robot model from OnShape.
@@ -523,6 +588,8 @@ def import_onshape(
         ignore_cache: If set, ignore cached files.
         clear_cache: If set, clear the cache before importing.
         clear_meshes: If set, clear the meshes before importing.
+        default_prismatic_joint_limits: The default limits for prismatic joints.
+        default_revolute_joint_limits: The default limits for revolute joints.
         configuration: The configuration to use for the import.
     """
     output_dir, cache_dir, meshes_dir = get_directories(output_dir, ignore_cache, clear_cache, clear_meshes)
@@ -558,13 +625,11 @@ def import_onshape(
         lambda asm: asm.model_dump_json(indent=2),
     )
 
-    # Retrieves the features for the root assembly and each subassembly.
-    assembly_features = get_assembly_features(cache_dir, assembly, api)
-
     # Downloads the STL files for each part in the assembly.
     part_file_names, part_colors, part_dynamics = download_parts(cache_dir, meshes_dir, assembly, api)
 
     # Gets the central node and ordered joint list.
+    joint_information = get_joint_information(cache_dir, assembly, api)
     central_node, joint_list = get_central_node_and_ordered_joint_list(assembly)
 
     # Gets the mimic relations for the joints.
@@ -591,18 +656,24 @@ def import_onshape(
         )
 
     # Add the first link, since it has no incoming joint.
-    central_node_mate_to_world_tf = assembly.path_to_occurrence[central_node].world_to_part_tf
+    central_node_mate_to_world_tf = assembly.key_to_occurrence[central_node].world_to_part_tf
     part_link = get_link_for_part_by_key(central_node, central_node_mate_to_world_tf)
     links.append(part_link)
 
     # Creates a URDF joint for each feature connecting two parts.
     for parent_key, child_key, _, child_entity, mate_type, joint_key in joint_list:
-        child_occurrence = assembly.path_to_occurrence[child_key]
+        child_occurrence = assembly.key_to_occurrence[child_key]
+        child_instance = assembly.key_to_part_instance[child_key]
         child_world_to_part_tf = child_occurrence.world_to_part_tf
         child_part_to_mate_tf = child_entity.matedCS.part_to_mate_tf
         child_world_to_mate_tf = child_world_to_part_tf @ child_part_to_mate_tf
         world_to_mate_tfs[child_key] = child_world_to_mate_tf
         parent_mate_to_child_mate_tf = b_to_a_tf(world_to_mate_tfs[parent_key]) @ child_world_to_mate_tf
+
+        # Gets the joint limits.
+        assembly_euid, feature_id = assembly.assembly_key_to_id[child_key[:-1]], joint_key[-1]
+        joint_info = joint_information[(assembly_euid, feature_id)]
+        expression_resolver = ExpressionResolver(child_instance.fullConfiguration)
 
         # Adds the link for the part.
         part_link = get_link_for_part_by_key(child_key, b_to_a_tf(child_part_to_mate_tf))
@@ -611,7 +682,20 @@ def import_onshape(
         # Adds the joint for the parent.
         joint_origin = urdf.Origin.from_matrix(parent_mate_to_child_mate_tf)
         joint_name = assembly.key_name(joint_key, "joint")
-        joints.append(get_joint(assembly, parent_key, child_key, mate_type, relations, joint_origin, joint_name))
+        joint = get_joint(
+            assembly=assembly,
+            parent_key=parent_key,
+            child_key=child_key,
+            mate_type=mate_type,
+            relations=relations,
+            origin=joint_origin,
+            info=joint_info,
+            resolver=expression_resolver,
+            default_prismatic_joint_limits=default_prismatic_joint_limits,
+            default_revolute_joint_limits=default_revolute_joint_limits,
+            name=joint_name,
+        )
+        joints.append(joint)
 
     # Saves the final URDF.
     robot_name = clean_name(str(assembly_metadata.property_map.get("Name", "robot")))
@@ -630,6 +714,10 @@ def main(args: Sequence[str] | None = None) -> None:
     parser.add_argument("--clear-cache", action="store_true", help="Clear the cache before importing")
     parser.add_argument("--clear-meshes", action="store_true", help="Clear the meshes before importing")
     parser.add_argument("--debug", action="store_true", help="Enable debug logging")
+    parser.add_argument("--max-force", type=float, default=80.0, help="The maximum force for a prismatic joint")
+    parser.add_argument("--max-velocity", type=float, default=5.0, help="The maximum velocity for a prismatic joint")
+    parser.add_argument("--max-torque", type=float, default=80.0, help="The maximum force for a revolute joint")
+    parser.add_argument("--max-ang-velocity", type=float, default=5.0, help="The maximum velocity for a revolute joint")
     parsed_args = parser.parse_args(args)
 
     configure_logging(level=logging.DEBUG if parsed_args.debug else logging.INFO)
@@ -643,6 +731,14 @@ def main(args: Sequence[str] | None = None) -> None:
         ignore_cache=parsed_args.ignore_cache,
         clear_cache=parsed_args.clear_cache,
         clear_meshes=parsed_args.clear_meshes,
+        default_prismatic_joint_limits=urdf.JointLimits(
+            effort=parsed_args.max_force,
+            velocity=parsed_args.max_velocity,
+        ),
+        default_revolute_joint_limits=urdf.JointLimits(
+            effort=parsed_args.max_torque,
+            velocity=parsed_args.max_ang_velocity,
+        ),
     )
 
 

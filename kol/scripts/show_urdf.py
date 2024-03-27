@@ -12,16 +12,16 @@ from kol.logging import configure_logging
 def main(args: Sequence[str] | None = None) -> None:
     configure_logging()
 
-    try:
-        import pybullet as p
-    except ImportError:
-        raise ImportError("pybullet is required to run this script")
-
     parser = argparse.ArgumentParser(description="Show a URDF")
     parser.add_argument("urdf", help="Path to the URDF file")
     parser.add_argument("--dt", type=float, default=0.01, help="Time step")
     parser.add_argument("-n", "--hide-gui", action="store_true", help="Hide the GUI")
     parsed_args = parser.parse_args(args)
+
+    try:
+        import pybullet as p
+    except ImportError:
+        raise ImportError("pybullet is required to run this script")
 
     # Connect to PyBullet.
     p.connect(p.GUI)

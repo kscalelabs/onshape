@@ -1,6 +1,7 @@
 # ruff: noqa: N815
 """Defines the schema for the Features API."""
 
+import functools
 from enum import Enum
 from typing import Literal
 
@@ -180,6 +181,10 @@ class FeatureMessage(BaseModel):
     hasUserCode: bool
     nodeId: str
     mateConnectors: list[MateConnector] | None = None
+
+    @functools.cached_property
+    def parameter_dict(self) -> dict[str, Parameter]:
+        return {param.message.parameterId: param for param in self.parameters}
 
 
 class Feature(BaseModel):
