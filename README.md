@@ -6,8 +6,16 @@ This library is what we use at K-Scale for interacting with OnShape. It is a wra
 
 Install the library using pip:
 
-```
+```bash
 pip install kscale-onshape-library
+```
+
+Or, if you're developing the library, do:
+
+```bash
+git clone git@github.com:kscalelabs/onshape.git
+cd onshape
+pip install -e '.[dev]'
 ```
 
 ### Usage
