@@ -30,7 +30,7 @@ from kol.onshape.schema.assembly import (
     clean_name,
 )
 from kol.onshape.schema.common import ElementUid
-from kol.onshape.schema.features import Feature, Features, ParameterNullableQuantity
+from kol.onshape.schema.features import Feature, Features
 from kol.onshape.schema.part import PartDynamics, PartMetadata
 from kol.resolvers import ExpressionResolver
 
@@ -238,22 +238,30 @@ def get_joint_information(
     cache_dir: Path | None,
     assembly: Assembly,
     api: OnshapeApi,
-) -> dict[tuple[ElementUid, str], JointInformation]:
+) -> dict[tuple[str, str, str, str], JointInformation]:
     # Retrieves the features for the root assembly and each subassembly.
     assembly_features = get_assembly_features(cache_dir, assembly, api)
 
     def get_feature_float_value(key: str, feature: Feature) -> str | None:
-        if not isinstance(attrib := feature.message.parameter_dict.get(key), ParameterNullableQuantity):
+        if (attrib := feature.message.parameter_dict.get(key)) is None:
             return None
-        if attrib.message.isNull:
-            return None
-        return attrib.message.expression
+        match attrib["typeName"]:
+            case "BTMParameterNullableQuantity":
+                return None if attrib["message"]["isNull"] else attrib["message"]["expression"]
+            case _:
+                return None
 
     # Gets the joint information for each feature from the assembly features.
-    joint_information: dict[tuple[ElementUid, str], JointInformation] = {}
+    joint_information: dict[tuple[str, str, str, str], JointInformation] = {}
     for assembly_key, assembly_feature in assembly_features.items():
         for feature in assembly_feature.features:
-            joint_information[(assembly_key, feature.message.featureId)] = JointInformation(
+            key = (
+                assembly_key.document_id,
+                assembly_key.document_microversion,
+                assembly_key.element_id,
+                feature.message.featureId,
+            )
+            joint_information[key] = JointInformation(
                 z_min_expression=get_feature_float_value("limitZMin", feature),
                 z_max_expression=get_feature_float_value("limitZMax", feature),
                 axial_z_min_expression=get_feature_float_value("limitAxialZMin", feature),
@@ -451,6 +459,15 @@ def get_relations(assembly: Assembly) -> dict[Key, MimicRelation]:
                     multiplier=-ratio if reverse else ratio,
                 )
 
+            case RelationType.LINEAR:
+                parent_key, child_key = mate_relation_feature.keys(path[:-1])
+                ratio = mate_relation_feature.featureData.relationRatio
+                reverse = mate_relation_feature.featureData.reverseDirection
+                relations[child_key] = MimicRelation(
+                    parent=parent_key,
+                    multiplier=-ratio if reverse else ratio,
+                )
+
             case _:
                 raise ValueError(f"Unsupported relation type: {relation_type}")
 
@@ -468,6 +485,7 @@ def get_joint(
     resolver: ExpressionResolver,
     default_prismatic_joint_limits: urdf.JointLimits,
     default_revolute_joint_limits: urdf.JointLimits,
+    joint_key: Key,
     name: str,
 ) -> urdf.BaseJoint:
     def resolve(expression: str | None) -> float | None:
@@ -485,10 +503,13 @@ def get_joint(
 
         case MateType.REVOLUTE:
             parent, child = assembly.key_name(parent_key, "link"), assembly.key_name(child_key, "link")
-            mimic_joint = relations.get(child_key)
+            mimic_joint = relations.get(joint_key)
 
             min_value = resolve(info.axial_z_min_expression)
             max_value = resolve(info.axial_z_max_expression)
+
+            if min_value is None or max_value is None:
+                raise ValueError(f"Revolute joint {name} ({parent} -> {child}) does not have limits defined.")
 
             return urdf.RevoluteJoint(
                 name=name,
@@ -506,7 +527,7 @@ def get_joint(
                     None
                     if mimic_joint is None
                     else urdf.JointMimic(
-                        joint=assembly.key_name(mimic_joint.parent, "link"),
+                        joint=assembly.key_name(mimic_joint.parent, "joint"),
                         multiplier=mimic_joint.multiplier,
                         offset=0.0,
                     )
@@ -515,10 +536,13 @@ def get_joint(
 
         case MateType.SLIDER:
             parent, child = assembly.key_name(parent_key, "link"), assembly.key_name(child_key, "link")
-            mimic_joint = relations.get(child_key)
+            mimic_joint = relations.get(joint_key)
 
             min_value = resolve(info.z_min_expression)
             max_value = resolve(info.z_max_expression)
+
+            if min_value is None or max_value is None:
+                raise ValueError(f"Slider joint {name} ({parent} -> {child}) does not have limits defined.")
 
             return urdf.PrismaticJoint(
                 name=name,
@@ -536,7 +560,7 @@ def get_joint(
                     None
                     if mimic_joint is None
                     else urdf.JointMimic(
-                        joint=assembly.key_name(mimic_joint.parent, "link"),
+                        joint=assembly.key_name(mimic_joint.parent, "joint"),
                         multiplier=mimic_joint.multiplier,
                         offset=0.0,
                     )
@@ -572,8 +596,8 @@ def import_onshape(
     ignore_cache: bool = False,
     clear_cache: bool = False,
     clear_meshes: bool = False,
-    default_prismatic_joint_limits: urdf.JointLimits = urdf.JointLimits(80.0, 5.0),
-    default_revolute_joint_limits: urdf.JointLimits = urdf.JointLimits(80.0, 5.0),
+    default_prismatic_joint_limits: urdf.JointLimits = urdf.JointLimits(80.0, 5.0, -1.0, 1.0),
+    default_revolute_joint_limits: urdf.JointLimits = urdf.JointLimits(80.0, 5.0, -np.pi, np.pi),
     configuration: str = "default",
 ) -> None:
     """Import the robot model from OnShape.
@@ -663,7 +687,6 @@ def import_onshape(
     # Creates a URDF joint for each feature connecting two parts.
     for parent_key, child_key, _, child_entity, mate_type, joint_key in joint_list:
         child_occurrence = assembly.key_to_occurrence[child_key]
-        child_instance = assembly.key_to_part_instance[child_key]
         child_world_to_part_tf = child_occurrence.world_to_part_tf
         child_part_to_mate_tf = child_entity.matedCS.part_to_mate_tf
         child_world_to_mate_tf = child_world_to_part_tf @ child_part_to_mate_tf
@@ -671,9 +694,15 @@ def import_onshape(
         parent_mate_to_child_mate_tf = b_to_a_tf(world_to_mate_tfs[parent_key]) @ child_world_to_mate_tf
 
         # Gets the joint limits.
-        assembly_euid, feature_id = assembly.assembly_key_to_id[child_key[:-1]], joint_key[-1]
-        joint_info = joint_information[(assembly_euid, feature_id)]
-        expression_resolver = ExpressionResolver(child_instance.fullConfiguration)
+        joint_assembly_id, feature_id = assembly.assembly_key_to_id[joint_key[:-1]], joint_key[-1]
+        joint_info_key = (
+            joint_assembly_id.document_id,
+            joint_assembly_id.document_microversion,
+            joint_assembly_id.element_id,
+            feature_id,
+        )
+        joint_info = joint_information[joint_info_key]
+        expression_resolver = ExpressionResolver(joint_assembly_id.configuration)
 
         # Adds the link for the part.
         part_link = get_link_for_part_by_key(child_key, b_to_a_tf(child_part_to_mate_tf))
@@ -693,6 +722,7 @@ def import_onshape(
             resolver=expression_resolver,
             default_prismatic_joint_limits=default_prismatic_joint_limits,
             default_revolute_joint_limits=default_revolute_joint_limits,
+            joint_key=joint_key,
             name=joint_name,
         )
         joints.append(joint)
@@ -716,8 +746,10 @@ def main(args: Sequence[str] | None = None) -> None:
     parser.add_argument("--debug", action="store_true", help="Enable debug logging")
     parser.add_argument("--max-force", type=float, default=80.0, help="The maximum force for a prismatic joint")
     parser.add_argument("--max-velocity", type=float, default=5.0, help="The maximum velocity for a prismatic joint")
+    parser.add_argument("--max-length", type=float, default=1.0, help="The maximum length for a prismatic joint")
     parser.add_argument("--max-torque", type=float, default=80.0, help="The maximum force for a revolute joint")
     parser.add_argument("--max-ang-velocity", type=float, default=5.0, help="The maximum velocity for a revolute joint")
+    parser.add_argument("--max-angle", type=float, default=np.pi, help="The maximum angle for a revolute joint")
     parsed_args = parser.parse_args(args)
 
     configure_logging(level=logging.DEBUG if parsed_args.debug else logging.INFO)
@@ -734,10 +766,14 @@ def main(args: Sequence[str] | None = None) -> None:
         default_prismatic_joint_limits=urdf.JointLimits(
             effort=parsed_args.max_force,
             velocity=parsed_args.max_velocity,
+            lower=-parsed_args.max_length,
+            upper=parsed_args.max_length,
         ),
         default_revolute_joint_limits=urdf.JointLimits(
             effort=parsed_args.max_torque,
             velocity=parsed_args.max_ang_velocity,
+            lower=-parsed_args.max_angle,
+            upper=parsed_args.max_angle,
         ),
     )
 

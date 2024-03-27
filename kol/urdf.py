@@ -58,16 +58,18 @@ class Axis:
 class JointLimits:
     effort: float  # N*m for revolute, N for prismatic
     velocity: float  # rad/s for revolute, m/s for prismatic
-    lower: float | None = None  # radians for revolute, meters for prismatic
-    upper: float | None = None  # radians for revolute, meters for prismatic
+    lower: float  # radians for revolute, meters for prismatic
+    upper: float  # radians for revolute, meters for prismatic
 
     def to_xml(self, root: ET.Element) -> ET.Element:
-        kwargs: dict[str, str] = {"effort": format_number(self.effort), "velocity": format_number(self.velocity)}
-        if self.lower is not None:
-            kwargs["lower"] = format_number(self.lower)
-        if self.upper is not None:
-            kwargs["upper"] = format_number(self.upper)
-        return ET.SubElement(root, "limit", kwargs)
+        return ET.SubElement(
+            root,
+            "limit",
+            effort=format_number(self.effort),
+            velocity=format_number(self.velocity),
+            lower=format_number(self.lower),
+            upper=format_number(self.upper),
+        )
 
 
 @dataclass

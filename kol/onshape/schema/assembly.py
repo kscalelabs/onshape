@@ -127,6 +127,7 @@ class MateFeatureData(BaseModel):
 
 class RelationType(str, Enum):
     GEAR = "GEAR"
+    LINEAR = "LINEAR"
 
 
 class MateRelationMate(BaseModel):
@@ -349,11 +350,11 @@ class Assembly(BaseModel):
                 feature_mapping[key + (feature.id,)] = feature
         return feature_mapping
 
-    @property
+    @functools.cached_property
     def key_to_mate_feature(self) -> dict[Key, MateFeature]:
         return {p: f for p, f in self.key_to_feature.items() if isinstance(f, MateFeature)}
 
-    @property
+    @functools.cached_property
     def key_to_mate_relation_feature(self) -> dict[Key, MateRelationFeature]:
         return {p: f for p, f in self.key_to_feature.items() if isinstance(f, MateRelationFeature)}
 

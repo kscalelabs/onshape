@@ -3,7 +3,7 @@
 
 import functools
 from enum import Enum
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -23,123 +23,7 @@ class ParameterMessage(BaseModel):
     nodeId: str
 
 
-# -----------------------------------
-# BTMParameterQueryWithOccurrenceList
-# -----------------------------------
-
-
-class InferenceQueryWithOccurrenceMessage(BaseModel):
-    secondGeometryId: str
-    inferenceType: str
-    geometryIds: list[str]
-    path: list[str]
-    hasUserCode: bool
-    nodeId: str
-
-
-class InferenceQueryWithOccurrence(BaseModel):
-    type: Literal[1083]
-    typeName: Literal["BTMInferenceQueryWithOccurrence"]
-    message: InferenceQueryWithOccurrenceMessage
-
-
-class FeatureQueryWithOccurrenceMessage(BaseModel):
-    featureId: str
-    queryData: str
-    path: list[str]
-    hasUserCode: bool
-    nodeId: str
-
-
-class FeatureQueryWithOccurrence(BaseModel):
-    type: Literal[157]
-    typeName: Literal["BTMFeatureQueryWithOccurrence"]
-    message: FeatureQueryWithOccurrenceMessage
-
-
-class ParameterQueryWithOccurrenceListMessage(ParameterMessage):
-    queries: list[InferenceQueryWithOccurrence | FeatureQueryWithOccurrence]
-
-
-class ParameterQueryWithOccurrenceList(BaseModel):
-    type: Literal[67]
-    typeName: Literal["BTMParameterQueryWithOccurrenceList"]
-    message: ParameterQueryWithOccurrenceListMessage
-
-
-# -------------------
-# BTMParameterBoolean
-# -------------------
-
-
-class ParameterBooleanMessage(ParameterMessage):
-    value: bool
-
-
-class ParameterBoolean(BaseModel):
-    type: Literal[144]
-    typeName: Literal["BTMParameterBoolean"]
-    message: ParameterBooleanMessage
-
-
-# ----------------
-# BTMParameterEnum
-# ----------------
-
-
-class ParameterEnumMessage(ParameterMessage):
-    enumName: str
-    value: str
-    namespace: str
-
-
-class ParameterEnum(BaseModel):
-    type: Literal[145]
-    typeName: Literal["BTMParameterEnum"]
-    message: ParameterEnumMessage
-
-
-# --------------------
-# BTMParameterQuantity
-# --------------------
-
-
-class ParameterQuantityMessage(ParameterMessage):
-    units: str
-    value: float
-    expression: str
-    isInteger: bool
-
-
-class ParameterQuantity(BaseModel):
-    type: Literal[147]
-    typeName: Literal["BTMParameterQuantity"]
-    message: ParameterQuantityMessage
-
-
-# ----------------------------
-# BTMParameterNullableQuantity
-# ----------------------------
-
-
-class ParameterNullableQuantityMessage(ParameterMessage):
-    isNull: bool
-    nullValue: str
-    units: str
-    value: float
-    expression: str
-    isInteger: bool
-
-
-class ParameterNullableQuantity(BaseModel):
-    type: Literal[807]
-    typeName: Literal["BTMParameterNullableQuantity"]
-    message: ParameterNullableQuantityMessage
-
-
-Parameter = (
-    ParameterBoolean | ParameterEnum | ParameterQuantity | ParameterQueryWithOccurrenceList | ParameterNullableQuantity
-)
+Parameter = Any
 
 
 class MateConnectorMessage(BaseModel):
@@ -183,8 +67,8 @@ class FeatureMessage(BaseModel):
     mateConnectors: list[MateConnector] | None = None
 
     @functools.cached_property
-    def parameter_dict(self) -> dict[str, Parameter]:
-        return {param.message.parameterId: param for param in self.parameters}
+    def parameter_dict(self) -> dict[str, dict]:
+        return {param["message"]["parameterId"]: param for param in self.parameters}
 
 
 class Feature(BaseModel):

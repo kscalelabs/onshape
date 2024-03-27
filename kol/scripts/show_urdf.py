@@ -13,7 +13,7 @@ def main(args: Sequence[str] | None = None) -> None:
     configure_logging()
 
     parser = argparse.ArgumentParser(description="Show a URDF")
-    parser.add_argument("urdf", help="Path to the URDF file")
+    parser.add_argument("urdf", nargs="?", help="Path to the URDF file")
     parser.add_argument("--dt", type=float, default=0.01, help="Time step")
     parser.add_argument("-n", "--hide-gui", action="store_true", help="Hide the GUI")
     parsed_args = parser.parse_args(args)
@@ -41,11 +41,18 @@ def main(args: Sequence[str] | None = None) -> None:
     # Loads the floor plane.
     floor = p.loadURDF(str((Path(__file__).parent / "bullet" / "plane.urdf").resolve()))
 
+    urdf_path = Path("robot" if parsed_args.urdf is None else parsed_args.urdf)
+    if urdf_path.is_dir():
+        try:
+            urdf_path = next(urdf_path.glob("*.urdf"))
+        except StopIteration:
+            raise FileNotFoundError(f"No URDF files found in {urdf_path}")
+
     # Load the robot URDF.
     start_position = [0.0, 0.0, 1.0]
     start_orientation = p.getQuaternionFromEuler([0.0, 0.0, 0.0])
     flags = p.URDF_USE_SELF_COLLISION | p.URDF_USE_INERTIA_FROM_FILE
-    robot = p.loadURDF(parsed_args.urdf, start_position, start_orientation, flags=flags, useFixedBase=0)
+    robot = p.loadURDF(str(urdf_path), start_position, start_orientation, flags=flags, useFixedBase=0)
 
     # Initializes physics parameters.
     p.changeDynamics(floor, -1, lateralFriction=1, spinningFriction=-1, rollingFriction=-1)
@@ -59,25 +66,35 @@ def main(args: Sequence[str] | None = None) -> None:
         name = joint_info[1].decode("utf-8")
         joint_type = joint_info[2]
         joints[name] = i
-        if joint_type in (p.JOINT_PRISMATIC, p.JOINT_REVOLUTE):
-            controls[name] = p.addUserDebugParameter(name, -3.14, 3.14, 0.0)
+        if joint_type == p.JOINT_PRISMATIC:
+            joint_min, joint_max = joint_info[8:10]
+            controls[name] = p.addUserDebugParameter(name, joint_min, joint_max, 0.0)
+        elif joint_type == p.JOINT_REVOLUTE:
+            joint_min, joint_max = joint_info[8:10]
+            controls[name] = p.addUserDebugParameter(name, joint_min, joint_max, 0.0)
 
     # Run the simulation until the user closes the window.
     last_time = time.time()
+    prev_control_values = {k: 0.0 for k in controls}
     while p.isConnected():
         # Reset the simulation if "r" was pressed.
         keys = p.getKeyboardEvents()
         if ord("r") in keys and keys[ord("r")] & p.KEY_WAS_TRIGGERED:
             p.resetBasePositionAndOrientation(robot, start_position, start_orientation)
             p.setJointMotorControlArray(
-                robot, range(p.getNumJoints(robot)), p.POSITION_CONTROL, targetPositions=[0] * p.getNumJoints(robot)
+                robot,
+                range(p.getNumJoints(robot)),
+                p.POSITION_CONTROL,
+                targetPositions=[0] * p.getNumJoints(robot),
             )
 
         # Set joint positions.
         for k, v in controls.items():
             try:
                 target_position = p.readUserDebugParameter(v)
-                p.setJointMotorControl2(robot, joints[k], p.POSITION_CONTROL, target_position)
+                if target_position != prev_control_values[k]:
+                    prev_control_values[k] = target_position
+                    p.setJointMotorControl2(robot, joints[k], p.POSITION_CONTROL, target_position)
             except p.error:
                 pass
 

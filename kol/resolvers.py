@@ -2,6 +2,7 @@
 
 import logging
 import math
+import re
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +33,7 @@ class ExpressionResolver:
             expression = "-" + self.configuration_parameters[expression[2:]]
 
         # Splitting the expression into value and unit.
-        parts = expression.split(" ")
+        parts = re.split(r"[ +*]", expression)
         if len(parts) != 2:
             raise ValueError(f"Invalid expression: {expression}")
         value, unit = parts
@@ -41,14 +42,14 @@ class ExpressionResolver:
         match unit:
             case "deg":
                 return math.radians(float(value))
-            case "radian", "rad":
-                if isinstance(value, str):
+            case "radian" | "rad":
+                try:
+                    val = float(value)
+                except ValueError:
                     if value == "(PI)":
                         val = math.pi
                     else:
                         raise ValueError(f"{value} variable isn't supported")
-                else:
-                    val = value
                 return float(val)
             case "mm":
                 return float(value) / 1000.0
