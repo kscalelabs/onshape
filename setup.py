@@ -36,10 +36,4 @@ setup(
     install_requires=requirements,
     tests_require=requirements_dev,
     extras_require={"dev": requirements_dev},
-    exclude_package_data={
-        "kol": [
-            "onshape/scripts/bullet/*.obj",
-            "onshape/scripts/bullet/*.urdf",
-        ],
-    },
 )

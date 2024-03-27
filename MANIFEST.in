@@ -1,1 +1,1 @@
-recursive-include kscale-onshape-library/ *.py *.txt py.typed MANIFEST.in
+recursive-include kol/ *.py *.txt py.typed MANIFEST.in

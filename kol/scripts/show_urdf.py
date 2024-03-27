@@ -20,6 +20,7 @@ def main(args: Sequence[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description="Show a URDF")
     parser.add_argument("urdf", help="Path to the URDF file")
     parser.add_argument("--dt", type=float, default=0.01, help="Time step")
+    parser.add_argument("-n", "--hide-gui", action="store_true", help="Hide the GUI")
     parsed_args = parser.parse_args(args)
 
     # Connect to PyBullet.
@@ -28,7 +29,8 @@ def main(args: Sequence[str] | None = None) -> None:
     p.setRealTimeSimulation(0)
 
     # Turn off panels.
-    # p.configureDebugVisualizer(p.COV_ENABLE_GUI, 0)
+    if parsed_args.hide_gui:
+        p.configureDebugVisualizer(p.COV_ENABLE_GUI, 0)
     p.configureDebugVisualizer(p.COV_ENABLE_SEGMENTATION_MARK_PREVIEW, 0)
     p.configureDebugVisualizer(p.COV_ENABLE_DEPTH_BUFFER_PREVIEW, 0)
     p.configureDebugVisualizer(p.COV_ENABLE_RGB_BUFFER_PREVIEW, 0)
@@ -47,7 +49,7 @@ def main(args: Sequence[str] | None = None) -> None:
 
     # Initializes physics parameters.
     p.changeDynamics(floor, -1, lateralFriction=1, spinningFriction=-1, rollingFriction=-1)
-    p.setPhysicsEngineParameter(fixedTimeStep=parsed_args.dt, maxNumCmdPer1ms=0)
+    p.setPhysicsEngineParameter(fixedTimeStep=parsed_args.dt, maxNumCmdPer1ms=1000)
 
     # Show joint controller.
     joints: dict[str, int] = {}
@@ -63,12 +65,22 @@ def main(args: Sequence[str] | None = None) -> None:
     # Run the simulation until the user closes the window.
     last_time = time.time()
     while p.isConnected():
+        # Reset the simulation if "r" was pressed.
+        keys = p.getKeyboardEvents()
+        if ord("r") in keys and keys[ord("r")] & p.KEY_WAS_TRIGGERED:
+            p.resetBasePositionAndOrientation(robot, start_position, start_orientation)
+            p.setJointMotorControlArray(
+                robot, range(p.getNumJoints(robot)), p.POSITION_CONTROL, targetPositions=[0] * p.getNumJoints(robot)
+            )
+
+        # Set joint positions.
         for k, v in controls.items():
             try:
                 target_position = p.readUserDebugParameter(v)
                 p.setJointMotorControl2(robot, joints[k], p.POSITION_CONTROL, target_position)
             except p.error:
                 pass
+
         p.stepSimulation()
         cur_time = time.time()
         time.sleep(max(0, parsed_args.dt - (cur_time - last_time)))

@@ -446,7 +446,7 @@ def get_joint(
                 parent=parent,
                 child=child,
                 origin=origin,
-                axis=urdf.Axis((0.0, 0.0, 1.0)),  # TODO: Fix this.
+                axis=urdf.Axis((0.0, 0.0, 1.0)),
                 limits=urdf.JointLimits(1.0, 1.0),  # TODO: Fix this.
                 mimic=(
                     None
@@ -460,7 +460,25 @@ def get_joint(
             )
 
         case MateType.SLIDER:
-            raise NotImplementedError
+            parent, child = assembly.key_name(parent_key, "link"), assembly.key_name(child_key, "link")
+            mimic_joint = relations.get(child_key)
+            return urdf.PrismaticJoint(
+                name=name,
+                parent=parent,
+                child=child,
+                origin=origin,
+                axis=urdf.Axis((0.0, 0.0, 1.0)),
+                limits=urdf.JointLimits(1.0, 1.0),  # TODO: Fix this.
+                mimic=(
+                    None
+                    if mimic_joint is None
+                    else urdf.JointMimic(
+                        joint=assembly.key_name(mimic_joint.parent, "link"),
+                        multiplier=mimic_joint.multiplier,
+                        offset=0.0,
+                    )
+                ),
+            )
 
         case MateType.PLANAR:
             raise NotImplementedError
@@ -541,7 +559,7 @@ def import_onshape(
     )
 
     # Retrieves the features for the root assembly and each subassembly.
-    # assembly_features = get_assembly_features(cache_dir, assembly, api)
+    assembly_features = get_assembly_features(cache_dir, assembly, api)
 
     # Downloads the STL files for each part in the assembly.
     part_file_names, part_colors, part_dynamics = download_parts(cache_dir, meshes_dir, assembly, api)
