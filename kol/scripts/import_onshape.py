@@ -228,10 +228,10 @@ def get_assembly_features(
 
 @dataclass
 class JointInformation:
-    z_min_expression: str | None
-    z_max_expression: str | None
-    axial_z_min_expression: str | None
-    axial_z_max_expression: str | None
+    z_min_expression: str | None = None
+    z_max_expression: str | None = None
+    axial_z_min_expression: str | None = None
+    axial_z_max_expression: str | None = None
 
 
 def get_joint_information(
@@ -247,11 +247,7 @@ def get_joint_information(
             return None
         match attrib["typeName"]:
             case "BTMParameterNullableQuantity":
-                if attrib["message"]["isNull"]:
-                    return None
-                if attrib["message"]["nullValue"] in ("No minimum", "No maximum"):
-                    return None  # Special case for no limit.
-                return attrib["message"]["expression"]
+                return None if attrib["message"]["isNull"] else attrib["message"]["expression"]
             case _:
                 return None
 
@@ -265,12 +261,16 @@ def get_joint_information(
                 assembly_key.element_id,
                 feature.message.featureId,
             )
-            joint_information[key] = JointInformation(
-                z_min_expression=get_feature_float_value("limitZMin", feature),
-                z_max_expression=get_feature_float_value("limitZMax", feature),
-                axial_z_min_expression=get_feature_float_value("limitAxialZMin", feature),
-                axial_z_max_expression=get_feature_float_value("limitAxialZMax", feature),
-            )
+
+            if feature.message.parameter_dict['limitsEnabled']['message']['value']:
+                joint_information[key] = JointInformation(
+                    z_min_expression=get_feature_float_value("limitZMin", feature),
+                    z_max_expression=get_feature_float_value("limitZMax", feature),
+                    axial_z_min_expression=get_feature_float_value("limitAxialZMin", feature),
+                    axial_z_max_expression=get_feature_float_value("limitAxialZMax", feature),
+                )
+            else:
+                joint_information[key] = JointInformation()
 
     return joint_information
 
