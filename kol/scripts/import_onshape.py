@@ -242,7 +242,7 @@ def get_joint_information(
     # Retrieves the features for the root assembly and each subassembly.
     assembly_features = get_assembly_features(cache_dir, assembly, api)
 
-    def get_feature_float_value(key: str, feature: Feature) -> str | None:
+    def get_feature_value(key: str, feature: Feature) -> str | None:
         if (attrib := feature.message.parameter_dict.get(key)) is None:
             return None
         match attrib["typeName"]:
@@ -262,16 +262,19 @@ def get_joint_information(
                 feature.message.featureId,
             )
 
-            if feature.message.parameter_dict["limitsEnabled"]["message"]["value"]:
-                joint_information[key] = JointInformation(
-                    z_min_expression=get_feature_float_value("limitZMin", feature),
-                    z_max_expression=get_feature_float_value("limitZMax", feature),
-                    axial_z_min_expression=get_feature_float_value("limitAxialZMin", feature),
-                    axial_z_max_expression=get_feature_float_value("limitAxialZMax", feature),
-                )
-
-            else:
+            if (
+                "limitsEnabled" not in feature.message.parameter_dict
+                or not feature.message.parameter_dict["limitsEnabled"]["message"]["value"]
+            ):
                 joint_information[key] = JointInformation()
+                continue
+
+            joint_information[key] = JointInformation(
+                z_min_expression=get_feature_value("limitZMin", feature),
+                z_max_expression=get_feature_value("limitZMax", feature),
+                axial_z_min_expression=get_feature_value("limitAxialZMin", feature),
+                axial_z_max_expression=get_feature_value("limitAxialZMax", feature),
+            )
 
     return joint_information
 
