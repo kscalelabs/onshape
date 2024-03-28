@@ -262,13 +262,14 @@ def get_joint_information(
                 feature.message.featureId,
             )
 
-            if feature.message.parameter_dict['limitsEnabled']['message']['value']:
+            if feature.message.parameter_dict["limitsEnabled"]["message"]["value"]:
                 joint_information[key] = JointInformation(
                     z_min_expression=get_feature_float_value("limitZMin", feature),
                     z_max_expression=get_feature_float_value("limitZMax", feature),
                     axial_z_min_expression=get_feature_float_value("limitAxialZMin", feature),
                     axial_z_max_expression=get_feature_float_value("limitAxialZMax", feature),
                 )
+
             else:
                 joint_information[key] = JointInformation()
 
