@@ -247,7 +247,11 @@ def get_joint_information(
             return None
         match attrib["typeName"]:
             case "BTMParameterNullableQuantity":
-                return None if attrib["message"]["isNull"] else attrib["message"]["expression"]
+                if attrib["message"]["isNull"]:
+                    return None
+                if attrib["message"]["nullValue"] in ("No minimum", "No maximum"):
+                    return None  # Special case for no limit.
+                return attrib["message"]["expression"]
             case _:
                 return None
 
@@ -447,8 +451,10 @@ class MimicRelation:
 def get_relations(assembly: Assembly) -> dict[Key, MimicRelation]:
     relations: dict[Key, MimicRelation] = {}
     for path, mate_relation_feature in assembly.key_to_mate_relation_feature.items():
-        relation_type = mate_relation_feature.featureData.relationType
+        if mate_relation_feature.suppressed:
+            continue
 
+        relation_type = mate_relation_feature.featureData.relationType
         match relation_type:
             case RelationType.GEAR:
                 parent_key, child_key = mate_relation_feature.keys(path[:-1])
