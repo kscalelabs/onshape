@@ -17,9 +17,9 @@ git clone git@github.com:kscalelabs/onshape.git
 cd onshape
 pip install -e '.[dev]'
 ```
+Define also ONSHAPE_ACCESS_KEY and ONSHAPE_SECRET_KEY [keys](https://dev-portal.onshape.com/keys).
 
 ### Usage
-
 To convert an assembly to a URDF, use the following command:
 
 ```bash
