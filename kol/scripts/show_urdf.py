@@ -2,11 +2,14 @@
 """Simple script to interact with a URDF."""
 
 import argparse
+import logging
 import time
 from pathlib import Path
 from typing import Sequence
 
 from kol.logging import configure_logging
+
+logger = logging.getLogger(__name__)
 
 
 def main(args: Sequence[str] | None = None) -> None:
@@ -96,6 +99,7 @@ def main(args: Sequence[str] | None = None) -> None:
                     prev_control_values[k] = target_position
                     p.setJointMotorControl2(robot, joints[k], p.POSITION_CONTROL, target_position)
             except p.error:
+                logger.exception("Failed to set joint %s", k)
                 pass
 
         # Step simulation.
