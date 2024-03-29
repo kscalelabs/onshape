@@ -331,7 +331,9 @@ def download_parts(
         else:
             configuration_str = part.configuration
 
-        part_file_name = f"{part_name}{configuration_str}.stl"
+        part_hash = hashlib.md5(part.key.unique_id.encode()).hexdigest()[:8]
+
+        part_file_name = f"{part_name}{configuration_str}.{part_hash}.stl"
         part_file_names[part.key] = part_file_name
 
         # Saves the STL file for the part.

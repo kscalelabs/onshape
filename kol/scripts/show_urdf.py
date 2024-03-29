@@ -98,6 +98,7 @@ def main(args: Sequence[str] | None = None) -> None:
             except p.error:
                 pass
 
+        # Step simulation.
         p.stepSimulation()
         cur_time = time.time()
         time.sleep(max(0, parsed_args.dt - (cur_time - last_time)))

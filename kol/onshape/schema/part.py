@@ -55,13 +55,13 @@ class PartBody(BaseModel):
         return frame_r * self.inertia_matrix * frame_r.T
 
     @property
-    def center_of_mass(self) -> np.ndarray:
-        return np.array(self.centroid[:3])
+    def center_of_mass(self) -> tuple[float, float, float]:
+        return (self.centroid[0], self.centroid[1], self.centroid[2])
 
     def center_of_mass_in_frame(self, frame: np.matrix) -> tuple[float, float, float]:
-        com = np.matrix(self.centroid[:3] + [1.0])
-        com = (frame * com.T)[:3]
-        return (float(com[0, 0]), float(com[1, 0]), float(com[2, 0]))
+        com = np.matrix(list(self.center_of_mass) + [1.0])
+        com_in_frame = (frame * com.T)[:3]
+        return (float(com_in_frame[0, 0]), float(com_in_frame[1, 0]), float(com_in_frame[2, 0]))
 
 
 class PartDynamics(BaseModel):
