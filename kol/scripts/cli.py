@@ -3,7 +3,7 @@
 import argparse
 from typing import Sequence
 
-from kol.scripts import import_onshape, pybullet
+from kol.scripts import get_urdf, pybullet
 
 
 def main(args: Sequence[str] | None = None) -> None:
@@ -13,7 +13,7 @@ def main(args: Sequence[str] | None = None) -> None:
 
     match parsed_args.subcommand:
         case "urdf":
-            import_onshape.main(remaining_args)
+            get_urdf.main(remaining_args)
         case "pybullet":
             pybullet.main(remaining_args)
         case _:

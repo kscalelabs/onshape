@@ -2,22 +2,25 @@
 """Defines the schema for the Assembly API."""
 
 import functools
-import re
-from collections import deque
+import logging
+from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Deque, Iterator, Literal
+from typing import Any, Literal
 
 import numpy as np
 from pydantic import BaseModel
 
 from kol.onshape.schema.common import ElementUid
 
-# Key = NewType("Key", tuple[str, ...])
+logger = logging.getLogger(__name__)
+
 Key = tuple[str, ...]
 
 
-def clean_name(name: str) -> str:
-    return re.sub(r"\s+", "_", re.sub(r"[<>]", "", name)).lower()
+@dataclass
+class MimicRelation:
+    parent: Key
+    multiplier: float
 
 
 class BaseInstance(BaseModel):
@@ -31,7 +34,7 @@ class BaseInstance(BaseModel):
     elementId: str
 
     @property
-    def key(self) -> ElementUid:
+    def euid(self) -> ElementUid:
         return ElementUid(
             self.documentId,
             self.documentMicroversion,
@@ -51,7 +54,7 @@ class PartInstance(BaseInstance):
     partId: str
 
     @property
-    def key(self) -> ElementUid:
+    def euid(self) -> ElementUid:
         return ElementUid(
             self.documentId,
             self.documentMicroversion,
@@ -167,9 +170,6 @@ class MateFeature(BaseModel):
         return [root_key + mated.key for mated in self.featureData.matedEntities]
 
 
-Feature = MateRelationFeature | MateFeature
-
-
 class Pattern(BaseModel):
     pass
 
@@ -178,7 +178,7 @@ class RootAssembly(BaseModel):
     occurrences: list[Occurrence]
     instances: list[Instance]
     patterns: list[Pattern]
-    features: list[Feature]
+    features: list[MateRelationFeature | MateFeature]
     fullConfiguration: str
     configuration: str
     documentMicroversion: str
@@ -199,7 +199,7 @@ class RootAssembly(BaseModel):
 class SubAssembly(BaseModel):
     instances: list[Instance]
     patterns: list[Pattern]
-    features: list[Feature]
+    features: list[MateRelationFeature | MateFeature]
     fullConfiguration: str
     configuration: str
     documentMicroversion: str
@@ -269,110 +269,3 @@ class Assembly(BaseModel):
     subAssemblies: list[SubAssembly]
     parts: list[Part]
     partStudioFeatures: list[PartStudioFeature]
-
-    @functools.cached_property
-    def key_to_assembly(self) -> dict[ElementUid, RootAssembly | SubAssembly]:
-        assemblies: list[RootAssembly | SubAssembly] = [self.rootAssembly, *self.subAssemblies]
-        return {assembly.key: assembly for assembly in assemblies}
-
-    @functools.cached_property
-    def key_to_subassembly(self) -> dict[ElementUid, SubAssembly]:
-        return {sub.key: sub for sub in self.subAssemblies}
-
-    @functools.cached_property
-    def key_to_part(self) -> dict[ElementUid, Part]:
-        return {part.key: part for part in self.parts}
-
-    @functools.cached_property
-    def key_to_occurrence(self) -> dict[Key, Occurrence]:
-        return {occurrence.key: occurrence for occurrence in self.rootAssembly.occurrences}
-
-    def traverse_assemblies(self) -> Iterator[tuple[Key, AssemblyInstance, SubAssembly]]:
-        subassembly_deque: Deque[tuple[Key, SubAssembly]] = deque()
-        visited: set[Key] = set()
-
-        # Adds the root assembly to the traversal.
-        for instance in self.rootAssembly.instances:
-            if isinstance(instance, AssemblyInstance):
-                instance_path: Key = (instance.id,)
-                if instance_path in visited:
-                    continue
-                visited.add(instance_path)
-                subassembly = self.key_to_subassembly[instance.key]
-                yield instance_path, instance, subassembly
-                subassembly_deque.append((instance_path, subassembly))
-
-        # Adds all the subassemblies to the traversal, recursively.
-        while subassembly_deque:
-            path, sub_assembly = subassembly_deque.popleft()
-            for instance in sub_assembly.instances:
-                if isinstance(instance, AssemblyInstance):
-                    instance_path = path + (instance.id,)
-                    if instance_path in visited:
-                        continue
-                    visited.add(instance_path)
-                    subassembly = self.key_to_subassembly[instance.key]
-                    yield instance_path, instance, subassembly
-                    subassembly_deque.append((instance_path, subassembly))
-
-    @functools.cached_property
-    def assembly_key_to_id(self) -> dict[Key, ElementUid]:
-        key_map = {key: assembly.key for key, _, assembly in self.traverse_assemblies()}
-        key_map[()] = self.rootAssembly.key
-        return key_map
-
-    @functools.cached_property
-    def key_to_instance(self) -> dict[Key, Instance]:
-        instance_mapping: dict[Key, Instance] = {}
-        for instance in self.rootAssembly.instances:
-            instance_mapping[(instance.id,)] = instance
-        for path, assembly_instance, sub_assembly in self.traverse_assemblies():
-            instance_mapping[path] = assembly_instance
-            for instance in sub_assembly.instances:
-                instance_mapping[path + (instance.id,)] = instance
-        return instance_mapping
-
-    @property
-    def key_to_part_instance(self) -> dict[Key, PartInstance]:
-        return {p: i for p, i in self.key_to_instance.items() if isinstance(i, PartInstance)}
-
-    @property
-    def key_to_assembly_instance(self) -> dict[Key, AssemblyInstance]:
-        return {p: i for p, i in self.key_to_instance.items() if isinstance(i, AssemblyInstance)}
-
-    @functools.cached_property
-    def key_to_feature(self) -> dict[Key, Feature]:
-        feature_mapping: dict[Key, Feature] = {}
-        for feature in self.rootAssembly.features:
-            feature_mapping[(feature.id,)] = feature
-        for key, _, sub_assembly in self.traverse_assemblies():
-            for feature in sub_assembly.features:
-                feature_mapping[key + (feature.id,)] = feature
-        return feature_mapping
-
-    @functools.cached_property
-    def key_to_mate_feature(self) -> dict[Key, MateFeature]:
-        return {p: f for p, f in self.key_to_feature.items() if isinstance(f, MateFeature)}
-
-    @functools.cached_property
-    def key_to_mate_relation_feature(self) -> dict[Key, MateRelationFeature]:
-        return {p: f for p, f in self.key_to_feature.items() if isinstance(f, MateRelationFeature)}
-
-    @functools.cached_property
-    def key_to_name(self) -> dict[Key, list[str]]:
-        key_name_mapping: dict[Key, list[str]] = {}
-        key_name_mapping[()] = []
-        for instance in self.rootAssembly.instances:
-            key_name_mapping[(instance.id,)] = [instance.name]
-        for feature in self.rootAssembly.features:
-            key_name_mapping[(feature.id,)] = [feature.featureData.name]
-        for key, assembly_instance, sub_assembly in self.traverse_assemblies():
-            key_name_mapping[key] = key_name_mapping[key[:-1]] + [assembly_instance.name]
-            for instance in sub_assembly.instances:
-                key_name_mapping[key + (instance.id,)] = key_name_mapping[key] + [instance.name]
-            for feature in sub_assembly.features:
-                key_name_mapping[key + (feature.id,)] = key_name_mapping[key] + [feature.featureData.name]
-        return key_name_mapping
-
-    def key_name(self, key: Key, prefix: Literal["link", "joint"]) -> str:
-        return prefix + "_" + clean_name("_".join(self.key_to_name.get(key, key)))

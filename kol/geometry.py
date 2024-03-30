@@ -38,6 +38,10 @@ def apply_matrix_(mesh: stl.mesh.Mesh, matrix: np.matrix) -> None:
     mesh.normals = transform(mesh.normals)
 
 
+def b_to_a_tf(a_to_b_tf: np.matrix) -> np.matrix:
+    return np.matrix(np.linalg.inv(a_to_b_tf))
+
+
 @dataclass
 class Dynamics:
     mass: float

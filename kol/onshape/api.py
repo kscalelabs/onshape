@@ -2,9 +2,8 @@
 
 import logging
 from pathlib import Path
-from typing import Literal
 
-from kol.onshape.client import OnshapeClient
+from kol.onshape.client import DocumentInfo, OnshapeClient, WorkspaceType
 from kol.onshape.schema.assembly import Assembly, AssemblyMetadata, Part, RootAssembly, SubAssembly
 from kol.onshape.schema.document import Document
 from kol.onshape.schema.elements import Elements, ElementType
@@ -18,16 +17,14 @@ def escape_url(s: str) -> str:
     return s.replace("/", "%2f").replace("+", "%2b")
 
 
-DEFAULT_BASE_URL = "https://cad.onshape.com"
-
-WorkspaceType = Literal["w", "v"]
-
-
 class OnshapeApi:
     def __init__(self, client: OnshapeClient) -> None:
         super().__init__()
 
         self.client = client
+
+    def parse_url(self, document_url: str) -> DocumentInfo:
+        return self.client.parse_url(document_url)
 
     def get_document(self, did: str) -> Document:
         data = self.client.request("get", f"/api/documents/{did}").json()
@@ -50,15 +47,11 @@ class OnshapeApi:
                 return element.id
         raise ValueError("Assembly not found")
 
-    def get_assembly(
-        self,
-        document_id: str,
-        workspace_id: str,
-        element_id: str,
-        workspace_type: WorkspaceType = "w",
-        configuration: str = "default",
-    ) -> Assembly:
-        path = f"/api/assemblies/d/{document_id}/{workspace_type}/{workspace_id}/e/{element_id}"
+    def get_assembly(self, document: DocumentInfo, configuration: str = "default") -> Assembly:
+        path = (
+            f"/api/assemblies/d/{document.document_id}/"
+            f"{document.item_kind}/{document.item_id}/e/{document.element_id}"
+        )
         data = self.client.request(
             "get",
             path,
