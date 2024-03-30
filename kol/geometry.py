@@ -7,7 +7,7 @@ import numpy as np
 import stl.mesh
 
 
-def rotation_matrix_to_euler_angles(rotation_matrix: np.matrix) -> np.ndarray:
+def rotation_matrix_to_euler_angles(rotation_matrix: np.matrix) -> tuple[float, float, float]:
     sy = math.sqrt(rotation_matrix[0, 0] * rotation_matrix[0, 0] + rotation_matrix[1, 0] * rotation_matrix[1, 0])
 
     singular = sy < 1e-6
@@ -22,7 +22,7 @@ def rotation_matrix_to_euler_angles(rotation_matrix: np.matrix) -> np.ndarray:
         y = math.atan2(-rotation_matrix[2, 0], sy)
         z = math.atan2(rotation_matrix[1, 0], rotation_matrix[0, 0])
 
-    return np.array([x, y, z])
+    return x, y, z
 
 
 def apply_matrix_(mesh: stl.mesh.Mesh, matrix: np.matrix) -> None:

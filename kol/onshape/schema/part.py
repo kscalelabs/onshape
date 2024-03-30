@@ -34,6 +34,10 @@ class PrincipleAxis(BaseModel):
     y: float
     z: float
 
+    @property
+    def array(self) -> np.array:
+        return np.array([self.x, self.y, self.z])
+
 
 class PartBody(BaseModel):
     mass: list[float]
@@ -47,11 +51,15 @@ class PartBody(BaseModel):
     principalAxes: list[PrincipleAxis]
 
     @property
+    def principle_inertia(self) -> np.ndarray:
+        return np.array(self.principalInertia)
+
+    @property
     def inertia_matrix(self) -> np.matrix:
         return np.matrix(np.array(self.inertia[:9]).reshape(3, 3))
 
     def inertia_in_frame(self, frame: np.matrix) -> np.matrix:
-        frame_r = frame[:3, :3]
+        frame_r = frame[:3, :3].T
         return frame_r * self.inertia_matrix * frame_r.T
 
     @property

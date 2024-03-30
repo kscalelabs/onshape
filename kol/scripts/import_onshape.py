@@ -54,6 +54,7 @@ def get_link_for_part(
     part_file_names: dict[ElementUid, str],
     part_dynamics: dict[ElementUid, PartDynamics],
     mate_to_part_tf: np.matrix,
+    world_to_mate_tf: np.matrix,
 ) -> urdf.Link:
     part_instance = assembly.key_to_part_instance[key]
     part_file_name = f"package:///meshes/{part_file_names[part_instance.key]}"
@@ -65,6 +66,15 @@ def get_link_for_part(
     mesh_origin = urdf.Origin.from_matrix(mate_to_part_tf)
     center_of_mass = part_dynamic.center_of_mass_in_frame(mate_to_part_tf)
     inertia = part_dynamic.inertia_in_frame(mate_to_part_tf)
+
+    # Checks the principle inertia axes.
+    if not np.allclose(sorted(np.linalg.eigvals(inertia)), sorted(part_dynamic.principle_inertia)):
+        logger.warning(
+            "Inertia tensor does not match the principal inertia axes for part %s: Eigenvalues %s, Principal %s",
+            " / ".join(assembly.key_to_name.get(key, key)),
+            np.linalg.eigvals(inertia),
+            part_dynamic.principle_inertia,
+        )
 
     name = assembly.key_name(key, "link")
     part_link = urdf.Link(
@@ -80,7 +90,7 @@ def get_link_for_part(
         inertial=urdf.InertialLink(
             origin=urdf.Origin(
                 xyz=center_of_mass,
-                rpy=(0.0, 0.0, 0.0),
+                rpy=rpy,
             ),
             mass=part_dynamic.mass[0],
             inertia=urdf.Inertia(
@@ -689,6 +699,7 @@ def import_onshape(
             part_file_names,
             part_dynamics,
             mate_to_part_tf,
+            world_to_mate_tfs[key],
         )
 
     # Add the first link, since it has no incoming joint.

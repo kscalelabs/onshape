@@ -32,7 +32,7 @@ You can visualize the resulting URDF using PyBullet:
 
 ```bash
 pip install pybullet
-kol show-urdf robot/<urdf-name>.urdf
+kol pybullet robot/<urdf-name>.urdf
 ```
 
 ### Notes

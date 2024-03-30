@@ -1,5 +1,5 @@
 # mypy: disable-error-code="import-not-found"
-"""Simple script to interact with a URDF."""
+"""Simple script to interact with a URDF in PyBullet."""
 
 import argparse
 import logging
@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 def main(args: Sequence[str] | None = None) -> None:
     configure_logging()
 
-    parser = argparse.ArgumentParser(description="Show a URDF")
+    parser = argparse.ArgumentParser(description="Show a URDF in PyBullet")
     parser.add_argument("urdf", nargs="?", help="Path to the URDF file")
     parser.add_argument("--dt", type=float, default=0.01, help="Time step")
     parser.add_argument("-n", "--hide-gui", action="store_true", help="Hide the GUI")
@@ -54,7 +54,7 @@ def main(args: Sequence[str] | None = None) -> None:
     # Load the robot URDF.
     start_position = [0.0, 0.0, 1.0]
     start_orientation = p.getQuaternionFromEuler([0.0, 0.0, 0.0])
-    flags = p.URDF_USE_SELF_COLLISION | p.URDF_USE_INERTIA_FROM_FILE
+    flags = p.URDF_USE_SELF_COLLISION | p.URDF_USE_INERTIA_FROM_FILE | p.URDF_MAINTAIN_LINK_ORDER
     robot = p.loadURDF(str(urdf_path), start_position, start_orientation, flags=flags, useFixedBase=0)
 
     # Initializes physics parameters.
@@ -75,6 +75,18 @@ def main(args: Sequence[str] | None = None) -> None:
         elif joint_type == p.JOINT_REVOLUTE:
             joint_min, joint_max = joint_info[8:10]
             controls[name] = p.addUserDebugParameter(name, joint_min, joint_max, 0.0)
+
+    # Visualize the center of mass and inertia tensor for each link
+    for i in range(p.getNumJoints(robot)):
+        joint_info = p.getJointInfo(robot, i)
+        link_name = joint_info[12].decode("utf-8")
+        p.addUserDebugText(
+            f"CoM {link_name}",
+            p.getDynamicsInfo(robot, i)[3],
+            textColorRGB=[0, 1, 0],
+            parentObjectUniqueId=robot,
+            parentLinkIndex=i,
+        )
 
     # Run the simulation until the user closes the window.
     last_time = time.time()
