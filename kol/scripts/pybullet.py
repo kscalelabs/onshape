@@ -54,12 +54,16 @@ def main(args: Sequence[str] | None = None) -> None:
     # Load the robot URDF.
     start_position = [0.0, 0.0, 1.0]
     start_orientation = p.getQuaternionFromEuler([0.0, 0.0, 0.0])
-    flags = p.URDF_USE_SELF_COLLISION | p.URDF_USE_INERTIA_FROM_FILE | p.URDF_MAINTAIN_LINK_ORDER
+    flags = p.URDF_USE_SELF_COLLISION
     robot = p.loadURDF(str(urdf_path), start_position, start_orientation, flags=flags, useFixedBase=0)
 
     # Initializes physics parameters.
     p.changeDynamics(floor, -1, lateralFriction=1, spinningFriction=-1, rollingFriction=-1)
     p.setPhysicsEngineParameter(fixedTimeStep=parsed_args.dt, maxNumCmdPer1ms=1000)
+
+    # Makes all parts of the robot transparent.
+    # for i in range(p.getNumJoints(robot)):
+    #     p.changeVisualShape(robot, i, rgbaColor=[1, 1, 1, 0.5])
 
     # Show joint controller.
     joints: dict[str, int] = {}
@@ -75,18 +79,6 @@ def main(args: Sequence[str] | None = None) -> None:
         elif joint_type == p.JOINT_REVOLUTE:
             joint_min, joint_max = joint_info[8:10]
             controls[name] = p.addUserDebugParameter(name, joint_min, joint_max, 0.0)
-
-    # Visualize the center of mass and inertia tensor for each link
-    for i in range(p.getNumJoints(robot)):
-        joint_info = p.getJointInfo(robot, i)
-        link_name = joint_info[12].decode("utf-8")
-        p.addUserDebugText(
-            f"CoM {link_name}",
-            p.getDynamicsInfo(robot, i)[3],
-            textColorRGB=[0, 1, 0],
-            parentObjectUniqueId=robot,
-            parentLinkIndex=i,
-        )
 
     # Run the simulation until the user closes the window.
     last_time = time.time()

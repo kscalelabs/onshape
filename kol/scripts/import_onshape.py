@@ -15,6 +15,7 @@ import networkx as nx
 import numpy as np
 
 from kol import urdf
+from kol.geometry import rotation_matrix_to_euler_angles
 from kol.logging import configure_logging
 from kol.onshape.api import OnshapeApi, WorkspaceType
 from kol.onshape.client import OnshapeClient
@@ -64,8 +65,9 @@ def get_link_for_part(
     # Move the mesh origin and dynamics from the part frame to the parent
     # joint frame (since URDF expects this by convention).
     mesh_origin = urdf.Origin.from_matrix(mate_to_part_tf)
-    center_of_mass = part_dynamic.center_of_mass_in_frame(mate_to_part_tf)
-    inertia = part_dynamic.inertia_in_frame(mate_to_part_tf)
+
+    center_of_mass = part_dynamic.center_of_mass_in_frame(world_to_mate_tf @ mate_to_part_tf)
+    inertia = part_dynamic.inertia_in_frame(world_to_mate_tf @ mate_to_part_tf)
 
     # Checks the principle inertia axes.
     if not np.allclose(sorted(np.linalg.eigvals(inertia)), sorted(part_dynamic.principle_inertia)):
@@ -87,21 +89,21 @@ def get_link_for_part(
                 color=[c / 255.0 for c in part_color],
             ),
         ),
-        inertial=urdf.InertialLink(
-            origin=urdf.Origin(
-                xyz=center_of_mass,
-                rpy=rpy,
-            ),
-            mass=part_dynamic.mass[0],
-            inertia=urdf.Inertia(
-                ixx=float(inertia[0, 0]),
-                ixy=float(inertia[0, 1]),
-                ixz=float(inertia[0, 2]),
-                iyy=float(inertia[1, 1]),
-                iyz=float(inertia[1, 2]),
-                izz=float(inertia[2, 2]),
-            ),
-        ),
+        # inertial=urdf.InertialLink(
+        #     origin=urdf.Origin(
+        #         xyz=center_of_mass,
+        #         rpy=(0.0, 0.0, 0.0),
+        #     ),
+        #     mass=part_dynamic.mass[0],
+        #     inertia=urdf.Inertia(
+        #         ixx=float(inertia[0, 0]),
+        #         ixy=float(inertia[0, 1]),
+        #         ixz=float(inertia[0, 2]),
+        #         iyy=float(inertia[1, 1]),
+        #         iyz=float(inertia[1, 2]),
+        #         izz=float(inertia[2, 2]),
+        #     ),
+        # ),
         collision=urdf.CollisionLink(
             origin=mesh_origin,
             geometry=urdf.MeshGeometry(filename=part_file_name),
@@ -360,6 +362,8 @@ def download_parts(
         for mate_pair in itertools.combinations(mate_feature.featureData.matedEntities, 2):
             for mate_i in mate_pair:
                 mate_path = path[:-1] + mate_i.key
+                if mate_feature.suppressed:
+                    continue
                 if mate_path not in assembly.key_to_part_instance:
                     raise ValueError(
                         f'Feature "{" / ".join(assembly.key_to_name.get(path, path))}" connects to an assembly '
@@ -383,6 +387,8 @@ def get_assembly_graph(assembly: Assembly) -> nx.Graph:
 
     # Add edges between nodes that have a feature connecting them.
     for path, mate_feature in assembly.key_to_mate_feature.items():
+        if mate_feature.suppressed:
+            continue
         for mate_pair in itertools.combinations(mate_feature.featureData.matedEntities, 2):
             name = " / ".join(assembly.key_to_name.get(path, path))
             add_edge_safe(path[:-1] + mate_pair[0].key, path[:-1] + mate_pair[1].key, name)
@@ -446,6 +452,8 @@ def get_central_node_and_ordered_joint_list(assembly: Assembly) -> tuple[Key, li
     # Creates a topologically-sorted list of joints.
     joint_list: list[Joint] = []
     for joint_key, mate_feature in assembly.key_to_mate_feature.items():
+        if mate_feature.suppressed:
+            continue
         lhs_entity, rhs_entity = mate_feature.featureData.matedEntities
         lhs_key, rhs_key = joint_key[:-1] + lhs_entity.key, joint_key[:-1] + rhs_entity.key
         lhs_is_first = node_level[lhs_key] < node_level[rhs_key]
