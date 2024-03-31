@@ -54,7 +54,7 @@ def main(args: Sequence[str] | None = None) -> None:
     # Load the robot URDF.
     start_position = [0.0, 0.0, 1.0]
     start_orientation = p.getQuaternionFromEuler([0.0, 0.0, 0.0])
-    flags = p.URDF_USE_SELF_COLLISION
+    flags = p.URDF_USE_INERTIA_FROM_FILE | p.URDF_MERGE_FIXED_LINKS
     robot = p.loadURDF(str(urdf_path), start_position, start_orientation, flags=flags, useFixedBase=0)
 
     # Initializes physics parameters.

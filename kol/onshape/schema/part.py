@@ -51,8 +51,15 @@ class PartBody(BaseModel):
     principalAxes: list[PrincipleAxis]
 
     @property
-    def principle_inertia(self) -> np.ndarray:
+    def principal_inertia(self) -> np.ndarray:
         return np.array(self.principalInertia)
+
+    @property
+    def principal_axes(self) -> np.matrix:
+        return np.matrix(np.array([axis.array for axis in self.principalAxes]))
+
+    def principal_axes_in_frame(self, frame: np.matrix) -> np.matrix:
+        return frame[:3, :3] @ self.principal_axes
 
     @property
     def inertia_matrix(self) -> np.matrix:

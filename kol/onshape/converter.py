@@ -18,7 +18,7 @@ import numpy as np
 import stl
 
 from kol import urdf
-from kol.geometry import apply_matrix_, inv_tf
+from kol.geometry import apply_matrix_, inv_tf, rotation_matrix_to_euler_angles
 from kol.onshape.api import OnshapeApi
 from kol.onshape.client import OnshapeClient
 from kol.onshape.schema.assembly import (
@@ -111,6 +111,9 @@ class Converter:
 
         # Map containing all cached items.
         self.cache_map: dict[str, Any] = {}
+
+        # Map containing the transformations from the STL origin to the part frame.
+        self.stl_origin_to_part_tf: dict[Key, np.matrix] = {}
 
     def get_or_use_cached(
         self,
@@ -307,8 +310,8 @@ class Converter:
                 key_name_mapping[key + (feature.id,)] = key_name_mapping[key] + [feature.featureData.name]
         return key_name_mapping
 
-    def key_name(self, key: Key, prefix: Literal["link", "joint"]) -> str:
-        return prefix + "_" + clean_name("_".join(self.key_to_name.get(key, key)))
+    def key_name(self, key: Key, prefix: Literal["link", "joint", None]) -> str:
+        return ("" if prefix is None else f"{prefix}_") + clean_name("_".join(self.key_to_name.get(key, key)))
 
     @functools.cached_property
     def graph(self) -> nx.Graph:
@@ -533,7 +536,7 @@ class Converter:
         return joint_limits
 
     def get_urdf_part(self, key: Key, joint: Joint | None = None) -> urdf.Link:
-        part_name = self.key_name(key, "link")
+        part_name = self.key_name(key, None)
         part_instance = self.key_to_part_instance[key]
         part = self.euid_to_part[part_instance.euid]
 
@@ -551,12 +554,13 @@ class Converter:
         # If the part is the root part, move the STL to be relative to the
         # center of mass and principle inertia axes, otherwise move it to
         # the origin of the part frame.
+        com_to_part_tf = np.matrix(np.eye(4))
+        com_to_part_tf[:3, 3] = -np.array(part_dynamic.center_of_mass).reshape(3, 1)
         if joint is None:
-            com_to_part_tf_array = np.eye(4)
-            com_to_part_tf_array[:3, 3] = -np.array(part_dynamic.center_of_mass)
-            com_to_part_tf = np.matrix(com_to_part_tf_array)
+            stl_origin_to_part_tf = np.matrix(com_to_part_tf)
         else:
-            com_to_part_tf = inv_tf(joint.child_entity.matedCS.part_to_mate_tf)
+            stl_origin_to_part_tf = inv_tf(joint.child_entity.matedCS.part_to_mate_tf)
+        self.stl_origin_to_part_tf[key] = stl_origin_to_part_tf
 
         part_file_name = f"{part_name}{configuration_str}.stl"
         part_file_path = self.mesh_dir / part_file_name
@@ -568,25 +572,22 @@ class Converter:
             self.api.download_stl(part, buffer)
             buffer.seek(0)
             mesh = stl.mesh.Mesh.from_file(None, fh=buffer)
-            mesh = apply_matrix_(mesh, com_to_part_tf)
+            mesh = apply_matrix_(mesh, stl_origin_to_part_tf)
             mesh.save(part_file_path)
 
         # Move the mesh origin and dynamics from the part frame to the parent
         # joint frame (since URDF expects this by convention).
         mesh_origin = urdf.Origin.zero_origin()
-        # center_of_mass = part_dynamic.center_of_mass_in_frame(world_to_part_tf)
-        # inertia = part_dynamic.inertia_in_frame(world_to_part_tf)
+        center_of_mass = part_dynamic.center_of_mass_in_frame(stl_origin_to_part_tf)
+        # inertia = part_dynamic.inertia_in_frame(stl_origin_to_part_tf)
+        inertia = part_dynamic.inertia_matrix
 
-        # # Checks the principle inertia axes.
-        # if not np.allclose(sorted(np.linalg.eigvals(inertia)), sorted(part_dynamic.principle_inertia)):
-        #     logger.warning(
-        #         "Inertia tensor does not match the principal inertia axes for part %s: Eigenvalues %s, Principal %s",
-        #         self.key_name(key, "link"),
-        #         np.linalg.eigvals(inertia),
-        #         part_dynamic.principle_inertia,
-        #     )
+        # Aligns the inertia matrix with the principal axes.
+        principal_axes = part_dynamic.principal_axes_in_frame(stl_origin_to_part_tf)
+        principal_axes_rpy = rotation_matrix_to_euler_angles(principal_axes)
+        # principal_axes_rpy = (0.0, 0.0, 0.0)
 
-        urdf_file_path = f"package:///meshes/{part_file_name}"
+        urdf_file_path = f"./meshes/{part_file_name}"
         urdf_link_name = self.key_name(key, "link")
 
         urdf_part_link = urdf.Link(
@@ -599,21 +600,21 @@ class Converter:
                     color=[c / 255.0 for c in part_color],
                 ),
             ),
-            # inertial=urdf.InertialLink(
-            #     origin=urdf.Origin(
-            #         xyz=center_of_mass,
-            #         rpy=(0.0, 0.0, 0.0),
-            #     ),
-            #     mass=part_dynamic.mass[0],
-            #     inertia=urdf.Inertia(
-            #         ixx=float(inertia[0, 0]),
-            #         ixy=float(inertia[0, 1]),
-            #         ixz=float(inertia[0, 2]),
-            #         iyy=float(inertia[1, 1]),
-            #         iyz=float(inertia[1, 2]),
-            #         izz=float(inertia[2, 2]),
-            #     ),
-            # ),
+            inertial=urdf.InertialLink(
+                origin=urdf.Origin(
+                    xyz=center_of_mass,
+                    rpy=principal_axes_rpy,
+                ),
+                mass=part_dynamic.mass[0],
+                inertia=urdf.Inertia(
+                    ixx=float(inertia[0, 0]),
+                    ixy=float(inertia[0, 1]),
+                    ixz=float(inertia[0, 2]),
+                    iyy=float(inertia[1, 1]),
+                    iyz=float(inertia[1, 2]),
+                    izz=float(inertia[2, 2]),
+                ),
+            ),
             collision=urdf.CollisionLink(
                 origin=mesh_origin,
                 geometry=urdf.MeshGeometry(filename=urdf_file_path),
@@ -631,12 +632,9 @@ class Converter:
         Returns:
             The URDF link and joint.
         """
-        parent_occurrence = self.key_to_occurrence[joint.parent]
-        child_occurrence = self.key_to_occurrence[joint.child]
-        parent_world_to_part_tf = parent_occurrence.world_to_part_tf
-        child_world_to_part_tf = child_occurrence.world_to_part_tf
+        parent_stl_origin_to_part_tf = self.stl_origin_to_part_tf[joint.parent]
         parent_part_to_mate_tf = joint.parent_entity.matedCS.part_to_mate_tf
-        parent_mate_to_child_mate_tf = inv_tf(parent_world_to_part_tf) @ child_world_to_part_tf
+        parent_stl_origin_to_mate_tf = parent_stl_origin_to_part_tf @ parent_part_to_mate_tf
 
         # Gets the joint limits.
         joint_assembly_id, feature_id = self.assembly_key_to_id[joint.joint_key[:-1]], joint.joint_key[-1]
@@ -653,8 +651,7 @@ class Converter:
             return None if expression is None else expression_resolver.read_expression(expression)
 
         name = self.key_name(joint.joint_key, "joint")
-        # origin = urdf.Origin.from_matrix(parent_part_to_mate_tf)
-        origin = urdf.Origin.zero_origin()
+        origin = urdf.Origin.from_matrix(parent_stl_origin_to_mate_tf)
         mate_type = joint.mate_type
 
         match mate_type:
@@ -753,12 +750,11 @@ class Converter:
 
     def save_urdf(self) -> None:
         """Saves a URDF file for the assembly to the output directory."""
-        urdf_links: list[urdf.Link] = []
-        urdf_joints: list[urdf.BaseJoint] = []
+        urdf_parts: list[urdf.Link | urdf.BaseJoint] = []
 
         # Add the first link, since it has no incoming joint.
         part_link = self.get_urdf_part(self.central_node)
-        urdf_links.append(part_link)
+        urdf_parts.append(part_link)
 
         # For debugging.
         # names = {k: chr(ord('a') + i) for i, k in enumerate(self.key_to_part_instance.keys())}
@@ -776,10 +772,13 @@ class Converter:
         for joint in self.ordered_joint_list:
             urdf_joint = self.get_urdf_joint(joint)
             urdf_link = self.get_urdf_part(joint.child, joint)
-            urdf_joints.append(urdf_joint)
-            urdf_links.append(urdf_link)
+            urdf_parts.append(urdf_link)
+            urdf_parts.append(urdf_joint)
 
         # Saves the final URDF.
         robot_name = clean_name(str(self.assembly_metadata.property_map.get("Name", "robot")))
-        urdf_robot = urdf.Robot(name=robot_name, links=urdf_links, joints=urdf_joints)
+        urdf_robot = urdf.Robot(name=robot_name, parts=urdf_parts)
         urdf_robot.save(self.output_dir / f"{robot_name}.urdf")
+
+
+g
