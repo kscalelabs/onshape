@@ -1,4 +1,4 @@
-# mypy: disable-error-code="import-untyped"
+# mypy: disable-error-code="import-untyped, import-not-found"
 #!/usr/bin/env python
 """Setup script for the project."""
 
