@@ -19,13 +19,27 @@ def main(args: Sequence[str] | None = None) -> None:
     parser.add_argument("--debug", action="store_true", help="Enable debug logging")
     parser.add_argument("--max-force", type=float, default=80.0, help="The maximum force for a prismatic joint")
     parser.add_argument("--max-velocity", type=float, default=5.0, help="The maximum velocity for a prismatic joint")
-    parser.add_argument("--max-length", type=float, default=1.0, help="The maximum length for a prismatic joint")
-    parser.add_argument("--max-torque", type=float, default=80.0, help="The maximum force for a revolute joint")
-    parser.add_argument("--max-ang-velocity", type=float, default=5.0, help="The maximum velocity for a revolute joint")
-    parser.add_argument("--max-angle", type=float, default=np.pi, help="The maximum angle for a revolute joint")
+    parser.add_argument("--max-length", type=float, default=1.0, help="The maximum length, in meters")
+    parser.add_argument("--max-torque", type=float, default=80.0, help="The maximum force, in Nm")
+    parser.add_argument("--max-ang-velocity", type=float, default=5.0, help="The maximum angular velocity, in rad/s")
+    parser.add_argument("--max-angle", type=float, default=np.pi, help="The maximum angle, in radians")
+    parser.add_argument("--suffix-to-joint-effort", type=str, nargs="+", help="The suffix to joint effort mapping")
+    parser.add_argument("--suffix-to-joint-velocity", type=str, nargs="+", help="The suffix to joint velocity mapping")
     parsed_args = parser.parse_args(args)
 
     configure_logging(level=logging.DEBUG if parsed_args.debug else logging.INFO)
+
+    suffix_to_joint_effort: list[tuple[str, float]] = []
+    if parsed_args.suffix_to_joint_effort:
+        for mapping in parsed_args.suffix_to_joint_effort:
+            suffix, effort = mapping.split("=")
+            suffix_to_joint_effort.append((suffix, float(effort.strip())))
+
+    suffix_to_joint_velocity: list[tuple[str, float]] = []
+    if parsed_args.suffix_to_joint_velocity:
+        for mapping in parsed_args.suffix_to_joint_velocity:
+            suffix, velocity = mapping.split("=")
+            suffix_to_joint_velocity.append((suffix, float(velocity.strip())))
 
     Converter(
         document_url=parsed_args.document_url,
@@ -42,6 +56,8 @@ def main(args: Sequence[str] | None = None) -> None:
             -parsed_args.max_angle,
             parsed_args.max_angle,
         ),
+        suffix_to_joint_effort=suffix_to_joint_effort,
+        suffix_to_joint_velocity=suffix_to_joint_velocity,
     ).save_urdf()
 
 
