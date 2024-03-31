@@ -35,7 +35,7 @@ class PrincipleAxis(BaseModel):
     z: float
 
     @property
-    def array(self) -> np.array:
+    def array(self) -> np.ndarray:
         return np.array([self.x, self.y, self.z])
 
 

@@ -1,4 +1,4 @@
-# mypy: disable-error-code="import-not-found, import-untyped"
+# mypy: disable-error-code="import-not-found, import-untyped, attr-defined, misc"
 """Visualizes a single STL file."""
 
 import argparse
@@ -32,14 +32,14 @@ def main(args: Sequence[str] | None = None) -> None:
     ax = fig.add_subplot(111, projection="3d")
 
     # Add the loaded STL mesh
-    ax.add_collection3d(mplot3d.art3d.Poly3DCollection(stl_mesh.vectors, alpha=0.5))  # type: ignore[attr-defined]
+    ax.add_collection3d(mplot3d.art3d.Poly3DCollection(stl_mesh.vectors, alpha=0.5))
 
     # Auto scale to the mesh size
     scale = stl_mesh.points.flatten()
-    ax.auto_scale_xyz(scale, scale, scale)  # type: ignore[attr-defined]
+    ax.auto_scale_xyz(scale, scale, scale)
 
     # Show the origin
-    ax.scatter([0], [0], [0], color="red", s=100, label="Origin")  # type: ignore[misc]
+    ax.scatter([0], [0], [0], color="red", s=100, label="Origin")
 
     # Show the plot to the screen
     plt.legend()
