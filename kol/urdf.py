@@ -333,7 +333,7 @@ class Material:
 
     def __post_init__(self) -> None:
         if len(self.color) == 3:
-            self.color.append(1.0)
+            self.color.append(0.5)
         if len(self.color) != 4:
             raise ValueError(f"Color must have 3 or 4 components, got {len(self.color)}")
 

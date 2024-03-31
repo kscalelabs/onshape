@@ -61,9 +61,10 @@ def main(args: Sequence[str] | None = None) -> None:
     p.changeDynamics(floor, -1, lateralFriction=1, spinningFriction=-1, rollingFriction=-1)
     p.setPhysicsEngineParameter(fixedTimeStep=parsed_args.dt, maxNumCmdPer1ms=1000)
 
-    # Makes all parts of the robot transparent.
-    # for i in range(p.getNumJoints(robot)):
-    #     p.changeVisualShape(robot, i, rgbaColor=[1, 1, 1, 0.5])
+    # Shows the origin of the robot.
+    p.addUserDebugLine([0, 0, 0], [0.1, 0, 0], [1, 0, 0], parentObjectUniqueId=robot, parentLinkIndex=-1)
+    p.addUserDebugLine([0, 0, 0], [0, 0.1, 0], [0, 1, 0], parentObjectUniqueId=robot, parentLinkIndex=-1)
+    p.addUserDebugLine([0, 0, 0], [0, 0, 0.1], [0, 0, 1], parentObjectUniqueId=robot, parentLinkIndex=-1)
 
     # Show joint controller.
     joints: dict[str, int] = {}

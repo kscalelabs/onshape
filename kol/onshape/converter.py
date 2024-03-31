@@ -4,6 +4,7 @@
 import datetime
 import functools
 import hashlib
+import io
 import itertools
 import logging
 import re
@@ -14,9 +15,10 @@ from typing import Any, Callable, Deque, Iterator, Literal, TypeVar
 
 import networkx as nx
 import numpy as np
+import stl
 
 from kol import urdf
-from kol.geometry import b_to_a_tf
+from kol.geometry import apply_matrix_, inv_tf
 from kol.onshape.api import OnshapeApi
 from kol.onshape.client import OnshapeClient
 from kol.onshape.schema.assembly import (
@@ -184,7 +186,9 @@ class Converter:
             part_color["color"]["red"],
             part_color["color"]["green"],
             part_color["color"]["blue"],
-            part_color["opacity"],
+            # part_color["opacity"],
+            # TODO: Revert back later.
+            128,
         )
 
     def part_dynamics(self, part: Part) -> PartDynamics:
@@ -528,9 +532,7 @@ class Converter:
 
         return joint_limits
 
-    def get_urdf_part(self, key: Key, world_to_mate_tf: np.matrix, joint: Joint | None = None) -> urdf.Link:
-        mate_to_part_tf = np.matrix(np.eye(4)) if joint is None else joint.child_entity.matedCS.part_to_mate_tf
-
+    def get_urdf_part(self, key: Key, joint: Joint | None = None) -> urdf.Link:
         part_name = self.key_name(key, "link")
         part_instance = self.key_to_part_instance[key]
         part = self.euid_to_part[part_instance.euid]
@@ -543,32 +545,46 @@ class Converter:
         else:
             configuration_str = part.configuration
 
+        part_color = self.part_color(part)
+        part_dynamic = self.part_dynamics(part).bodies[part_instance.partId]
+
+        # If the part is the root part, move the STL to be relative to the
+        # center of mass and principle inertia axes, otherwise move it to
+        # the origin of the part frame.
+        if joint is None:
+            com_to_part_tf_array = np.eye(4)
+            com_to_part_tf_array[:3, 3] = -np.array(part_dynamic.center_of_mass)
+            com_to_part_tf = np.matrix(com_to_part_tf_array)
+        else:
+            com_to_part_tf = inv_tf(joint.child_entity.matedCS.part_to_mate_tf)
+
         part_file_name = f"{part_name}{configuration_str}.stl"
         part_file_path = self.mesh_dir / part_file_name
         if part_file_path.exists():
             logger.info("Using cached STL file %s", part_file_path)
         else:
             logger.info("Downloading STL file %s", part_file_path)
-            self.api.download_stl(part, part_file_path)
-
-        part_color = self.part_color(part)
-        part_dynamic = self.part_dynamics(part).bodies[part_instance.partId]
+            buffer = io.BytesIO()
+            self.api.download_stl(part, buffer)
+            buffer.seek(0)
+            mesh = stl.mesh.Mesh.from_file(None, fh=buffer)
+            mesh = apply_matrix_(mesh, com_to_part_tf)
+            mesh.save(part_file_path)
 
         # Move the mesh origin and dynamics from the part frame to the parent
         # joint frame (since URDF expects this by convention).
-        mesh_origin = urdf.Origin.from_matrix(mate_to_part_tf)
+        mesh_origin = urdf.Origin.zero_origin()
+        # center_of_mass = part_dynamic.center_of_mass_in_frame(world_to_part_tf)
+        # inertia = part_dynamic.inertia_in_frame(world_to_part_tf)
 
-        center_of_mass = part_dynamic.center_of_mass_in_frame(world_to_mate_tf @ mate_to_part_tf)
-        inertia = part_dynamic.inertia_in_frame(world_to_mate_tf @ mate_to_part_tf)
-
-        # Checks the principle inertia axes.
-        if not np.allclose(sorted(np.linalg.eigvals(inertia)), sorted(part_dynamic.principle_inertia)):
-            logger.warning(
-                "Inertia tensor does not match the principal inertia axes for part %s: Eigenvalues %s, Principal %s",
-                self.key_name(key, "link"),
-                np.linalg.eigvals(inertia),
-                part_dynamic.principle_inertia,
-            )
+        # # Checks the principle inertia axes.
+        # if not np.allclose(sorted(np.linalg.eigvals(inertia)), sorted(part_dynamic.principle_inertia)):
+        #     logger.warning(
+        #         "Inertia tensor does not match the principal inertia axes for part %s: Eigenvalues %s, Principal %s",
+        #         self.key_name(key, "link"),
+        #         np.linalg.eigvals(inertia),
+        #         part_dynamic.principle_inertia,
+        #     )
 
         urdf_file_path = f"package:///meshes/{part_file_name}"
         urdf_link_name = self.key_name(key, "link")
@@ -606,22 +622,21 @@ class Converter:
 
         return urdf_part_link
 
-    def get_urdf_joint(self, joint: Joint, world_to_mate_tfs: dict[Key, np.matrix]) -> urdf.BaseJoint:
+    def get_urdf_joint(self, joint: Joint) -> urdf.BaseJoint:
         """Returns the URDF joint.
 
         Args:
             joint: The joint to convert.
-            world_to_mate_tfs: The world to mate transforms for each part.
 
         Returns:
             The URDF link and joint.
         """
+        parent_occurrence = self.key_to_occurrence[joint.parent]
         child_occurrence = self.key_to_occurrence[joint.child]
+        parent_world_to_part_tf = parent_occurrence.world_to_part_tf
         child_world_to_part_tf = child_occurrence.world_to_part_tf
-        child_part_to_mate_tf = joint.child_entity.matedCS.part_to_mate_tf
-        child_world_to_mate_tf = child_world_to_part_tf @ child_part_to_mate_tf
-        world_to_mate_tfs[joint.child] = child_world_to_mate_tf
-        parent_mate_to_child_mate_tf = b_to_a_tf(world_to_mate_tfs[joint.parent]) @ child_world_to_mate_tf
+        parent_part_to_mate_tf = joint.parent_entity.matedCS.part_to_mate_tf
+        parent_mate_to_child_mate_tf = inv_tf(parent_world_to_part_tf) @ child_world_to_part_tf
 
         # Gets the joint limits.
         joint_assembly_id, feature_id = self.assembly_key_to_id[joint.joint_key[:-1]], joint.joint_key[-1]
@@ -638,7 +653,8 @@ class Converter:
             return None if expression is None else expression_resolver.read_expression(expression)
 
         name = self.key_name(joint.joint_key, "joint")
-        origin = urdf.Origin.from_matrix(parent_mate_to_child_mate_tf)
+        # origin = urdf.Origin.from_matrix(parent_part_to_mate_tf)
+        origin = urdf.Origin.zero_origin()
         mate_type = joint.mate_type
 
         match mate_type:
@@ -740,21 +756,26 @@ class Converter:
         urdf_links: list[urdf.Link] = []
         urdf_joints: list[urdf.BaseJoint] = []
 
-        # Because of the URDF parent-child relationship constraint, each part frame
-        # should have it's origin at the parent joint's origin. The first node
-        # can just use the world frame as the parent joint origin.
-        world_to_mate_tfs: dict[Key, np.matrix] = {}
-        world_to_mate_tfs[self.central_node] = np.matrix(np.eye(4))
-
         # Add the first link, since it has no incoming joint.
-        central_node_world_to_part_tf = self.key_to_occurrence[self.central_node].world_to_part_tf
-        part_link = self.get_urdf_part(self.central_node, central_node_world_to_part_tf)
+        part_link = self.get_urdf_part(self.central_node)
         urdf_links.append(part_link)
+
+        # For debugging.
+        # names = {k: chr(ord('a') + i) for i, k in enumerate(self.key_to_part_instance.keys())}
+        # for k, v in self.key_to_occurrence.items():
+        #     print(f"T_w_{names[k]} = np.", end="")
+        #     print(repr(v.world_to_part_tf))
+        # for j in self.ordered_joint_list:
+        #     ab = f"{names[j.parent]}{names[j.child]}"
+        #     print(f"T_{ab}_{names[j.parent]} = np.", end="")
+        #     print(repr(j.parent_entity.matedCS.part_to_mate_tf))
+        #     print(f"T_{ab}_{names[j.child]} = np.", end="")
+        #     print(repr(j.child_entity.matedCS.part_to_mate_tf))
 
         # Creates a URDF joint for each feature connecting two parts.
         for joint in self.ordered_joint_list:
-            urdf_joint = self.get_urdf_joint(joint, world_to_mate_tfs)
-            urdf_link = self.get_urdf_part(joint.child, world_to_mate_tfs[joint.child], joint)
+            urdf_joint = self.get_urdf_joint(joint)
+            urdf_link = self.get_urdf_part(joint.child, joint)
             urdf_joints.append(urdf_joint)
             urdf_links.append(urdf_link)
 

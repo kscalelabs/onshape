@@ -1,7 +1,7 @@
 """OnShape API and client."""
 
 import logging
-from pathlib import Path
+from typing import BinaryIO
 
 from kol.onshape.client import DocumentInfo, OnshapeClient, WorkspaceType
 from kol.onshape.schema.assembly import Assembly, AssemblyMetadata, Part, RootAssembly, SubAssembly
@@ -97,7 +97,7 @@ class OnshapeApi:
         ).json()
         return PartDynamics.model_validate(data)
 
-    def download_stl(self, part: Part, output_path: Path) -> None:
+    def download_stl(self, part: Part, fp: BinaryIO) -> None:
         path = (
             f"/api/parts/d/{part.documentId}/m/{part.documentMicroversion}"
             f"/e/{part.elementId}/partid/{escape_url(part.partId)}/stl"
@@ -114,5 +114,4 @@ class OnshapeApi:
             headers={"Accept": "*/*"},
         )
         response.raise_for_status()
-        with open(output_path, "wb") as f:
-            f.write(response.content)
+        fp.write(response.content)
