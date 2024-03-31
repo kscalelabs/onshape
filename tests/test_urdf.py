@@ -51,7 +51,7 @@ def test_urdf(tmpdir: Path) -> None:
         ),
     ]
 
-    robot = urdf.Robot("robot", linksg)
+    robot = urdf.Robot("robot", links)
     save_path = Path(tmpdir / "robot.urdf")
     robot.save(save_path)
 
