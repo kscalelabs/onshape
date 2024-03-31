@@ -54,16 +54,17 @@ def main(args: Sequence[str] | None = None) -> None:
     # Load the robot URDF.
     start_position = [0.0, 0.0, 1.0]
     start_orientation = p.getQuaternionFromEuler([0.0, 0.0, 0.0])
-    flags = p.URDF_USE_SELF_COLLISION
+    flags = p.URDF_USE_INERTIA_FROM_FILE | p.URDF_MERGE_FIXED_LINKS
     robot = p.loadURDF(str(urdf_path), start_position, start_orientation, flags=flags, useFixedBase=0)
 
     # Initializes physics parameters.
     p.changeDynamics(floor, -1, lateralFriction=1, spinningFriction=-1, rollingFriction=-1)
     p.setPhysicsEngineParameter(fixedTimeStep=parsed_args.dt, maxNumCmdPer1ms=1000)
 
-    # Makes all parts of the robot transparent.
-    # for i in range(p.getNumJoints(robot)):
-    #     p.changeVisualShape(robot, i, rgbaColor=[1, 1, 1, 0.5])
+    # Shows the origin of the robot.
+    p.addUserDebugLine([0, 0, 0], [0.1, 0, 0], [1, 0, 0], parentObjectUniqueId=robot, parentLinkIndex=-1)
+    p.addUserDebugLine([0, 0, 0], [0, 0.1, 0], [0, 1, 0], parentObjectUniqueId=robot, parentLinkIndex=-1)
+    p.addUserDebugLine([0, 0, 0], [0, 0, 0.1], [0, 0, 1], parentObjectUniqueId=robot, parentLinkIndex=-1)
 
     # Show joint controller.
     joints: dict[str, int] = {}

@@ -17,7 +17,10 @@ def xml_escape(unescaped: str) -> str:
 
 
 def format_number(value: float) -> str:
-    return f"{value:.20g}"
+    # Clip epsilon to avoid scientific notation
+    if abs(value) < 1e-6:
+        value = 0.0
+    return f"{value:.8g}"
 
 
 @dataclass
@@ -333,7 +336,7 @@ class Material:
 
     def __post_init__(self) -> None:
         if len(self.color) == 3:
-            self.color.append(1.0)
+            self.color.append(0.5)
         if len(self.color) != 4:
             raise ValueError(f"Color must have 3 or 4 components, got {len(self.color)}")
 
@@ -385,15 +388,12 @@ class Link:
 @dataclass
 class Robot:
     name: str
-    links: list[Link]
-    joints: list[BaseJoint]
+    parts: list[Link | BaseJoint]
 
     def to_xml(self) -> ET.Element:
         robot = ET.Element("robot", name=self.name)
-        for link in self.links:
-            link.to_xml(robot)
-        for joint in self.joints:
-            joint.to_xml(robot)
+        for part in self.parts:
+            part.to_xml(robot)
         return robot
 
     def save(self, path: str | Path) -> None:

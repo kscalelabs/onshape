@@ -6,7 +6,7 @@ from kol import urdf
 
 
 def test_urdf(tmpdir: Path) -> None:
-    links: list[urdf.Link] = [
+    links: list[urdf.Link | urdf.BaseJoint] = [
         urdf.Link(
             "first",
             urdf.VisualLink(
@@ -41,9 +41,6 @@ def test_urdf(tmpdir: Path) -> None:
                 origin=urdf.Origin((0, 0, 0), (0, 0, 0)),
             ),
         ),
-    ]
-
-    joints: list[urdf.BaseJoint] = [
         urdf.RevoluteJoint(
             name="joint",
             parent="first",
@@ -51,10 +48,10 @@ def test_urdf(tmpdir: Path) -> None:
             origin=urdf.Origin((0, 0, 0), (0, 0, 0)),
             limits=urdf.JointLimits(1.0, 1.0, -1.0, 1.0),
             axis=urdf.Axis((0, 0, 1)),
-        )
+        ),
     ]
 
-    robot = urdf.Robot("robot", links, joints)
+    robot = urdf.Robot("robot", links)
     save_path = Path(tmpdir / "robot.urdf")
     robot.save(save_path)
 

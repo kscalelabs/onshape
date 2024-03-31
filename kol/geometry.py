@@ -25,7 +25,7 @@ def rotation_matrix_to_euler_angles(rotation_matrix: np.matrix) -> tuple[float, 
     return x, y, z
 
 
-def apply_matrix_(mesh: stl.mesh.Mesh, matrix: np.matrix) -> None:
+def apply_matrix_(mesh: stl.mesh.Mesh, matrix: np.matrix) -> stl.mesh.Mesh:
     rotation = matrix[0:3, 0:3]
     translation = matrix[0:3, 3:4].T.tolist()
 
@@ -36,6 +36,11 @@ def apply_matrix_(mesh: stl.mesh.Mesh, matrix: np.matrix) -> None:
     mesh.v1 = transform(mesh.v1)
     mesh.v2 = transform(mesh.v2)
     mesh.normals = transform(mesh.normals)
+    return mesh
+
+
+def inv_tf(a_to_b_tf: np.matrix) -> np.matrix:
+    return np.matrix(np.linalg.inv(a_to_b_tf))
 
 
 @dataclass

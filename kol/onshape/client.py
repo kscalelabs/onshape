@@ -8,9 +8,11 @@ import json
 import logging
 import os
 import random
+import re
 import string
 import urllib.parse
-from typing import Any, Literal
+from dataclasses import dataclass
+from typing import Any, Literal, cast
 
 import requests
 
@@ -26,6 +28,17 @@ ONSHAPE_API_KEY_URL = "https://dev-portal.onshape.com/keys"
 DEFAULT_BASE_URL = "https://cad.onshape.com"
 
 Method = Literal["get", "post", "put", "delete"]
+
+
+WorkspaceType = Literal["w", "v"]
+
+
+@dataclass
+class DocumentInfo:
+    document_id: str
+    item_kind: WorkspaceType
+    item_id: str
+    element_id: str
 
 
 class OnshapeClient:
@@ -58,6 +71,16 @@ class OnshapeClient:
         self.access_key = access_key.encode("utf-8")
         self.secret_key = secret_key.encode("utf-8")
         self.base_url = base_url
+
+    def parse_url(self, document_url: str) -> DocumentInfo:
+        url_match = re.match(rf"{self.base_url}/documents/([\w\d]+)/(w|v)/([\w\d]+)/e/([\w\d]+)", document_url)
+        if url_match is None:
+            raise ValueError(f"Invalid document URL: {document_url}")
+        document_id = url_match.group(1)
+        item_kind = cast(WorkspaceType, url_match.group(2))
+        item_id = url_match.group(3)
+        element_id = url_match.group(4)
+        return DocumentInfo(document_id, item_kind, item_id, element_id)
 
     def _make_nonce(self) -> str:
         """Generate a unique ID for the request, 25 chars in length.
