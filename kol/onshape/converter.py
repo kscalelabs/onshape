@@ -81,7 +81,21 @@ class JointLimits:
 
 
 class Converter:
-    """Defines a utility class for getting document components efficiently."""
+    """Defines a utility class for getting document components efficiently.
+
+    Parameters:
+        document_url: The OnShape URL of the document to import.
+        output_dir: The directory to save the imported model.
+        api: The OnShape API to use for importing the model.
+        default_prismatic_joint_limits: The default limits for prismatic joints.
+        default_revolute_joint_limits: The default limits for revolute joints.
+        suffix_to_joint_effort: The mapping from joint suffix to effort. This
+            is used to override the default joint effort limits by matching
+            the suffix of the joint name.
+        suffix_to_joint_velocity: The mapping from joint suffix to velocity.
+            This is used to override the default joint velocity limits by
+            matching the suffix of the joint name.
+    """
 
     def __init__(
         self,
@@ -90,6 +104,8 @@ class Converter:
         api: OnshapeApi | None = None,
         default_prismatic_joint_limits: urdf.JointLimits = urdf.JointLimits(80.0, 5.0, -1.0, 1.0),
         default_revolute_joint_limits: urdf.JointLimits = urdf.JointLimits(80.0, 5.0, -np.pi, np.pi),
+        suffix_to_joint_effort: list[tuple[str, float]] = [],
+        suffix_to_joint_velocity: list[tuple[str, float]] = [],
     ) -> None:
         super().__init__()
 
@@ -108,6 +124,8 @@ class Converter:
         self.document = self.api.parse_url(document_url)
         self.default_prismatic_joint_limits = default_prismatic_joint_limits
         self.default_revolute_joint_limits = default_revolute_joint_limits
+        self.suffix_to_joint_effort = [(k.lower().strip(), v) for k, v in suffix_to_joint_effort]
+        self.suffix_to_joint_velocity = [(k.lower().strip(), v) for k, v in suffix_to_joint_velocity]
 
         # Map containing all cached items.
         self.cache_map: dict[str, Any] = {}
@@ -623,6 +641,19 @@ class Converter:
 
         return urdf_part_link
 
+    def get_effort_and_velocity(self, name: str, default_effort: float, default_velocity: float) -> tuple[float, float]:
+        effort = default_effort
+        for suffix, value in self.suffix_to_joint_effort:
+            if name.lower().endswith(suffix):
+                effort = value
+                break
+        velocity = default_velocity
+        for suffix, value in self.suffix_to_joint_velocity:
+            if name.lower().endswith(suffix):
+                velocity = value
+                break
+        return effort, velocity
+
     def get_urdf_joint(self, joint: Joint) -> urdf.BaseJoint:
         """Returns the URDF joint.
 
@@ -674,6 +705,12 @@ class Converter:
                 if min_value is None or max_value is None:
                     raise ValueError(f"Revolute joint {name} ({parent} -> {child}) does not have limits defined.")
 
+                effort, velocity = self.get_effort_and_velocity(
+                    name,
+                    self.default_revolute_joint_limits.effort,
+                    self.default_revolute_joint_limits.velocity,
+                )
+
                 return urdf.RevoluteJoint(
                     name=name,
                     parent=parent,
@@ -681,8 +718,8 @@ class Converter:
                     origin=origin,
                     axis=urdf.Axis((0.0, 0.0, 1.0)),
                     limits=urdf.JointLimits(
-                        effort=self.default_revolute_joint_limits.effort,
-                        velocity=self.default_revolute_joint_limits.velocity,
+                        effort=effort,
+                        velocity=velocity,
                         lower=min_value,
                         upper=max_value,
                     ),
@@ -707,6 +744,12 @@ class Converter:
                 if min_value is None or max_value is None:
                     raise ValueError(f"Slider joint {name} ({parent} -> {child}) does not have limits defined.")
 
+                effort, velocity = self.get_effort_and_velocity(
+                    name,
+                    self.default_prismatic_joint_limits.effort,
+                    self.default_prismatic_joint_limits.velocity,
+                )
+
                 return urdf.PrismaticJoint(
                     name=name,
                     parent=parent,
@@ -714,8 +757,8 @@ class Converter:
                     origin=origin,
                     axis=urdf.Axis((0.0, 0.0, 1.0)),
                     limits=urdf.JointLimits(
-                        effort=self.default_prismatic_joint_limits.effort,
-                        velocity=self.default_prismatic_joint_limits.velocity,
+                        effort=effort,
+                        velocity=velocity,
                         lower=min_value,
                         upper=max_value,
                     ),
