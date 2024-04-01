@@ -95,6 +95,7 @@ class Converter:
         suffix_to_joint_velocity: The mapping from joint suffix to velocity.
             This is used to override the default joint velocity limits by
             matching the suffix of the joint name.
+        disable_mimics: Whether to disable mimic joints.
     """
 
     def __init__(
@@ -106,6 +107,7 @@ class Converter:
         default_revolute_joint_limits: urdf.JointLimits = urdf.JointLimits(80.0, 5.0, -np.pi, np.pi),
         suffix_to_joint_effort: list[tuple[str, float]] = [],
         suffix_to_joint_velocity: list[tuple[str, float]] = [],
+        disable_mimics: bool = False,
     ) -> None:
         super().__init__()
 
@@ -126,6 +128,7 @@ class Converter:
         self.default_revolute_joint_limits = default_revolute_joint_limits
         self.suffix_to_joint_effort = [(k.lower().strip(), v) for k, v in suffix_to_joint_effort]
         self.suffix_to_joint_velocity = [(k.lower().strip(), v) for k, v in suffix_to_joint_velocity]
+        self.disable_mimics = disable_mimics
 
         # Map containing all cached items.
         self.cache_map: dict[str, Any] = {}
@@ -437,6 +440,8 @@ class Converter:
     @functools.cached_property
     def relations(self) -> dict[Key, MimicRelation]:
         relations: dict[Key, MimicRelation] = {}
+        if self.disable_mimics:
+            return relations
         for path, mate_relation_feature in self.key_to_mate_relation_feature.items():
             if mate_relation_feature.suppressed:
                 continue
