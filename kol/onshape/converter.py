@@ -70,6 +70,7 @@ class Joint:
     child_entity: MatedEntity
     mate_type: MateType
     joint_key: Key
+    lhs_is_first: bool
 
 
 @dataclass
@@ -488,7 +489,7 @@ class Converter:
             parent_key, child_key = (lhs_key, rhs_key) if lhs_is_first else (rhs_key, lhs_key)
             parent_entity, child_entity = (lhs_entity, rhs_entity) if lhs_is_first else (rhs_entity, lhs_entity)
             mate_type = mate_feature.featureData.mateType
-            joint_list.append(Joint(parent_key, child_key, parent_entity, child_entity, mate_type, joint_key))
+            joint_list.append(Joint(parent_key, child_key, parent_entity, child_entity, mate_type, joint_key, lhs_is_first))
         joint_list.sort(key=lambda x: (node_level[x.parent], node_level[x.child]))
 
         return joint_list
@@ -721,7 +722,7 @@ class Converter:
                     parent=parent,
                     child=child,
                     origin=origin,
-                    axis=urdf.Axis((0.0, 0.0, 1.0)),
+                    axis=urdf.Axis((0.0, 0.0, -1.0 if joint.lhs_is_first else 1.0)),
                     limits=urdf.JointLimits(
                         effort=effort,
                         velocity=velocity,
@@ -760,7 +761,7 @@ class Converter:
                     parent=parent,
                     child=child,
                     origin=origin,
-                    axis=urdf.Axis((0.0, 0.0, 1.0)),
+                    axis=urdf.Axis((0.0, 0.0, -1.0 if joint.lhs_is_first else 1.0)),
                     limits=urdf.JointLimits(
                         effort=effort,
                         velocity=velocity,
