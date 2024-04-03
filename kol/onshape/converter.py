@@ -489,7 +489,16 @@ class Converter:
             parent_key, child_key = (lhs_key, rhs_key) if lhs_is_first else (rhs_key, lhs_key)
             parent_entity, child_entity = (lhs_entity, rhs_entity) if lhs_is_first else (rhs_entity, lhs_entity)
             mate_type = mate_feature.featureData.mateType
-            joint_list.append(Joint(parent_key, child_key, parent_entity, child_entity, mate_type, joint_key, lhs_is_first))
+            joint = Joint(
+                parent_key,
+                child_key,
+                parent_entity,
+                child_entity,
+                mate_type,
+                joint_key,
+                lhs_is_first,
+            )
+            joint_list.append(joint)
         joint_list.sort(key=lambda x: (node_level[x.parent], node_level[x.child]))
 
         return joint_list
