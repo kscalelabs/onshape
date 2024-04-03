@@ -25,6 +25,7 @@ def main(args: Sequence[str] | None = None) -> None:
     parser.add_argument("--max-angle", type=float, default=np.pi, help="The maximum angle, in radians")
     parser.add_argument("--suffix-to-joint-effort", type=str, nargs="+", help="The suffix to joint effort mapping")
     parser.add_argument("--suffix-to-joint-velocity", type=str, nargs="+", help="The suffix to joint velocity mapping")
+    parser.add_argument("--disable-mimics", action="store_true", help="Disable the mimic joints")
     parsed_args = parser.parse_args(args)
 
     configure_logging(level=logging.DEBUG if parsed_args.debug else logging.INFO)
@@ -58,6 +59,7 @@ def main(args: Sequence[str] | None = None) -> None:
         ),
         suffix_to_joint_effort=suffix_to_joint_effort,
         suffix_to_joint_velocity=suffix_to_joint_velocity,
+        disable_mimics=parsed_args.disable_mimics,
     ).save_urdf()
 
 
