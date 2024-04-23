@@ -16,7 +16,7 @@ STOMPY_ONSHAPE_URL = (
 )
 
 
-@pytest.mark.slow
+@pytest.mark.skip(reason="This test is slow and requires an internet connection")
 def test_e2e(tmpdir: Path) -> None:
     """Runs an end-to-end test of the URDF exporter on the Stompy model.
 
