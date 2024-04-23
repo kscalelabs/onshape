@@ -3,12 +3,13 @@
 
 import argparse
 import logging
-from typing import Sequence
+from typing import Sequence, get_args
 
 import numpy as np
 
 from kol import urdf
 from kol.logging import configure_logging
+from kol.mesh import MeshExt
 from kol.onshape.converter import Converter
 
 
@@ -26,6 +27,7 @@ def main(args: Sequence[str] | None = None) -> None:
     parser.add_argument("--suffix-to-joint-effort", type=str, nargs="+", help="The suffix to joint effort mapping")
     parser.add_argument("--suffix-to-joint-velocity", type=str, nargs="+", help="The suffix to joint velocity mapping")
     parser.add_argument("--disable-mimics", action="store_true", help="Disable the mimic joints")
+    parser.add_argument("--mesh-ext", type=str, default="stl", choices=get_args(MeshExt), help="The mesh file format")
     parsed_args = parser.parse_args(args)
 
     configure_logging(level=logging.DEBUG if parsed_args.debug else logging.INFO)
@@ -60,6 +62,7 @@ def main(args: Sequence[str] | None = None) -> None:
         suffix_to_joint_effort=suffix_to_joint_effort,
         suffix_to_joint_velocity=suffix_to_joint_velocity,
         disable_mimics=parsed_args.disable_mimics,
+        mesh_ext=parsed_args.mesh_ext,
     ).save_urdf()
 
 

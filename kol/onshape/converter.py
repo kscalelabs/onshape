@@ -19,6 +19,7 @@ import stl
 
 from kol import urdf
 from kol.geometry import apply_matrix_, inv_tf, rotation_matrix_to_euler_angles
+from kol.mesh import MeshExt, stl_to_fmt
 from kol.onshape.api import OnshapeApi
 from kol.onshape.client import OnshapeClient
 from kol.onshape.schema.assembly import (
@@ -97,6 +98,7 @@ class Converter:
             This is used to override the default joint velocity limits by
             matching the suffix of the joint name.
         disable_mimics: Whether to disable mimic joints.
+        mesh_ext: The extension of the mesh files to download.
     """
 
     def __init__(
@@ -109,6 +111,7 @@ class Converter:
         suffix_to_joint_effort: list[tuple[str, float]] = [],
         suffix_to_joint_velocity: list[tuple[str, float]] = [],
         disable_mimics: bool = False,
+        mesh_ext: MeshExt = "stl",
     ) -> None:
         super().__init__()
 
@@ -130,6 +133,7 @@ class Converter:
         self.suffix_to_joint_effort = [(k.lower().strip(), v) for k, v in suffix_to_joint_effort]
         self.suffix_to_joint_velocity = [(k.lower().strip(), v) for k, v in suffix_to_joint_velocity]
         self.disable_mimics = disable_mimics
+        self.mesh_ext = mesh_ext
 
         # Map containing all cached items.
         self.cache_map: dict[str, Any] = {}
@@ -595,18 +599,27 @@ class Converter:
             stl_origin_to_part_tf = inv_tf(joint.child_entity.matedCS.part_to_mate_tf)
         self.stl_origin_to_part_tf[key] = stl_origin_to_part_tf
 
-        part_file_name = f"{part_name}{configuration_str}.stl"
+        part_file_name = f"{part_name}{configuration_str}.{self.mesh_ext}"
         part_file_path = self.mesh_dir / part_file_name
+
         if part_file_path.exists():
-            logger.info("Using cached STL file %s", part_file_path)
+            logger.info("Using cached file %s", part_file_path)
+
         else:
-            logger.info("Downloading STL file %s", part_file_path)
-            buffer = io.BytesIO()
-            self.api.download_stl(part, buffer)
-            buffer.seek(0)
-            mesh = stl.mesh.Mesh.from_file(None, fh=buffer)
-            mesh = apply_matrix_(mesh, stl_origin_to_part_tf)
-            mesh.save(part_file_path)
+            # Downloads the STL file.
+            part_file_path_stl = part_file_path.with_suffix(".stl")
+            if not part_file_path_stl.exists():
+                logger.info("Downloading file %s", part_file_path_stl)
+                buffer = io.BytesIO()
+                self.api.download_stl(part, buffer)
+                buffer.seek(0)
+                mesh = stl.mesh.Mesh.from_file(None, fh=buffer)
+                mesh = apply_matrix_(mesh, stl_origin_to_part_tf)
+                mesh.save(part_file_path_stl)
+
+            # Converts the mesh to the desired format.
+            logger.info("Converting STL file to %s", part_file_path)
+            stl_to_fmt(part_file_path_stl, part_file_path)
 
         # Move the mesh origin and dynamics from the part frame to the parent
         # joint frame (since URDF expects this by convention).
