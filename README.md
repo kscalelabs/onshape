@@ -10,6 +10,12 @@ Install the library using pip:
 pip install kscale-onshape-library
 ```
 
+Or, if you want to install directly from Github:
+
+```bash
+pip install 'kscale-onshape-library @ git+https://github.com/kscalelabs/onshape.git@master'
+```
+
 Or, if you're developing the library, do:
 
 ```bash
