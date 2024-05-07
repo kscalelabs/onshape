@@ -17,7 +17,7 @@ import networkx as nx
 import numpy as np
 import stl
 
-from kol import urdf
+from kol.formats import urdf
 from kol.geometry import apply_matrix_, inv_tf, rotation_matrix_to_euler_angles
 from kol.mesh import MeshExt, stl_to_fmt
 from kol.onshape.api import OnshapeApi

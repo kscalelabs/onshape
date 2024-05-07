@@ -7,7 +7,7 @@ from typing import Sequence, get_args
 
 import numpy as np
 
-from kol import urdf
+from kol.formats import urdf
 from kol.logging import configure_logging
 from kol.mesh import MeshExt
 from kol.onshape.converter import Converter

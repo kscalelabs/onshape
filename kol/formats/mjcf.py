@@ -2,6 +2,7 @@
 
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Literal
 
 
@@ -44,3 +45,26 @@ class Robot:
         self.compiler.to_xml(robot)
         self.option.to_xml(robot)
         return robot
+
+    def save(self, path: str | Path) -> None:
+        tree = ET.ElementTree(self.to_xml())
+        root = tree.getroot()
+
+        def indent(elem: ET.Element, level: int = 0) -> ET.Element:
+            i = "\n" + level * "  "
+            if len(elem):
+                if not elem.text or not elem.text.strip():
+                    elem.text = i + "  "
+                if not elem.tail or not elem.tail.strip():
+                    elem.tail = i
+                for elem in elem:
+                    indent(elem, level + 1)
+                if not elem.tail or not elem.tail.strip():
+                    elem.tail = i
+            else:  # noqa: PLR5501
+                if level and (not elem.tail or not elem.tail.strip()):
+                    elem.tail = i
+            return elem
+
+        indent(root)
+        tree.write(path, encoding="utf-8", xml_declaration=True, method="xml")

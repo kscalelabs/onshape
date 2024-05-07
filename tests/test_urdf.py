@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from kol import urdf
+from kol.formats import urdf
 
 
 def test_urdf(tmpdir: Path) -> None:
