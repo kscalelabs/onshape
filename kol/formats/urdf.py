@@ -9,6 +9,7 @@ from xml.sax.saxutils import escape
 
 import numpy as np
 
+from kol.formats.common import save_xml
 from kol.geometry import rotation_matrix_to_euler_angles
 
 
@@ -398,23 +399,4 @@ class Robot:
 
     def save(self, path: str | Path) -> None:
         tree = ET.ElementTree(self.to_xml())
-        root = tree.getroot()
-
-        def indent(elem: ET.Element, level: int = 0) -> ET.Element:
-            i = "\n" + level * "  "
-            if len(elem):
-                if not elem.text or not elem.text.strip():
-                    elem.text = i + "  "
-                if not elem.tail or not elem.tail.strip():
-                    elem.tail = i
-                for elem in elem:
-                    indent(elem, level + 1)
-                if not elem.tail or not elem.tail.strip():
-                    elem.tail = i
-            else:  # noqa: PLR5501
-                if level and (not elem.tail or not elem.tail.strip()):
-                    elem.tail = i
-            return elem
-
-        indent(root)
-        tree.write(path, encoding="utf-8", xml_declaration=True, method="xml")
+        save_xml(path, tree)
