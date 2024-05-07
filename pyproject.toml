@@ -33,7 +33,9 @@ namespace_packages = false
 [[tool.mypy.overrides]]
 
 module = [
+    "mujoco.*",
     "networkx.*",
+    "pybullet.*",
     "stl.*",
 ]
 

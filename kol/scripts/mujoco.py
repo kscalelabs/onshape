@@ -22,7 +22,7 @@ def main(args: Sequence[str] | None = None) -> None:
     parsed_args = parser.parse_args(args)
 
     try:
-        import mujoco_py as mjp
+        import mujoco as mjp
     except ImportError:
         raise ImportError("pybullet is required to run this script")
 
