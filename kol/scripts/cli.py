@@ -3,7 +3,7 @@
 import argparse
 from typing import Sequence
 
-from kol.scripts import get_mjcf, get_urdf, mujoco, pybullet, stl
+from kol.scripts import get_mjcf, get_urdf, pybullet, show_mjcf, stl
 
 
 def main(args: Sequence[str] | None = None) -> None:
@@ -23,7 +23,7 @@ def main(args: Sequence[str] | None = None) -> None:
         case "pybullet":
             pybullet.main(remaining_args)
         case "mujoco":
-            mujoco.main(remaining_args)
+            show_mjcf.main(remaining_args)
         case "stl":
             stl.main(remaining_args)
         case _:

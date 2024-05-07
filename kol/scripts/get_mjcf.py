@@ -1,5 +1,11 @@
 # mypy: disable-error-code="attr-defined"
-"""Defines utility functions for converting an OnShape model to a MJCF file."""
+"""Defines utility functions for converting an OnShape model to a MJCF file.
+python kol/scripts/get_mjcf.py https://cad.onshape.com/documents/655c1b96d8d37f817d03ec70/w/2b9c1d4805ca57134ac438be/e/9d91baa008a881d1993de549
+
+python kol/scripts/show_mjcf.py
+
+
+"""
 
 import argparse
 import logging
@@ -25,5 +31,5 @@ def main(args: Sequence[str] | None = None) -> None:
 
 
 if __name__ == "__main__":
-    # python -m kol.scripts.import_onshape
+    # python -m kol.scripts.get_mjcf
     main()
