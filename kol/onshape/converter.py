@@ -851,6 +851,6 @@ class Converter:
         urdf_robot = urdf.Robot(name=robot_name, parts=urdf_parts)
         urdf_robot.save(self.output_dir / f"{robot_name}.urdf")
 
-    def safe_mjcf(self) -> None:
+    def save_mjcf(self) -> None:
         """Saves an MJCF file for the assembly to the output directory."""
-        mjcf_art
+        raise NotImplementedError
