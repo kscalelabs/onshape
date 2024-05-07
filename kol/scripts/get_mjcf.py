@@ -5,8 +5,12 @@ python kol/scripts/get_mjcf.py https://cad.onshape.com/documents/655c1b96d8d37f8
 python kol/scripts/show_mjcf.py
 
 
-"""
+ 1. Collision rules are defined automatically.
+ 2. Geom without pos takes 0 0 0 and 1 0 0 0 as default
+ 3. he quat attribute has a default value corresponding to the null rotation
+ 4.
 
+"""
 import argparse
 import logging
 from typing import Sequence
