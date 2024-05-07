@@ -1,5 +1,5 @@
 # mypy: disable-error-code="attr-defined"
-"""Defines utility functions for importing the robot model from OnShape."""
+"""Defines utility functions for converting an OnShape model to a URDF file."""
 
 import argparse
 import logging

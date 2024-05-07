@@ -3,17 +3,19 @@
 import argparse
 from typing import Sequence
 
-from kol.scripts import get_urdf, pybullet, stl
+from kol.scripts import get_mjcf, get_urdf, pybullet, stl
 
 
 def main(args: Sequence[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description="K-Scale OnShape Library", add_help=False)
-    parser.add_argument("subcommand", choices=["urdf", "pybullet", "stl"], help="The subcommand to run")
+    parser.add_argument("subcommand", choices=["urdf", "mjcf", "pybullet", "stl"], help="The subcommand to run")
     parsed_args, remaining_args = parser.parse_known_args(args)
 
     match parsed_args.subcommand:
         case "urdf":
             get_urdf.main(remaining_args)
+        case "mjcf":
+            get_mjcf.main(remaining_args)
         case "pybullet":
             pybullet.main(remaining_args)
         case "stl":
