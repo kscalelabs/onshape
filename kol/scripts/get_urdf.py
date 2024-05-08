@@ -1,5 +1,5 @@
 # mypy: disable-error-code="attr-defined"
-"""Defines utility functions for importing the robot model from OnShape."""
+"""Defines utility functions for converting an OnShape model to a URDF file."""
 
 import argparse
 import logging
@@ -7,7 +7,7 @@ from typing import Sequence, get_args
 
 import numpy as np
 
-from kol import urdf
+from kol.formats import urdf
 from kol.logging import configure_logging
 from kol.mesh import MeshExt
 from kol.onshape.converter import Converter
@@ -67,5 +67,5 @@ def main(args: Sequence[str] | None = None) -> None:
 
 
 if __name__ == "__main__":
-    # python -m kol.scripts.import_onshape
+    # python -m kol.scripts.get_urdf
     main()

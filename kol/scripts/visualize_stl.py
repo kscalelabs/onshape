@@ -47,5 +47,5 @@ def main(args: Sequence[str] | None = None) -> None:
 
 
 if __name__ == "__main__":
-    # python -m robot.cad.scripts.show_urdf
+    # python -m kol.scripts.visualize_stl
     main()

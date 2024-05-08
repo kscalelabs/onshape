@@ -33,12 +33,21 @@ To convert an assembly to a URDF, use the following command:
 ```bash
 kol urdf https://cad.onshape.com/documents/DDDDDDDD/w/WWWWWWWW/e/EEEEEEEE
 ```
-
 You can visualize the resulting URDF using PyBullet:
 
 ```bash
 pip install pybullet
 kol pybullet robot/<urdf-name>.urdf
+```
+
+To convert an assembly to a MJCF, use the following command:
+```bash
+kol mjcf https://cad.onshape.com/documents/DDDDDDDD/w/WWWWWWWW/e/EEEEEEEE
+```
+You can visualize the resulting MJCF using MuJoCO:
+
+```bash
+mjpython -m kol.scripts.cli mujoco robot/test_assembly_4.xml  
 ```
 
 ### Notes

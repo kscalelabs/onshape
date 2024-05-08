@@ -5,7 +5,7 @@ from typing import get_args
 
 import pytest
 
-from kol import urdf
+from kol.formats import urdf
 from kol.logging import configure_logging
 from kol.mesh import MeshExt
 from kol.onshape.converter import Converter

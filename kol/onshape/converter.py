@@ -17,7 +17,7 @@ import networkx as nx
 import numpy as np
 import stl
 
-from kol import urdf
+from kol.formats import mjcf, urdf
 from kol.geometry import apply_matrix_, inv_tf, rotation_matrix_to_euler_angles
 from kol.mesh import MeshExt, stl_to_fmt
 from kol.onshape.api import OnshapeApi
@@ -113,8 +113,6 @@ class Converter:
         disable_mimics: bool = False,
         mesh_ext: MeshExt = "stl",
     ) -> None:
-        super().__init__()
-
         # Gets a default output directory.
         self.output_dir = Path.cwd() / "robot" if output_dir is None else Path(output_dir)
 
@@ -478,6 +476,39 @@ class Converter:
 
     @functools.cached_property
     def ordered_joint_list(self) -> list[Joint]:
+        # TODO test this
+        digraph = self.digraph
+        bfs_node_ordering = list(nx.topological_sort(digraph))
+        node_level = {node: i for i, node in enumerate(bfs_node_ordering)}
+
+        # Creates a topologically-sorted list of joints.
+        joint_list: list[Joint] = []
+        for joint_key, mate_feature in self.key_to_mate_feature.items():
+            if mate_feature.suppressed:
+                continue
+            lhs_entity, rhs_entity = mate_feature.featureData.matedEntities
+            lhs_key, rhs_key = joint_key[:-1] + lhs_entity.key, joint_key[:-1] + rhs_entity.key
+            lhs_is_first = node_level[lhs_key] < node_level[rhs_key]
+            parent_key, child_key = (lhs_key, rhs_key) if lhs_is_first else (rhs_key, lhs_key)
+            parent_entity, child_entity = (lhs_entity, rhs_entity) if lhs_is_first else (rhs_entity, lhs_entity)
+            mate_type = mate_feature.featureData.mateType
+            joint = Joint(
+                parent_key,
+                child_key,
+                parent_entity,
+                child_entity,
+                mate_type,
+                joint_key,
+                lhs_is_first,
+            )
+            joint_list.append(joint)
+        joint_list.sort(key=lambda x: (node_level[x.parent], node_level[x.child]))
+
+        return joint_list
+
+    @functools.cached_property
+    def ordered_body_list(self) -> list[Joint]:
+        # TODO test this
         digraph = self.digraph
         bfs_node_ordering = list(nx.topological_sort(digraph))
         node_level = {node: i for i, node in enumerate(bfs_node_ordering)}
@@ -850,3 +881,12 @@ class Converter:
         robot_name = clean_name(str(self.assembly_metadata.property_map.get("Name", "robot")))
         urdf_robot = urdf.Robot(name=robot_name, parts=urdf_parts)
         urdf_robot.save(self.output_dir / f"{robot_name}.urdf")
+
+    def save_mjcf(self) -> None:
+        """Saves a MJCF file for the assembly to the output directory."""
+        self.save_urdf()
+        robot_name = clean_name(str(self.assembly_metadata.property_map.get("Name", "robot")))
+
+        mjcf_robot = mjcf.Robot(robot_name, self.output_dir, mjcf.Compiler(angle="radian", meshdir="meshes"))
+        mjcf_robot.adapt_world()
+        mjcf_robot.save(self.output_dir / f"{robot_name}.xml")
