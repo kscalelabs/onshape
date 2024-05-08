@@ -1,4 +1,4 @@
-# mypy: disable-error-code="attr-defined"
+# mypy: disable-error-code="operator,union-attr"
 """Defines common types and functions for exporting MJCF files.
 
 API reference:
@@ -192,12 +192,21 @@ def _remove_stl_files(source_directory: str | Path) -> None:
 
 
 class Robot:
+    """A class to adapt the world in a Mujoco XML file."""
+
     def __init__(self, robot_name: str, output_dir: str | Path, compiler: Compiler | None = None) -> None:
+        """Initialize the robot.
+
+        Args:
+            robot_name (str): The name of the robot.
+            output_dir (str | Path): The output directory.
+            compiler (Compiler, optional): The compiler settings. Defaults to None.
+        """
         self.robot_name = robot_name
         self.output_dir = output_dir
         self.compiler = compiler
         self._set_clean_up()
-        self.tree = ET.parse(output_dir / f"{robot_name}.xml")
+        self.tree = ET.parse(self.output_dir / f"{self.robot_name}.xml")
 
     def _set_clean_up(self) -> None:
         # HACK
