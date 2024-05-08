@@ -1,15 +1,14 @@
 # mypy: disable-error-code="attr-defined"
 """Defines utility functions for converting an OnShape model to a MJCF file.
-python kol/scripts/get_mjcf.py https://cad.onshape.com/documents/655c1b96d8d37f817d03ec70/w/2b9c1d4805ca57134ac438be/e/9d91baa008a881d1993de549
+python kol/scripts/get_mjcf.py \
+    https://cad.onshape.com/documents/655c1b96d8d37f817d03ec70/w/2b9c1d4805ca57134ac438be/e/9d91baa008a881d1993de549 \
+    --output-dir robot
 
 python kol/scripts/show_mjcf.py
 
-
  1. Collision rules are defined automatically.
  2. Geom without pos takes 0 0 0 and 1 0 0 0 as default
- 3. he quat attribute has a default value corresponding to the null rotation
- 4.
-
+ 3. The quat attribute has a default value corresponding to the null rotation
 """
 import argparse
 import logging

@@ -11,7 +11,7 @@ import re
 from collections import deque
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, Deque, Iterator, Literal, TypeVar
+from typing import Any, Callable, Deque, Iterator, Literal, TypeVar, Union
 
 import networkx as nx
 import numpy as np
@@ -328,7 +328,6 @@ class Converter:
         return {p: f for p, f in self.key_to_feature.items() if isinstance(f, MateRelationFeature)}
 
     # @functools.cached_property
-    # pfb30
     @property
     def key_to_name(self) -> dict[Key, list[str]]:
         key_name_mapping: dict[Key, list[str]] = {}
@@ -492,6 +491,40 @@ class Converter:
     # @functools.cached_property
     @property
     def ordered_joint_list(self) -> list[Joint]:
+        # TODO test this
+        digraph = self.digraph
+        bfs_node_ordering = list(nx.topological_sort(digraph))
+        node_level = {node: i for i, node in enumerate(bfs_node_ordering)}
+
+        # Creates a topologically-sorted list of joints.
+        joint_list: list[Joint] = []
+        for joint_key, mate_feature in self.key_to_mate_feature.items():
+            if mate_feature.suppressed:
+                continue
+            lhs_entity, rhs_entity = mate_feature.featureData.matedEntities
+            lhs_key, rhs_key = joint_key[:-1] + lhs_entity.key, joint_key[:-1] + rhs_entity.key
+            lhs_is_first = node_level[lhs_key] < node_level[rhs_key]
+            parent_key, child_key = (lhs_key, rhs_key) if lhs_is_first else (rhs_key, lhs_key)
+            parent_entity, child_entity = (lhs_entity, rhs_entity) if lhs_is_first else (rhs_entity, lhs_entity)
+            mate_type = mate_feature.featureData.mateType
+            joint = Joint(
+                parent_key,
+                child_key,
+                parent_entity,
+                child_entity,
+                mate_type,
+                joint_key,
+                lhs_is_first,
+            )
+            joint_list.append(joint)
+        joint_list.sort(key=lambda x: (node_level[x.parent], node_level[x.child]))
+
+        return joint_list
+
+    # @functools.cached_property
+    @property
+    def ordered_body_list(self) -> list[Joint]:
+        # TODO test this
         digraph = self.digraph
         bfs_node_ordering = list(nx.topological_sort(digraph))
         node_level = {node: i for i, node in enumerate(bfs_node_ordering)}
@@ -684,7 +717,8 @@ class Converter:
 
         return urdf_part_link
 
-    def get_mjcf_part(self, key: Key, joint: Joint | None = None) -> urdf.Link:
+    def get_mjcf_part(self, key: Key, body: mjcf.Body | None = None) -> Union[
+            mjcf.Body, mjcf.Mesh]:
         part_name = self.key_name(key, None)
         part_instance = self.key_to_part_instance[key]
         part = self.euid_to_part[part_instance.euid]
@@ -705,10 +739,10 @@ class Converter:
         # the origin of the part frame.
         com_to_part_tf = np.matrix(np.eye(4))
         com_to_part_tf[:3, 3] = -np.array(part_dynamic.center_of_mass).reshape(3, 1)
-        if joint is None:
+        if body is None:
             stl_origin_to_part_tf = np.matrix(com_to_part_tf)
         else:
-            stl_origin_to_part_tf = inv_tf(joint.child_entity.matedCS.part_to_mate_tf)
+            stl_origin_to_part_tf = inv_tf(body.child_entity.matedCS.part_to_mate_tf)
         self.stl_origin_to_part_tf[key] = stl_origin_to_part_tf
 
         part_file_name = f"{part_name}{configuration_str}.{self.mesh_ext}"
@@ -716,7 +750,6 @@ class Converter:
 
         if part_file_path.exists():
             logger.info("Using cached file %s", part_file_path)
-
         else:
             # Downloads the STL file.
             part_file_path_stl = part_file_path.with_suffix(".stl")
@@ -737,53 +770,27 @@ class Converter:
         # joint frame (since URDF expects this by convention).
         mesh_origin = urdf.Origin.zero_origin()
         center_of_mass = part_dynamic.center_of_mass_in_frame(stl_origin_to_part_tf)
-        # inertia = part_dynamic.inertia_in_frame(stl_origin_to_part_tf)
-        inertia = part_dynamic.inertia_matrix
 
-        # Aligns the inertia matrix with the principal axes.
-        principal_axes = part_dynamic.principal_axes_in_frame(stl_origin_to_part_tf)
-        principal_axes_rpy = rotation_matrix_to_euler_angles(principal_axes)
-        # principal_axes_rpy = (0.0, 0.0, 0.0)
-
-        urdf_file_path = f"./meshes/{part_file_name}"
-        urdf_link_name = self.key_name(key, "link")
+        file_path = f"./meshes/{part_file_name}"
+        # keeping for consistency with urdf
+        mjcf_body_name = self.key_name(key, "link")
 
         asset = mjcf.Mesh(
-            name=urdf_link_name,
-            file=urdf_file_path,
+            name=mjcf_body_name,
+            file=file_path,
         )
-        urdf_part_link = urdf.Link(
-            name=urdf_link_name,
-            visual=urdf.VisualLink(
-                origin=mesh_origin,
-                geometry=urdf.MeshGeometry(filename=urdf_file_path),
-                material=urdf.Material(
-                    name=f"{urdf_link_name}_material",
-                    color=[c / 255.0 for c in part_color],
-                ),
+        breakpoint()
+        mjcf_part_body= mjcf.Body(
+            name=mjcf_body_name,
+            geom=mjcf.Geom(
+                type="mesh",
+                mesh=f"{mjcf_body_name}",
+                rgba=[c / 255.0 for c in part_color],
             ),
-            inertial=urdf.InertialLink(
-                origin=urdf.Origin(
-                    xyz=center_of_mass,
-                    rpy=principal_axes_rpy,
-                ),
-                mass=part_dynamic.mass[0],
-                inertia=urdf.Inertia(
-                    ixx=float(inertia[0, 0]),
-                    ixy=float(inertia[0, 1]),
-                    ixz=float(inertia[0, 2]),
-                    iyy=float(inertia[1, 1]),
-                    iyz=float(inertia[1, 2]),
-                    izz=float(inertia[2, 2]),
-                ),
-            ),
-            collision=urdf.CollisionLink(
-                origin=mesh_origin,
-                geometry=urdf.MeshGeometry(filename=urdf_file_path),
-            ),
+            # joint=mjcf.Joint(),
         )
 
-        return urdf_part_link, asset
+        return mjcf_part_body, asset
 
     def get_effort_and_velocity(self, name: str, default_effort: float, default_velocity: float) -> tuple[float, float]:
         effort = default_effort
@@ -969,41 +976,22 @@ class Converter:
 
     def save_mjcf(self) -> None:
         """Saves a MJCF file for the assembly to the output directory."""
-        mjcf_parts: list[urdf.Link | urdf.BaseJoint] = []
-        assets = []
+        mjcf_parts: list[mjcf.Body] | list = []
+        assets: list[mjcf.Mesh] = []
+
         # Add the first link, since it has no incoming joint.
-        part_link, _ = self.get_mjcf_part(self.central_node)
+        part_link, asset = self.get_mjcf_part(self.central_node)
         mjcf_parts.append(part_link)
-        # create mujoco model
-        # compiler 
-        # assets list
-        # worldbody?
-        # true issues
+        assets.append(asset)
 
-        # For debugging.
-        # names = {k: chr(ord('a') + i) for i, k in enumerate(self.key_to_part_instance.keys())}
-        # for k, v in self.key_to_occurrence.items():
-        #     print(f"T_w_{names[k]} = np.", end="")
-        #     print(repr(v.world_to_part_tf))
-        # for j in self.ordered_joint_list:
-        #     ab = f"{names[j.parent]}{names[j.child]}"
-        #     print(f"T_{ab}_{names[j.parent]} = np.", end="")
-        #     print(repr(j.parent_entity.matedCS.part_to_mate_tf))
-        #     print(f"T_{ab}_{names[j.child]} = np.", end="")
-        #     print(repr(j.child_entity.matedCS.part_to_mate_tf))
-
-        # Creates a URDF joint for each feature connecting two parts.
-    
-        for joint in self.ordered_joint_list:
-            urdf_link, asset = self.get_mjcf_part(joint.child)
-            mjcf_parts.append(urdf_link)
+        # Creates a MJCF joint for each feature connecting two parts.
+        breakpoint()
+        for joint in self.ordered_body_list:
+            mjcf_body, asset = self.get_mjcf_part(joint, joint.child)
+            mjcf_parts.append(mjcf_body)
             assets.append(asset)
-            # mjcf_parts.append(urdf_joint)
 
-        # Saves the final URDF.
+        # Saves the final MJCF.
         robot_name = clean_name(str(self.assembly_metadata.property_map.get("Name", "robot")))
-        mjcf_robot = mjcf.Robot(name=robot_name, parts=assets)
+        mjcf_robot = mjcf.Robot(name=robot_name, assets=assets, parts=mjcf_parts)
         mjcf_robot.save(self.output_dir / f"{robot_name}.xml")
-        # asset
-        # worldbody
-        # todo
