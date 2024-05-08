@@ -47,7 +47,7 @@ kol mjcf https://cad.onshape.com/documents/DDDDDDDD/w/WWWWWWWW/e/EEEEEEEE
 You can visualize the resulting MJCF using MuJoCO:
 
 ```bash
-mjpython -m kol.scripts.cli mujoco robot/test_assembly_4.xml  
+mjpython -m kol.scripts.cli mujoco robot/<mjcf-name>.xml
 ```
 
 ### Notes
