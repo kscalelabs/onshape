@@ -19,8 +19,8 @@ pip install 'kscale-onshape-library @ git+https://github.com/kscalelabs/onshape.
 Or, if you're developing the library, do:
 
 ```bash
-git clone git@github.com:kscalelabs/onshape.git
-cd onshape
+git clone git@github.com:kscalelabs/onshape.git && cd onshape
+conda create -y -n kol python=3.11 && conda activate kol
 pip install -e '.[dev]'
 ```
 
