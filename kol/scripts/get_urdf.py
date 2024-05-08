@@ -44,7 +44,7 @@ def main(args: Sequence[str] | None = None) -> None:
             suffix, velocity = mapping.split("=")
             suffix_to_joint_velocity.append((suffix, float(velocity.strip())))
 
-    converter = Converter(
+    Converter(
         document_url=parsed_args.document_url,
         output_dir=parsed_args.output_dir,
         default_prismatic_joint_limits=urdf.JointLimits(

@@ -4,6 +4,7 @@
 Run with mjpython:
     mjpython kol/scripts/show_mjcf.py robot/test_assembly_4.xml
 """
+
 import argparse
 import time
 from typing import Sequence

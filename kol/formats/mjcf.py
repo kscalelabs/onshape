@@ -1,27 +1,27 @@
+# mypy: disable-error-code="attr-defined"
 """Defines common types and functions for exporting MJCF files.
 
 API reference:
 https://github.com/google-deepmind/mujoco/blob/main/src/xml/xml_native_writer.cc#L780
 """
 
+import glob
+import os
+import shutil
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Literal, List
-
-import glob
-import shutil
-import os
+from typing import Literal
 
 import mujoco
 
 
 @dataclass
 class Compiler:
-    coordinate: Literal["local", "global"] = None
+    coordinate: Literal["local", "global"] | None = None
     angle: Literal["radian", "degree"] = "radian"
-    meshdir: str = None
-    eulerseq: Literal["xyz", "zxy", "zyx", "yxz", "yzx", "xzy"] = None
+    meshdir: str | None = None
+    eulerseq: Literal["xyz", "zxy", "zyx", "yxz", "yzx", "xzy"] | None = None
 
     def to_xml(self, compiler: ET.Element | None = None) -> ET.Element:
         if compiler is None:
@@ -39,10 +39,10 @@ class Compiler:
 @dataclass
 class Mesh:
     name: str
-    file: float
-    scale: tuple[float, float, float] = None
+    file: str
+    scale: tuple[float, float, float] | None = None
 
-    def to_xml(self, root: ET.Element) -> ET.Element:
+    def to_xml(self, root: ET.Element | None = None) -> ET.Element:
         if root is None:
             mesh = ET.Element("mesh")
         else:
@@ -95,8 +95,8 @@ class Geom:
     type: Literal["plane", "sphere", "cylinder", "box", "capsule", "ellipsoid", "mesh"]
     # size: float
     rgba: tuple[float, float, float, float]
-    pos: tuple[float, float, float] = None
-    quat: tuple[float, float, float, float] = None
+    pos: tuple[float, float, float] | None = None
+    quat: tuple[float, float, float, float] | None = None
 
     def to_xml(self, root: ET.Element | None = None) -> ET.Element:
         if root is None:
@@ -116,10 +116,10 @@ class Geom:
 @dataclass
 class Body:
     name: str
-    pos: tuple[float, float, float] = field(default=None)
-    quat: tuple[float, float, float, float] = field(default=None)
-    geom: Geom = field(default=None)
-    joint: Joint = field(default=None)
+    pos: tuple[float, float, float] | None = field(default=None)
+    quat: tuple[float, float, float, float] | None = field(default=None)
+    geom: Geom | None = field(default=None)
+    joint: Joint | None = field(default=None)
     # TODO - fix inertia, until then rely on Mujoco's engine
     # inertial: Inertial = None
 
@@ -172,7 +172,7 @@ class Actuator:
         return actuator
 
 
-def _copy_stl_files(source_directory, destination_directory):
+def _copy_stl_files(source_directory: str | Path, destination_directory: str | Path) -> None:
     # Ensure the destination directory exists, create if not
     os.makedirs(destination_directory, exist_ok=True)
 
@@ -184,7 +184,7 @@ def _copy_stl_files(source_directory, destination_directory):
         print(f"Copied {file_path} to {destination_path}")
 
 
-def _remove_stl_files(source_directory):
+def _remove_stl_files(source_directory: str | Path) -> None:
     for filename in os.listdir(source_directory):
         if filename.endswith(".stl"):
             file_path = os.path.join(source_directory, filename)
@@ -192,13 +192,19 @@ def _remove_stl_files(source_directory):
 
 
 class Robot:
+    def __init__(self, robot_name: str, output_dir: str | Path, compiler: Compiler | None = None) -> None:
+        self.robot_name = robot_name
+        self.output_dir = output_dir
+        self.compiler = compiler
+        self._set_clean_up()
+        self.tree = ET.parse(output_dir / f"{robot_name}.xml")
 
-    def __init__(self, robot_name: str, output_dir: str, compiler: Compiler = None) -> None:
+    def _set_clean_up(self) -> None:
         # HACK
         # mujoco has a hard time reading meshes
-        _copy_stl_files(output_dir / "meshes", output_dir)
+        _copy_stl_files(self.output_dir / "meshes", self.output_dir)
         # remove inertia tags
-        urdf_tree = ET.parse(output_dir / f"{robot_name}.urdf")
+        urdf_tree = ET.parse(self.output_dir / f"{self.robot_name}.urdf")
         root = urdf_tree.getroot()
         for link in root.findall(".//link"):
             inertial = link.find("inertial")
@@ -206,19 +212,13 @@ class Robot:
                 link.remove(inertial)
 
         tree = ET.ElementTree(root)
-        tree.write(output_dir / f"{robot_name}.urdf", encoding="utf-8", xml_declaration=True)
-
-        model = mujoco.MjModel.from_xml_path((output_dir / f"{robot_name}.urdf").as_posix())
-        mujoco.mj_saveLastXML((output_dir / f"{robot_name}.xml").as_posix(), model)
+        tree.write(self.output_dir / f"{self.robot_name}.urdf", encoding="utf-8", xml_declaration=True)
+        model = mujoco.MjModel.from_xml_path((self.output_dir / f"{self.robot_name}.urdf").as_posix())
+        mujoco.mj_saveLastXML((self.output_dir / f"{self.robot_name}.xml").as_posix(), model)
         # remove all the files
-        _remove_stl_files(output_dir)
+        _remove_stl_files(self.output_dir)
 
-        self.tree = ET.parse(output_dir / f"{robot_name}.xml")
-        self.robot_name = robot_name
-        self.output_dir = output_dir
-        self.compiler = compiler
-
-    def adapt_world(self):
+    def adapt_world(self) -> None:
         root = self.tree.getroot()
 
         compiler = root.find("compiler")
