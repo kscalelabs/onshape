@@ -44,7 +44,7 @@ def main(args: Sequence[str] | None = None) -> None:
             suffix, velocity = mapping.split("=")
             suffix_to_joint_velocity.append((suffix, float(velocity.strip())))
 
-    Converter(
+    converter = Converter(
         document_url=parsed_args.document_url,
         output_dir=parsed_args.output_dir,
         default_prismatic_joint_limits=urdf.JointLimits(
@@ -67,5 +67,5 @@ def main(args: Sequence[str] | None = None) -> None:
 
 
 if __name__ == "__main__":
-    # python -m kol.scripts.import_onshape
+    # python -m kol.scripts.get_urdf
     main()

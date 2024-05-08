@@ -3,7 +3,7 @@
 import argparse
 from typing import Sequence
 
-from kol.scripts import get_mjcf, get_urdf, pybullet, show_mjcf, stl
+from kol.scripts import get_mjcf, get_urdf, pybullet, show_mjcf, visualize_stl
 
 
 def main(args: Sequence[str] | None = None) -> None:
@@ -25,7 +25,7 @@ def main(args: Sequence[str] | None = None) -> None:
         case "mujoco":
             show_mjcf.main(remaining_args)
         case "stl":
-            stl.main(remaining_args)
+            visualize_stl.main(remaining_args)
         case _:
             raise ValueError(f"Unknown subcommand: {parsed_args.subcommand}")
 

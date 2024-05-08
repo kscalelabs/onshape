@@ -1,9 +1,7 @@
 """Defines common types and functions for exporting MJCF files.
 
-API reference
-
+API reference:
 https://github.com/google-deepmind/mujoco/blob/main/src/xml/xml_native_writer.cc#L780
-Mujoco XML format reference
 """
 
 import xml.etree.ElementTree as ET
@@ -11,7 +9,11 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal, List
 
-from kol.formats.common import save_xml
+import glob
+import shutil
+import os
+
+import mujoco
 
 
 @dataclass
@@ -21,12 +23,13 @@ class Compiler:
     meshdir: str = None
     eulerseq: Literal["xyz", "zxy", "zyx", "yxz", "yzx", "xzy"] = None
 
-    def to_xml(self, root: ET.Element) -> ET.Element:
-        compiler = ET.SubElement(root, "compiler")
+    def to_xml(self, compiler: ET.Element | None = None) -> ET.Element:
+        if compiler is None:
+            compiler = ET.Element("compiler")
         if self.coordinate is not None:
             compiler.set("coordinate", self.coordinate)
         compiler.set("angle", self.angle)
-        if  self.meshdir is not None:
+        if self.meshdir is not None:
             compiler.set("meshdir", self.meshdir)
         if self.eulerseq is not None:
             compiler.set("eulerseq", self.eulerseq)
@@ -40,7 +43,10 @@ class Mesh:
     scale: tuple[float, float, float] = None
 
     def to_xml(self, root: ET.Element) -> ET.Element:
-        mesh = ET.SubElement(root, "mesh")
+        if root is None:
+            mesh = ET.Element("mesh")
+        else:
+            mesh = ET.SubElement(root, "mesh")
         mesh.set("name", self.name)
         mesh.set("file", self.file)
         if self.scale is not None:
@@ -59,8 +65,11 @@ class Joint:
     damping: float
     stiffness: float
 
-    def to_xml(self, root: ET.Element) -> ET.Element:
-        joint = ET.SubElement(root, "joint")
+    def to_xml(self, root: ET.Element | None = None) -> ET.Element:
+        if root is None:
+            joint = ET.Element("joint")
+        else:
+            joint = ET.SubElement(root, "joint")
         joint.set("name", self.name)
         joint.set("type", self.type)
         if self.pos is not None:
@@ -75,7 +84,7 @@ class Joint:
         joint.set("limited", str(self.limited))
         if self.damping is not None:
             joint.set("damping", str(self.damping))
-        if self.stiffness is not None:  
+        if self.stiffness is not None:
             joint.set("stiffness", str(self.stiffness))
         return joint
 
@@ -89,8 +98,11 @@ class Geom:
     pos: tuple[float, float, float] = None
     quat: tuple[float, float, float, float] = None
 
-    def to_xml(self, root: ET.Element) -> ET.Element:
-        geom = ET.SubElement(root, "geom")
+    def to_xml(self, root: ET.Element | None = None) -> ET.Element:
+        if root is None:
+            geom = ET.Element("geom")
+        else:
+            geom = ET.SubElement(root, "geom")
         geom.set("mesh", self.mesh)
         geom.set("type", self.type)
         geom.set("rgba", " ".join(map(str, self.rgba)))
@@ -111,13 +123,15 @@ class Body:
     # TODO - fix inertia, until then rely on Mujoco's engine
     # inertial: Inertial = None
 
-    def to_xml(self, root: ET.Element) -> ET.Element:
-        body = ET.SubElement(root, "body")
+    def to_xml(self, root: ET.Element | None = None) -> ET.Element:
+        if root is None:
+            body = ET.Element("body")
+        else:
+            body = ET.SubElement(root, "body")
         body.set("name", self.name)
         if self.pos is not None:
             body.set("pos", " ".join(map(str, self.pos)))
         if self.quat is not None:
-            # TODO fix this
             body.set("quat", " ".join(f"{x:.8g}" for x in self.quat))
         if self.joint is not None:
             self.joint.to_xml(body)
@@ -131,8 +145,11 @@ class Option:
     timestep: float
     viscosity: float
 
-    def to_xml(self, root: ET.Element) -> ET.Element:
-        option = ET.SubElement(root, "option")
+    def to_xml(self, root: ET.Element | None = None) -> ET.Element:
+        if root is None:
+            option = ET.Element("option")
+        else:
+            option = ET.SubElement(root, "option")
         option.set("timestep", str(self.timestep))
         option.set("viscosity", str(self.viscosity))
         return option
@@ -144,43 +161,86 @@ class Actuator:
     joint: str
     ctrlrange: tuple[float, float]
 
-    def to_xml(self, root: ET.Element) -> ET.Element:
-        actuator = ET.SubElement(root, "actuator")
+    def to_xml(self, root: ET.Element | None = None) -> ET.Element:
+        if root is None:
+            actuator = ET.Element("actuator")
+        else:
+            actuator = ET.SubElement(root, "actuator")
         actuator.set("name", self.name)
         actuator.set("joint", self.joint)
         actuator.set("ctrlrange", " ".join(map(str, self.ctrlrange)))
         return actuator
 
 
-@dataclass
+def _copy_stl_files(source_directory, destination_directory):
+    # Ensure the destination directory exists, create if not
+    os.makedirs(destination_directory, exist_ok=True)
+
+    # Use glob to find all .stl files in the source directory
+    pattern = os.path.join(source_directory, "*.stl")
+    for file_path in glob.glob(pattern):
+        destination_path = os.path.join(destination_directory, os.path.basename(file_path))
+        shutil.copy(file_path, destination_path)
+        print(f"Copied {file_path} to {destination_path}")
+
+
+def _remove_stl_files(source_directory):
+    for filename in os.listdir(source_directory):
+        if filename.endswith(".stl"):
+            file_path = os.path.join(source_directory, filename)
+            os.remove(file_path)
+
+
 class Robot:
-    name: str
-    assets: List | None = None
-    parts: List | None = None
-    compiler: Compiler = field(default_factory=Compiler)
-    # option: Option = field(default_factory=Option)
-    actuators: List | None = None
 
-    def to_xml(self) -> ET.Element:
-        robot = ET.Element("mujoco", name=self.name)
-        self.compiler.to_xml(robot)
-        # self.option.to_xml(robot)
+    def __init__(self, robot_name: str, output_dir: str, compiler: Compiler = None) -> None:
+        # HACK
+        # mujoco has a hard time reading meshes
+        _copy_stl_files(output_dir / "meshes", output_dir)
+        # remove inertia tags
+        urdf_tree = ET.parse(output_dir / f"{robot_name}.urdf")
+        root = urdf_tree.getroot()
+        for link in root.findall(".//link"):
+            inertial = link.find("inertial")
+            if inertial is not None:
+                link.remove(inertial)
 
-        assets = ET.SubElement(robot, "assets")
-        for asset in self.assets:
-            asset.to_xml(assets)
+        tree = ET.ElementTree(root)
+        tree.write(output_dir / f"{robot_name}.urdf", encoding="utf-8", xml_declaration=True)
 
-        worldbody = ET.SubElement(robot, "worldbody")
-        for part in self.parts:
-            part.to_xml(worldbody)
-        
-        if self.actuators is not None:
-            actuators = ET.SubElement(robot, "actuators")
-            for actuator in self.actuators:
-                actuator.to_xml(actuators)
-    
-        return robot
+        model = mujoco.MjModel.from_xml_path((output_dir / f"{robot_name}.urdf").as_posix())
+        mujoco.mj_saveLastXML((output_dir / f"{robot_name}.xml").as_posix(), model)
+        # remove all the files
+        _remove_stl_files(output_dir)
+
+        self.tree = ET.parse(output_dir / f"{robot_name}.xml")
+        self.robot_name = robot_name
+        self.output_dir = output_dir
+        self.compiler = compiler
+
+    def adapt_world(self):
+        root = self.tree.getroot()
+
+        compiler = root.find("compiler")
+        if self.compiler is not None:
+            compiler = self.compiler.to_xml(compiler)
+
+        worldbody = root.find("worldbody")
+        new_root_body = Body(name="root", pos=(0, 0, 0), quat=(1, 0, 0, 0)).to_xml()
+
+        # List to store items to be moved to the new root body
+        items_to_move = []
+        # Gather all children (geoms and bodies) that need to be moved under the new root body
+        for element in worldbody:
+            items_to_move.append(element)
+        # Move gathered elements to the new root body
+        for item in items_to_move:
+            worldbody.remove(item)
+            new_root_body.append(item)
+
+        # Add the new root body to the worldbody
+        worldbody.append(new_root_body)
+        self.tree = ET.ElementTree(root)
 
     def save(self, path: str | Path) -> None:
-        tree = ET.ElementTree(self.to_xml())
-        save_xml(path, tree)
+        self.tree.write(path, encoding="utf-8", xml_declaration=True)

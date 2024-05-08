@@ -2,29 +2,23 @@
 """Simple script to interact with a MJCF in MuJoCo.
 
 Run with mjpython:
-    mjpython kol/scripts/show_mjcf.py
+    mjpython kol/scripts/show_mjcf.py robot/test_assembly_4.xml
 """
 import argparse
-import logging
 import time
 from typing import Sequence
 
-# from kol.logging import configure_logging
+import mujoco
+import mujoco.viewer
 
-logger = logging.getLogger(__name__)
+from kol.logging import configure_logging
 
 
-def main() -> None:
-    # configure_logging()
+def main(args: Sequence[str] | None = None) -> None:
+    configure_logging()
     parser = argparse.ArgumentParser(description="Show a MJCF in Mujoco")
     parser.add_argument("path_mjcf", nargs="?", help="Path to the MJCF file")
-    parsed_args = parser.parse_args()
-
-    try:
-        import mujoco
-        import mujoco.viewer
-    except:
-        raise ImportError("mujoco is required to run this script")
+    parsed_args = parser.parse_args(args)
 
     model = mujoco.MjModel.from_xml_path(parsed_args.path_mjcf)
     data = mujoco.MjData(model)

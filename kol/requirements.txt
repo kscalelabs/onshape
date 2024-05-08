@@ -6,6 +6,7 @@ networkx
 numpy
 numpy-stl
 pydantic
+mujoco
 
 # Types
 types-requests

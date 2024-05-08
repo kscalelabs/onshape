@@ -11,7 +11,7 @@ import re
 from collections import deque
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, Deque, Iterator, Literal, TypeVar, Union
+from typing import Any, Callable, Deque, Iterator, Literal, TypeVar
 
 import networkx as nx
 import numpy as np
@@ -230,19 +230,16 @@ class Converter:
         part_prop_name = self.part_metadata(part).property_map.get("Name")
         return clean_name(part_prop_name if isinstance(part_prop_name, str) else part.key.unique_id)
 
-    # @functools.cached_property
-    @property
+    @functools.cached_property
     def euid_to_assembly(self) -> dict[ElementUid, RootAssembly | SubAssembly]:
         assemblies: list[RootAssembly | SubAssembly] = [self.assembly.rootAssembly, *self.assembly.subAssemblies]
         return {assembly.key: assembly for assembly in assemblies}
 
-    # @functools.cached_property
-    @property
+    @functools.cached_property
     def euid_to_subassembly(self) -> dict[ElementUid, SubAssembly]:
         return {sub.key: sub for sub in self.assembly.subAssemblies}
 
-    # @functools.cached_property
-    @property
+    @functools.cached_property
     def euid_to_part(self) -> dict[ElementUid, Part]:
         return {part.key: part for part in self.assembly.parts}
 
@@ -274,20 +271,17 @@ class Converter:
                     yield instance_path, instance, subassembly
                     subassembly_deque.append((instance_path, subassembly))
 
-    # @functools.cached_property
-    @property
+    @functools.cached_property
     def assembly_key_to_id(self) -> dict[Key, ElementUid]:
         key_map = {key: assembly.key for key, _, assembly in self.traverse_assemblies()}
         key_map[()] = self.assembly.rootAssembly.key
         return key_map
 
-    # @functools.cached_property
-    @property
+    @functools.cached_property
     def key_to_occurrence(self) -> dict[Key, Occurrence]:
         return {occurrence.key: occurrence for occurrence in self.assembly.rootAssembly.occurrences}
 
-    # @functools.cached_property
-    @property
+    @functools.cached_property
     def key_to_instance(self) -> dict[Key, Instance]:
         instance_mapping: dict[Key, Instance] = {}
         for instance in self.assembly.rootAssembly.instances:
@@ -306,8 +300,7 @@ class Converter:
     def key_to_assembly_instance(self) -> dict[Key, AssemblyInstance]:
         return {p: i for p, i in self.key_to_instance.items() if isinstance(i, AssemblyInstance)}
 
-    # @functools.cached_property
-    @property
+    @functools.cached_property
     def key_to_feature(self) -> dict[Key, MateRelationFeature | MateFeature]:
         feature_mapping: dict[Key, MateRelationFeature | MateFeature] = {}
         for feature in self.assembly.rootAssembly.features:
@@ -317,18 +310,15 @@ class Converter:
                 feature_mapping[key + (feature.id,)] = feature
         return feature_mapping
 
-    # @functools.cached_property
-    @property
+    @functools.cached_property
     def key_to_mate_feature(self) -> dict[Key, MateFeature]:
         return {p: f for p, f in self.key_to_feature.items() if isinstance(f, MateFeature)}
 
-    # @functools.cached_property
-    @property
+    @functools.cached_property
     def key_to_mate_relation_feature(self) -> dict[Key, MateRelationFeature]:
         return {p: f for p, f in self.key_to_feature.items() if isinstance(f, MateRelationFeature)}
 
-    # @functools.cached_property
-    @property
+    @functools.cached_property
     def key_to_name(self) -> dict[Key, list[str]]:
         key_name_mapping: dict[Key, list[str]] = {}
         key_name_mapping[()] = []
@@ -347,8 +337,7 @@ class Converter:
     def key_name(self, key: Key, prefix: Literal["link", "joint", None]) -> str:
         return ("" if prefix is None else f"{prefix}_") + clean_name("_".join(self.key_to_name.get(key, key)))
 
-    # @functools.cached_property
-    @property
+    @functools.cached_property
     def graph(self) -> nx.Graph:
         """Converts the assembly to an undirected graph of joints and parts.
 
@@ -405,8 +394,7 @@ class Converter:
 
         return graph
 
-    # @functools.cached_property
-    @property
+    @functools.cached_property
     def central_node(self) -> Key:
         """Identifies the most central node of the assembly.
 
@@ -421,8 +409,7 @@ class Converter:
         central_node: Key = max(closeness_centrality, key=closeness_centrality.get)
         return central_node
 
-    # @functools.cached_property
-    @property
+    @functools.cached_property
     def digraph(self) -> tuple[Key, nx.DiGraph]:
         """Converts the undirected graph to a directed graph.
 
@@ -453,8 +440,7 @@ class Converter:
         logger.debug("Central node: %s", self.key_name(central_node, "link"))
         return nx.bfs_tree(self.graph, central_node)
 
-    # @functools.cached_property
-    @property
+    @functools.cached_property
     def relations(self) -> dict[Key, MimicRelation]:
         relations: dict[Key, MimicRelation] = {}
         if self.disable_mimics:
@@ -488,8 +474,7 @@ class Converter:
 
         return relations
 
-    # @functools.cached_property
-    @property
+    @functools.cached_property
     def ordered_joint_list(self) -> list[Joint]:
         # TODO test this
         digraph = self.digraph
@@ -521,8 +506,7 @@ class Converter:
 
         return joint_list
 
-    # @functools.cached_property
-    @property
+    @functools.cached_property
     def ordered_body_list(self) -> list[Joint]:
         # TODO test this
         digraph = self.digraph
@@ -554,8 +538,7 @@ class Converter:
 
         return joint_list
 
-    # @functools.cached_property
-    @property
+    @functools.cached_property
     def joint_limits(self) -> dict[ElementUid, JointLimits]:
         """Gets the feature information for each assembly.
 
@@ -716,81 +699,6 @@ class Converter:
         )
 
         return urdf_part_link
-
-    def get_mjcf_part(self, key: Key, body: mjcf.Body | None = None) -> Union[
-            mjcf.Body, mjcf.Mesh]:
-        part_name = self.key_name(key, None)
-        part_instance = self.key_to_part_instance[key]
-        part = self.euid_to_part[part_instance.euid]
-
-        # Gets the configuration string suffix.
-        if part.configuration == "default":
-            configuration_str = ""
-        elif len(part.configuration) > 40:
-            configuration_str = hashlib.md5(part.configuration.encode()).hexdigest()[:16]
-        else:
-            configuration_str = part.configuration
-
-        part_color = self.part_color(part)
-        part_dynamic = self.part_dynamics(part).bodies[part_instance.partId]
-
-        # If the part is the root part, move the STL to be relative to the
-        # center of mass and principle inertia axes, otherwise move it to
-        # the origin of the part frame.
-        com_to_part_tf = np.matrix(np.eye(4))
-        com_to_part_tf[:3, 3] = -np.array(part_dynamic.center_of_mass).reshape(3, 1)
-        if body is None:
-            stl_origin_to_part_tf = np.matrix(com_to_part_tf)
-        else:
-            stl_origin_to_part_tf = inv_tf(body.child_entity.matedCS.part_to_mate_tf)
-        self.stl_origin_to_part_tf[key] = stl_origin_to_part_tf
-
-        part_file_name = f"{part_name}{configuration_str}.{self.mesh_ext}"
-        part_file_path = self.mesh_dir / part_file_name
-
-        if part_file_path.exists():
-            logger.info("Using cached file %s", part_file_path)
-        else:
-            # Downloads the STL file.
-            part_file_path_stl = part_file_path.with_suffix(".stl")
-            if not part_file_path_stl.exists():
-                logger.info("Downloading file %s", part_file_path_stl)
-                buffer = io.BytesIO()
-                self.api.download_stl(part, buffer)
-                buffer.seek(0)
-                mesh = stl.mesh.Mesh.from_file(None, fh=buffer)
-                mesh = apply_matrix_(mesh, stl_origin_to_part_tf)
-                mesh.save(part_file_path_stl)
-
-            # Converts the mesh to the desired format.
-            logger.info("Converting STL file to %s", part_file_path)
-            stl_to_fmt(part_file_path_stl, part_file_path)
-
-        # Move the mesh origin and dynamics from the part frame to the parent
-        # joint frame (since URDF expects this by convention).
-        mesh_origin = urdf.Origin.zero_origin()
-        center_of_mass = part_dynamic.center_of_mass_in_frame(stl_origin_to_part_tf)
-
-        file_path = f"./meshes/{part_file_name}"
-        # keeping for consistency with urdf
-        mjcf_body_name = self.key_name(key, "link")
-
-        asset = mjcf.Mesh(
-            name=mjcf_body_name,
-            file=file_path,
-        )
-        breakpoint()
-        mjcf_part_body= mjcf.Body(
-            name=mjcf_body_name,
-            geom=mjcf.Geom(
-                type="mesh",
-                mesh=f"{mjcf_body_name}",
-                rgba=[c / 255.0 for c in part_color],
-            ),
-            # joint=mjcf.Joint(),
-        )
-
-        return mjcf_part_body, asset
 
     def get_effort_and_velocity(self, name: str, default_effort: float, default_velocity: float) -> tuple[float, float]:
         effort = default_effort
@@ -976,22 +884,9 @@ class Converter:
 
     def save_mjcf(self) -> None:
         """Saves a MJCF file for the assembly to the output directory."""
-        mjcf_parts: list[mjcf.Body] | list = []
-        assets: list[mjcf.Mesh] = []
-
-        # Add the first link, since it has no incoming joint.
-        part_link, asset = self.get_mjcf_part(self.central_node)
-        mjcf_parts.append(part_link)
-        assets.append(asset)
-
-        # Creates a MJCF joint for each feature connecting two parts.
-        breakpoint()
-        for joint in self.ordered_body_list:
-            mjcf_body, asset = self.get_mjcf_part(joint, joint.child)
-            mjcf_parts.append(mjcf_body)
-            assets.append(asset)
-
-        # Saves the final MJCF.
+        self.save_urdf()
         robot_name = clean_name(str(self.assembly_metadata.property_map.get("Name", "robot")))
-        mjcf_robot = mjcf.Robot(name=robot_name, assets=assets, parts=mjcf_parts)
+
+        mjcf_robot = mjcf.Robot(robot_name, self.output_dir, mjcf.Compiler(angle="radian", meshdir="meshes"))
+        mjcf_robot.adapt_world()
         mjcf_robot.save(self.output_dir / f"{robot_name}.xml")
