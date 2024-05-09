@@ -213,9 +213,7 @@ class Converter:
             part_color["color"]["red"],
             part_color["color"]["green"],
             part_color["color"]["blue"],
-            # part_color["opacity"],
-            # TODO: Revert back later.
-            128,
+            part_color["opacity"],
         )
 
     def part_dynamics(self, part: Part) -> PartDynamics:
@@ -476,39 +474,6 @@ class Converter:
 
     @functools.cached_property
     def ordered_joint_list(self) -> list[Joint]:
-        # TODO test this
-        digraph = self.digraph
-        bfs_node_ordering = list(nx.topological_sort(digraph))
-        node_level = {node: i for i, node in enumerate(bfs_node_ordering)}
-
-        # Creates a topologically-sorted list of joints.
-        joint_list: list[Joint] = []
-        for joint_key, mate_feature in self.key_to_mate_feature.items():
-            if mate_feature.suppressed:
-                continue
-            lhs_entity, rhs_entity = mate_feature.featureData.matedEntities
-            lhs_key, rhs_key = joint_key[:-1] + lhs_entity.key, joint_key[:-1] + rhs_entity.key
-            lhs_is_first = node_level[lhs_key] < node_level[rhs_key]
-            parent_key, child_key = (lhs_key, rhs_key) if lhs_is_first else (rhs_key, lhs_key)
-            parent_entity, child_entity = (lhs_entity, rhs_entity) if lhs_is_first else (rhs_entity, lhs_entity)
-            mate_type = mate_feature.featureData.mateType
-            joint = Joint(
-                parent_key,
-                child_key,
-                parent_entity,
-                child_entity,
-                mate_type,
-                joint_key,
-                lhs_is_first,
-            )
-            joint_list.append(joint)
-        joint_list.sort(key=lambda x: (node_level[x.parent], node_level[x.child]))
-
-        return joint_list
-
-    @functools.cached_property
-    def ordered_body_list(self) -> list[Joint]:
-        # TODO test this
         digraph = self.digraph
         bfs_node_ordering = list(nx.topological_sort(digraph))
         node_level = {node: i for i, node in enumerate(bfs_node_ordering)}
