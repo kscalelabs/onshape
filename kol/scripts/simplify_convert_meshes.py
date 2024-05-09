@@ -1,10 +1,9 @@
 """Simplify obj mesh files, optionally convert to GLTF, GLB, adding/updating materials."""
-
 import argparse
 import os
-from mesh_simplify import mesh_simplify
-import trimesh
 
+import trimesh
+from mesh_simplify import mesh_simplify
 
 parser = argparse.ArgumentParser(description="Simplify mesh files in a directory.")
 parser.add_argument("--r", type=float, default=1.0, help="Simplification ratio")
@@ -24,7 +23,6 @@ input_mesh_path = os.path.join(args.input_dir, "meshes")
 failed_meshes = []
 for filename in os.listdir(input_mesh_path):
     if filename.endswith(".obj"):
-
         # Simplify Mesh
         print(f"Simplifying {filename}")
         input_filepath = os.path.join(input_mesh_path, filename)
