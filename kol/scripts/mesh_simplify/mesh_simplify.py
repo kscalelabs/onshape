@@ -1,19 +1,19 @@
-# ruff: noqa
-# https://github.com/AntonotnaWang/Mesh_simplification_python
+"""https://github.com/AntonotnaWang/Mesh_simplification_python."""
 
 import sys
 
 import numpy as np
+from numpy.typing import NDArray
 
 
-class a_3d_model:
-    def __init__(self, filepath):
+class ObjModel:
+    def __init__(self, filepath: str) -> None:
         self.model_filepath = filepath
         self.load_obj_file()
         self.calculate_plane_equations()
-        self.calculate_Q_matrices()
+        self.calculate_q_matrices()
 
-    def load_obj_file(self):
+    def load_obj_file(self) -> None:
         with open(self.model_filepath) as file:
             self.points = []
             self.faces = []
@@ -39,7 +39,7 @@ class a_3d_model:
         )
         self.edges = self.edges[unique_edges_locs, :]
 
-    def calculate_plane_equations(self):
+    def calculate_plane_equations(self) -> None:
         self.plane_equ_para = []
         for i in range(0, self.number_of_faces):
             # solving equation ax+by+cz+d=0, a^2+b^2+c^2=1
@@ -55,24 +55,24 @@ class a_3d_model:
         self.plane_equ_para = np.array(self.plane_equ_para)
         self.plane_equ_para = self.plane_equ_para.reshape(self.plane_equ_para.shape[0], self.plane_equ_para.shape[2])
 
-    def calculate_Q_matrices(self):
+    def calculate_q_matrices(self) -> None:
         self.Q_matrices = []
         for i in range(0, self.number_of_points):
             point_index = i + 1
             # each point is the solution of the intersection of a set of planes
             # find the planes for point_index
             face_set_index = np.where(self.faces == point_index)[0]
-            Q_temp = np.zeros((4, 4))
+            q_temp = np.zeros((4, 4))
             for j in face_set_index:
                 p = self.plane_equ_para[j, :]
                 p = p.reshape(1, len(p))
-                Q_temp = Q_temp + np.matmul(p.T, p)
-            self.Q_matrices.append(Q_temp)
+                q_temp = q_temp + np.matmul(p.T, p)
+            self.Q_matrices.append(q_temp)
 
 
 # Mesh simplification calss
-class mesh_simplify(a_3d_model):
-    def __init__(self, input_filepath, threshold, simplify_ratio):
+class MeshSimplify(ObjModel):
+    def __init__(self, input_filepath: str, threshold: float, simplify_ratio: float) -> None:
         if simplify_ratio > 1 or simplify_ratio <= 0:
             sys.exit("Error: simplification ratio should be (0<r<=1).")
         if threshold < 0:
@@ -83,7 +83,7 @@ class mesh_simplify(a_3d_model):
         self.ratio = simplify_ratio
 
     # Select all valid pairs.
-    def generate_valid_pairs(self):
+    def generate_valid_pairs(self) -> None:
         self.dist_pairs = []
         for i in range(0, self.number_of_points):
             current_point_location = i + 1
@@ -126,7 +126,7 @@ class mesh_simplify(a_3d_model):
     # Compute the optimal contraction target v_opt for each valid pair (v1, v2)
     # The error v_opt.T*(Q1+Q2)*v_pot of this target vertex becomes the cost of contracting that pair.
     # Place all the pairs in a heap keyed on cost with the minimum cost pair at the top
-    def calculate_optimal_contraction_pairs_and_cost(self):
+    def calculate_optimal_contraction_pairs_and_cost(self) -> None:
         self.v_optimal = []
         self.cost = []
         number_of_valid_pairs = self.valid_pairs.shape[0]
@@ -135,22 +135,22 @@ class mesh_simplify(a_3d_model):
             v_1_location = current_valid_pair[0] - 1
             v_2_location = current_valid_pair[1] - 1
             # find Q_1
-            Q_1 = self.Q_matrices[v_1_location]
+            q_1 = self.Q_matrices[v_1_location]
             # find Q_2
-            Q_2 = self.Q_matrices[v_2_location]
-            Q = Q_1 + Q_2
-            Q_new = np.concatenate([Q[:3, :], np.array([0, 0, 0, 1]).reshape(1, 4)], axis=0)
-            if np.linalg.det(Q_new) > 0:
-                current_v_opt = np.matmul(np.linalg.inv(Q_new), np.array([0, 0, 0, 1]).reshape(4, 1))
-                current_cost = np.matmul(np.matmul(current_v_opt.T, Q), current_v_opt)
+            q_2 = self.Q_matrices[v_2_location]
+            q = q_1 + q_2
+            q_new = np.concatenate([q[:3, :], np.array([0, 0, 0, 1]).reshape(1, 4)], axis=0)
+            if np.linalg.det(q_new) > 0:
+                current_v_opt = np.matmul(np.linalg.inv(q_new), np.array([0, 0, 0, 1]).reshape(4, 1))
+                current_cost = np.matmul(np.matmul(current_v_opt.T, q), current_v_opt)
                 current_v_opt = current_v_opt.reshape(4)[:3]
             else:
                 v_1 = np.append(self.points[v_1_location, :], 1).reshape(4, 1)
                 v_2 = np.append(self.points[v_2_location, :], 1).reshape(4, 1)
                 v_mid = (v_1 + v_2) / 2
-                delta_v_1 = np.matmul(np.matmul(v_1.T, Q), v_1)
-                delta_v_2 = np.matmul(np.matmul(v_2.T, Q), v_2)
-                delta_v_mid = np.matmul(np.matmul(v_mid.T, Q), v_mid)
+                delta_v_1 = np.matmul(np.matmul(v_1.T, q), v_1)
+                delta_v_2 = np.matmul(np.matmul(v_2.T, q), v_2)
+                delta_v_mid = np.matmul(np.matmul(v_mid.T, q), v_mid)
                 current_cost = np.min(np.array([delta_v_1, delta_v_2, delta_v_mid]))
                 min_delta_loc = np.argmin(np.array([delta_v_1, delta_v_2, delta_v_mid]))
                 current_v_opt = np.concatenate([v_1, v_2, v_mid], axis=1)[:, min_delta_loc].reshape(4)
@@ -173,7 +173,7 @@ class mesh_simplify(a_3d_model):
     # Iteratively remove the pair (v1, v2) of least cost from the heap
     # contract this pair, and update the costs of all valid pairs involving (v1, v2).
     # until existing points = ratio * original points
-    def iteratively_remove_least_cost_valid_pairs(self):
+    def iteratively_remove_least_cost_valid_pairs(self) -> None:
         self.new_point_count = 0
         self.status_points = np.zeros(self.number_of_points)
         self.status_faces = np.zeros(self.number_of_faces)
@@ -213,7 +213,8 @@ class mesh_simplify(a_3d_model):
             # update edges
             # edge_1=np.delete(self.faces[:,0:2], v_1_2_in_one_face_loc, axis=0)
             # edge_2=np.delete(self.faces[:,1:], v_1_2_in_one_face_loc, axis=0)
-            # edge_3=np.delete(np.concatenate([self.faces[:,:1], self.faces[:,-1:]], axis=1), v_1_2_in_one_face_loc, axis=0)
+            # edge_3=np.delete(np.concatenate([self.faces[:,:1], self.faces[:,-1:]], axis=1),
+            # v_1_2_in_one_face_loc, axis=0)
             # self.edges=np.concatenate([edge_1, edge_2, edge_3], axis=0)
 
             # update self.plane_equ_para
@@ -221,7 +222,7 @@ class mesh_simplify(a_3d_model):
             self.update_plane_equation_parameters(v_1_2_in_faces_loc)
 
             # update self.Q_matrices
-            self.update_Q(current_valid_pair - 1, v_1_location)
+            self.update_q(current_valid_pair - 1, v_1_location)
 
             # update self.valid_pairs, self.v_optimal, and self.cost
             self.update_valid_pairs_v_optimal_and_cost(v_1_location)
@@ -247,7 +248,7 @@ class mesh_simplify(a_3d_model):
         print("Remaining: " + str(self.number_of_points - self.new_point_count) + " points")
         print("End\n")
 
-    def calculate_plane_equation_for_one_face(self, p1, p2, p3):
+    def calculate_plane_equation_for_one_face(self, p1: NDArray, p2: NDArray, p3: NDArray) -> NDArray:
         # input: p1, p2, p3 numpy.array, shape: (3, 1) or (1,3) or (3, )
         # p1 ,p2, p3 (x, y, z) are three points on a face
         # plane equ: ax+by+cz+d=0 a^2+b^2+c^2=1
@@ -261,7 +262,7 @@ class mesh_simplify(a_3d_model):
         output = output.reshape(4)
         return output
 
-    def update_plane_equation_parameters(self, need_updating_loc):
+    def update_plane_equation_parameters(self, need_updating_loc: NDArray) -> None:
         # input: need_updating_loc, a numpy.array, shape: (n, ), locations of self.plane_equ_para need updating
         for i in need_updating_loc:
             if self.status_faces[i] == -1:
@@ -272,21 +273,21 @@ class mesh_simplify(a_3d_model):
                 point_3 = self.points[self.faces[i, 2] - 1, :]
                 self.plane_equ_para[i, :] = self.calculate_plane_equation_for_one_face(point_1, point_2, point_3)
 
-    def update_Q(self, replace_locs, target_loc):
+    def update_q(self, replace_locs: NDArray, target_loc: NDArray) -> None:
         # input: replace_locs, a numpy.array, shape: (2, ), locations of self.points need updating
         # input: target_loc, a number, location of self.points need updating
         face_set_index = np.where(self.faces == target_loc + 1)[0]
-        Q_temp = np.zeros((4, 4))
+        q_temp = np.zeros((4, 4))
 
         for j in face_set_index:
             p = self.plane_equ_para[j, :]
             p = p.reshape(1, len(p))
-            Q_temp = Q_temp + np.matmul(p.T, p)
+            q_temp = q_temp + np.matmul(p.T, p)
 
         for i in replace_locs:
-            self.Q_matrices[i] = Q_temp
+            self.Q_matrices[i] = q_temp
 
-    def update_valid_pairs_v_optimal_and_cost(self, target_loc):
+    def update_valid_pairs_v_optimal_and_cost(self, target_loc: NDArray) -> None:
         # input: target_loc, a number, location of self.points need updating
 
         # processing self.valid_pairs
@@ -322,7 +323,7 @@ class mesh_simplify(a_3d_model):
         self.v_optimal = self.v_optimal[unique_valid_pairs_loc, :]
         self.cost = self.cost[unique_valid_pairs_loc]
 
-    def update_optimal_contraction_pairs_and_cost(self, target_loc):
+    def update_optimal_contraction_pairs_and_cost(self, target_loc: NDArray) -> None:
         # input: target_loc, a number, location of self.points need updating
         v_target_loc_in_valid_pairs = np.where(self.valid_pairs == target_loc + 1)[0]
         for i in v_target_loc_in_valid_pairs:
@@ -330,22 +331,22 @@ class mesh_simplify(a_3d_model):
             v_1_location = current_valid_pair[0] - 1
             v_2_location = current_valid_pair[1] - 1
             # find Q_1
-            Q_1 = self.Q_matrices[v_1_location]
+            q_1 = self.Q_matrices[v_1_location]
             # find Q_2
-            Q_2 = self.Q_matrices[v_2_location]
-            Q = Q_1 + Q_2
-            Q_new = np.concatenate([Q[:3, :], np.array([0, 0, 0, 1]).reshape(1, 4)], axis=0)
-            if np.linalg.det(Q_new) > 0:
-                current_v_opt = np.matmul(np.linalg.inv(Q_new), np.array([0, 0, 0, 1]).reshape(4, 1))
-                current_cost = np.matmul(np.matmul(current_v_opt.T, Q), current_v_opt)
+            q_2 = self.Q_matrices[v_2_location]
+            q = q_1 + q_2
+            q_new = np.concatenate([q[:3, :], np.array([0, 0, 0, 1]).reshape(1, 4)], axis=0)
+            if np.linalg.det(q_new) > 0:
+                current_v_opt = np.matmul(np.linalg.inv(q_new), np.array([0, 0, 0, 1]).reshape(4, 1))
+                current_cost = np.matmul(np.matmul(current_v_opt.T, q), current_v_opt)
                 current_v_opt = current_v_opt.reshape(4)[:3]
             else:
                 v_1 = np.append(self.points[v_1_location, :], 1).reshape(4, 1)
                 v_2 = np.append(self.points[v_2_location, :], 1).reshape(4, 1)
                 v_mid = (v_1 + v_2) / 2
-                delta_v_1 = np.matmul(np.matmul(v_1.T, Q), v_1)
-                delta_v_2 = np.matmul(np.matmul(v_2.T, Q), v_2)
-                delta_v_mid = np.matmul(np.matmul(v_mid.T, Q), v_mid)
+                delta_v_1 = np.matmul(np.matmul(v_1.T, q), v_1)
+                delta_v_2 = np.matmul(np.matmul(v_2.T, q), v_2)
+                delta_v_mid = np.matmul(np.matmul(v_mid.T, q), v_mid)
                 current_cost = np.min(np.array([delta_v_1, delta_v_2, delta_v_mid]))
                 min_delta_loc = np.argmin(np.array([delta_v_1, delta_v_2, delta_v_mid]))
                 current_v_opt = np.concatenate([v_1, v_2, v_mid], axis=1)[:, min_delta_loc].reshape(4)
@@ -362,7 +363,7 @@ class mesh_simplify(a_3d_model):
         self.new_valid_pair = self.valid_pairs[0, :]
 
     # Generate the simplified 3d model (points/vertices, faces)
-    def generate_new_3d_model(self):
+    def generate_new_3d_model(self) -> None:
         point_serial_number = np.arange(self.points.shape[0]) + 1
         points_to_delete_locs = np.where(self.status_points == -1)[0]
         self.points = np.delete(self.points, points_to_delete_locs, axis=0)
@@ -379,7 +380,7 @@ class mesh_simplify(a_3d_model):
         self.number_of_points = self.points.shape[0]
         self.number_of_faces = self.faces.shape[0]
 
-    def output(self, output_filepath):
+    def output(self, output_filepath: str) -> None:
         with open(output_filepath, "w") as file_obj:
             file_obj.write("# " + str(self.number_of_points) + " vertices, " + str(self.number_of_faces) + " faces\n")
             for i in range(self.number_of_points):
