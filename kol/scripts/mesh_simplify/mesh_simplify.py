@@ -1,5 +1,5 @@
-"""https://github.com/AntonotnaWang/Mesh_simplification_python"""
 # ruff: noqa
+# https://github.com/AntonotnaWang/Mesh_simplification_python
 
 import sys
 
