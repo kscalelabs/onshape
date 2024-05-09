@@ -1,4 +1,5 @@
 """Simplify obj mesh files, optionally convert to GLTF, GLB, adding/updating materials."""
+
 import argparse
 import os
 
