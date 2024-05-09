@@ -50,6 +50,15 @@ You can visualize the resulting MJCF using MuJoCO:
 mjpython -m kol.scripts.cli mujoco robot/<mjcf-name>.xml
 ```
 
+#### Mesh Simplification and Conversion
+
+To simplify and convert meshes we provide a script
+
+```
+pip install trimesh
+python kol/scripts/simplify_convert.py <input_file> <output_file> <output_format>
+```
+
 ### Notes
 
 - [OnShape API explorer](https://cad.onshape.com/glassworks/explorer/#/Assembly/getFeatures)
