@@ -314,6 +314,7 @@ class Material:
 
     def to_xml(self, root: ET.Element | None = None) -> ET.Element:
         material = ET.Element("material") if root is None else ET.SubElement(root, "material")
+        material.set("name", self.name)
         ET.SubElement(material, "color", rgba=" ".join(format_number(v) for v in self.color))
         return material
 
@@ -371,6 +372,7 @@ class Link:
 
     def to_xml(self, root: ET.Element | None = None) -> ET.Element:
         link = ET.Element("link") if root is None else ET.SubElement(root, "link")
+        link.set("name", self.name)
         if self.visual is not None:
             self.visual.to_xml(link)
         if self.collision is not None:
