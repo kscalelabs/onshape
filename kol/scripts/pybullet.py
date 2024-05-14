@@ -99,7 +99,6 @@ def main(args: Sequence[str] | None = None) -> None:
         p.addUserDebugLine(pt[4 + 3], pt[4 + 2], color, 1, parentObjectUniqueId=obj_id, parentLinkIndex=link_id)
         p.addUserDebugLine(pt[4 + 2], pt[4 + 0], color, 1, parentObjectUniqueId=obj_id, parentLinkIndex=link_id)
 
-
     # Shows bounding boxes around each part of the robot representing the inertia frame.
     if parsed_args.show_inertia:
         for i in joint_ids:
