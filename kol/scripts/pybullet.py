@@ -3,6 +3,7 @@
 
 import argparse
 import logging
+import math
 import time
 from pathlib import Path
 from typing import Sequence
@@ -19,6 +20,10 @@ def main(args: Sequence[str] | None = None) -> None:
     parser.add_argument("urdf", nargs="?", help="Path to the URDF file")
     parser.add_argument("--dt", type=float, default=0.01, help="Time step")
     parser.add_argument("-n", "--hide-gui", action="store_true", help="Hide the GUI")
+    parser.add_argument("--no-merge", action="store_true", help="Do not merge fixed links")
+    parser.add_argument("--hide-origin", action="store_true", help="Do not show the origin")
+    parser.add_argument("--show-inertia", action="store_true", help="Visualizes the inertia frames")
+    parser.add_argument("--see-thru", action="store_true", help="Use see-through mode")
     parsed_args = parser.parse_args(args)
 
     try:
@@ -54,7 +59,9 @@ def main(args: Sequence[str] | None = None) -> None:
     # Load the robot URDF.
     start_position = [0.0, 0.0, 1.0]
     start_orientation = p.getQuaternionFromEuler([0.0, 0.0, 0.0])
-    flags = p.URDF_USE_INERTIA_FROM_FILE | p.URDF_MERGE_FIXED_LINKS
+    flags = p.URDF_USE_INERTIA_FROM_FILE
+    if not parsed_args.no_merge:
+        flags |= p.URDF_MERGE_FIXED_LINKS
     robot = p.loadURDF(str(urdf_path), start_position, start_orientation, flags=flags, useFixedBase=0)
 
     # Initializes physics parameters.
@@ -62,9 +69,63 @@ def main(args: Sequence[str] | None = None) -> None:
     p.setPhysicsEngineParameter(fixedTimeStep=parsed_args.dt, maxNumCmdPer1ms=1000)
 
     # Shows the origin of the robot.
-    p.addUserDebugLine([0, 0, 0], [0.1, 0, 0], [1, 0, 0], parentObjectUniqueId=robot, parentLinkIndex=-1)
-    p.addUserDebugLine([0, 0, 0], [0, 0.1, 0], [0, 1, 0], parentObjectUniqueId=robot, parentLinkIndex=-1)
-    p.addUserDebugLine([0, 0, 0], [0, 0, 0.1], [0, 0, 1], parentObjectUniqueId=robot, parentLinkIndex=-1)
+    if not parsed_args.hide_origin:
+        p.addUserDebugLine([0, 0, 0], [0.1, 0, 0], [1, 0, 0], parentObjectUniqueId=robot, parentLinkIndex=-1)
+        p.addUserDebugLine([0, 0, 0], [0, 0.1, 0], [0, 1, 0], parentObjectUniqueId=robot, parentLinkIndex=-1)
+        p.addUserDebugLine([0, 0, 0], [0, 0, 0.1], [0, 0, 1], parentObjectUniqueId=robot, parentLinkIndex=-1)
+
+    # Make the robot see-through.
+    joint_ids = [i for i in range(p.getNumJoints(robot))] + [-1]
+    if parsed_args.see_thru:
+        for i in joint_ids:
+            p.changeVisualShape(robot, i, rgbaColor=[1, 1, 1, 0.5])
+
+    def draw_box(pt: list[list[float]], color: tuple[float, float, float], obj_id: int, link_id: int) -> None:
+        assert len(pt) == 8
+        assert all(len(p) == 3 for p in pt)
+
+        p.addUserDebugLine(pt[0], pt[1], color, 1, parentObjectUniqueId=obj_id, parentLinkIndex=link_id)
+        p.addUserDebugLine(pt[1], pt[3], color, 1, parentObjectUniqueId=obj_id, parentLinkIndex=link_id)
+        p.addUserDebugLine(pt[3], pt[2], color, 1, parentObjectUniqueId=obj_id, parentLinkIndex=link_id)
+        p.addUserDebugLine(pt[2], pt[0], color, 1, parentObjectUniqueId=obj_id, parentLinkIndex=link_id)
+
+        p.addUserDebugLine(pt[0], pt[4], color, 1, parentObjectUniqueId=obj_id, parentLinkIndex=link_id)
+        p.addUserDebugLine(pt[1], pt[5], color, 1, parentObjectUniqueId=obj_id, parentLinkIndex=link_id)
+        p.addUserDebugLine(pt[2], pt[6], color, 1, parentObjectUniqueId=obj_id, parentLinkIndex=link_id)
+        p.addUserDebugLine(pt[3], pt[7], color, 1, parentObjectUniqueId=obj_id, parentLinkIndex=link_id)
+
+        p.addUserDebugLine(pt[4 + 0], pt[4 + 1], color, 1, parentObjectUniqueId=obj_id, parentLinkIndex=link_id)
+        p.addUserDebugLine(pt[4 + 1], pt[4 + 3], color, 1, parentObjectUniqueId=obj_id, parentLinkIndex=link_id)
+        p.addUserDebugLine(pt[4 + 3], pt[4 + 2], color, 1, parentObjectUniqueId=obj_id, parentLinkIndex=link_id)
+        p.addUserDebugLine(pt[4 + 2], pt[4 + 0], color, 1, parentObjectUniqueId=obj_id, parentLinkIndex=link_id)
+
+    # Shows bounding boxes around each part of the robot representing the inertia frame.
+    if parsed_args.show_inertia:
+        for i in joint_ids:
+            dynamics_info = p.getDynamicsInfo(robot, i)
+            mass = dynamics_info[0]
+            if mass <= 0:
+                continue
+            inertia = dynamics_info[2]
+            ixx = inertia[0]
+            iyy = inertia[1]
+            izz = inertia[2]
+            box_scale_x = 0.5 * math.sqrt(6 * (izz + iyy - ixx) / mass)
+            box_scale_y = 0.5 * math.sqrt(6 * (izz + ixx - iyy) / mass)
+            box_scale_z = 0.5 * math.sqrt(6 * (ixx + iyy - izz) / mass)
+
+            half_extents = [box_scale_x, box_scale_y, box_scale_z]
+            pt = [
+                [half_extents[0], half_extents[1], half_extents[2]],
+                [-half_extents[0], half_extents[1], half_extents[2]],
+                [half_extents[0], -half_extents[1], half_extents[2]],
+                [-half_extents[0], -half_extents[1], half_extents[2]],
+                [half_extents[0], half_extents[1], -half_extents[2]],
+                [-half_extents[0], half_extents[1], -half_extents[2]],
+                [half_extents[0], -half_extents[1], -half_extents[2]],
+                [-half_extents[0], -half_extents[1], -half_extents[2]],
+            ]
+            draw_box(pt, (1, 0, 0), robot, i)
 
     # Show joint controller.
     joints: dict[str, int] = {}

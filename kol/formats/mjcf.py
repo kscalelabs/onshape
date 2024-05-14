@@ -43,10 +43,7 @@ class Mesh:
     scale: tuple[float, float, float] | None = None
 
     def to_xml(self, root: ET.Element | None = None) -> ET.Element:
-        if root is None:
-            mesh = ET.Element("mesh")
-        else:
-            mesh = ET.SubElement(root, "mesh")
+        mesh = ET.Element("mesh") if root is None else ET.SubElement(root, "mesh")
         mesh.set("name", self.name)
         mesh.set("file", self.file)
         if self.scale is not None:
@@ -66,10 +63,7 @@ class Joint:
     stiffness: float
 
     def to_xml(self, root: ET.Element | None = None) -> ET.Element:
-        if root is None:
-            joint = ET.Element("joint")
-        else:
-            joint = ET.SubElement(root, "joint")
+        joint = ET.Element("joint") if root is None else ET.SubElement(root, "joint")
         joint.set("name", self.name)
         joint.set("type", self.type)
         if self.pos is not None:
@@ -99,10 +93,7 @@ class Geom:
     quat: tuple[float, float, float, float] | None = None
 
     def to_xml(self, root: ET.Element | None = None) -> ET.Element:
-        if root is None:
-            geom = ET.Element("geom")
-        else:
-            geom = ET.SubElement(root, "geom")
+        geom = ET.Element("geom") if root is None else ET.SubElement(root, "geom")
         geom.set("mesh", self.mesh)
         geom.set("type", self.type)
         geom.set("rgba", " ".join(map(str, self.rgba)))
@@ -124,10 +115,7 @@ class Body:
     # inertial: Inertial = None
 
     def to_xml(self, root: ET.Element | None = None) -> ET.Element:
-        if root is None:
-            body = ET.Element("body")
-        else:
-            body = ET.SubElement(root, "body")
+        body = ET.Element("body") if root is None else ET.SubElement(root, "body")
         body.set("name", self.name)
         if self.pos is not None:
             body.set("pos", " ".join(map(str, self.pos)))
@@ -146,10 +134,7 @@ class Option:
     viscosity: float
 
     def to_xml(self, root: ET.Element | None = None) -> ET.Element:
-        if root is None:
-            option = ET.Element("option")
-        else:
-            option = ET.SubElement(root, "option")
+        option = ET.Element("option") if root is None else ET.SubElement(root, "option")
         option.set("timestep", str(self.timestep))
         option.set("viscosity", str(self.viscosity))
         return option
@@ -162,10 +147,7 @@ class Actuator:
     ctrlrange: tuple[float, float]
 
     def to_xml(self, root: ET.Element | None = None) -> ET.Element:
-        if root is None:
-            actuator = ET.Element("actuator")
-        else:
-            actuator = ET.SubElement(root, "actuator")
+        actuator = ET.Element("actuator") if root is None else ET.SubElement(root, "actuator")
         actuator.set("name", self.name)
         actuator.set("joint", self.joint)
         actuator.set("ctrlrange", " ".join(map(str, self.ctrlrange)))
