@@ -617,6 +617,11 @@ class Converter:
             logger.info("Converting STL file to %s", part_file_path)
             stl_to_fmt(part_file_path_stl, part_file_path)
 
+        mass = part_dynamic.mass[0]
+        if mass <= 0.0:
+            logger.error("Part %s has a mass of %f, which is invalid", part_name, mass)
+            mass = 1.0
+
         # Move the mesh origin and dynamics from the part frame to the parent
         # joint frame (since URDF expects this by convention).
         mesh_origin = urdf.Origin.zero_origin()
@@ -647,7 +652,7 @@ class Converter:
                     xyz=center_of_mass,
                     rpy=principal_axes_rpy,
                 ),
-                mass=part_dynamic.mass[0],
+                mass=mass,
                 inertia=urdf.Inertia(
                     ixx=float(inertia[0, 0]),
                     ixy=float(inertia[0, 1]),
