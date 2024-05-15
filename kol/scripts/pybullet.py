@@ -165,7 +165,7 @@ def main(args: Sequence[str] | None = None) -> None:
                     prev_control_values[k] = target_position
                     p.setJointMotorControl2(robot, joints[k], p.POSITION_CONTROL, target_position)
             except p.error:
-                logger.exception("Failed to set joint %s", k)
+                logger.debug("Failed to set joint %s", k)
                 pass
 
         # Step simulation.
