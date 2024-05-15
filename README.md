@@ -41,7 +41,7 @@ pip install -e '.[dev]'
 
 In order to access the OnShape API, you need to define `ONSHAPE_ACCESS_KEY` and `ONSHAPE_SECRET_KEY` using a key generated [here](https://dev-portal.onshape.com/keys).
 
-### Usage
+### Usa rm ge
 
 To convert an assembly to a URDF, use the following command:
 
