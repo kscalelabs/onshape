@@ -114,7 +114,7 @@ class Converter:
         mesh_ext: MeshExt = "stl",
     ) -> None:
         # Gets a default output directory.
-        self.output_dir = Path.cwd() / "robot" if output_dir is None else Path(output_dir)
+        self.output_dir = (Path.cwd() / "robot" if output_dir is None else Path(output_dir)).resolve()
 
         # Creates a new directory for cached artifacts.
         self.cache_dir = self.output_dir / ".cache"
@@ -854,6 +854,9 @@ class Converter:
 
     def save_mjcf(self) -> None:
         """Saves a MJCF file for the assembly to the output directory."""
+        if self.mesh_ext != "stl":
+            raise ValueError("MJCF only supports STL meshes")
+
         self.save_urdf()
         robot_name = clean_name(str(self.assembly_metadata.property_map.get("Name", "robot")))
 
