@@ -428,7 +428,11 @@ class Robot:
     """A class to adapt the world in a Mujoco XML file."""
 
     def __init__(
-        self, robot_name: str, output_dir: str | Path, compiler: Compiler | None = None, remove_inertia: bool = True
+        self,
+        robot_name: str,
+        output_dir: str | Path,
+        compiler: Compiler | None = None,
+        remove_inertia: bool = True,
     ) -> None:
         """Initialize the robot.
 
@@ -441,11 +445,10 @@ class Robot:
         self.robot_name = robot_name
         self.output_dir = output_dir
         self.compiler = compiler
-        if remove_inertia:
-            self._set_clean_up()
+        self._set_clean_up(remove_inertia)
         self.tree = ET.parse(self.output_dir / f"{self.robot_name}.xml")
 
-    def _set_clean_up(self, remove_inertia=True) -> None:
+    def _set_clean_up(self, remove_inertia: bool = True) -> None:
         # HACK
         # mujoco has a hard time reading meshes
         _copy_stl_files(self.output_dir / "meshes", self.output_dir)
