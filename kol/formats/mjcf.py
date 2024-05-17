@@ -389,7 +389,7 @@ class Actuatorfrc:
 class Sensor:
     actuatorpos: list[Actuatorpos] | None = None
     actuatorvel: list[Actuatorvel] | None = None
-    actuatorfrc: list[Actuatorvel] | None = None
+    actuatorfrc: list[Actuatorfrc] | None = None
 
     def to_xml(self, root: ET.Element | None = None) -> ET.Element:
         sensor = ET.Element("sensor") if root is None else ET.SubElement(root, "sensor")
@@ -441,7 +441,8 @@ class Robot:
         self.robot_name = robot_name
         self.output_dir = output_dir
         self.compiler = compiler
-        self._set_clean_up(remove_inertia)
+        if remove_inertia:
+            self._set_clean_up()
         self.tree = ET.parse(self.output_dir / f"{self.robot_name}.xml")
 
     def _set_clean_up(self, remove_inertia=True) -> None:
