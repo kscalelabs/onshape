@@ -389,7 +389,7 @@ class Actuatorfrc:
 class Sensor:
     actuatorpos: list[Actuatorpos] | None = None
     actuatorvel: list[Actuatorvel] | None = None
-    actuatorfrc: list[Actuatorvel] | None = None
+    actuatorfrc: list[Actuatorfrc] | None = None
 
     def to_xml(self, root: ET.Element | None = None) -> ET.Element:
         sensor = ET.Element("sensor") if root is None else ET.SubElement(root, "sensor")
