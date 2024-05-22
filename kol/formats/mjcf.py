@@ -304,6 +304,7 @@ class Default:
     class_: str | None = None
     motor: Motor | None = None
     equality: Equality | None = None
+    visual_geom: ET.Element | None = None
 
     def to_xml(self, default: ET.Element | None = None) -> ET.Element:
         default = ET.Element("default") if default is None else ET.SubElement(default, "default")
@@ -317,6 +318,8 @@ class Default:
             self.motor.to_xml(default)
         if self.equality is not None:
             self.equality.to_xml(default)
+        if self.visual_geom is not None:
+            default.append(self.visual_geom)
         return default
 
 
