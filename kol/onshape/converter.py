@@ -111,7 +111,7 @@ class Converter:
         default_revolute_joint_limits: urdf.JointLimits = urdf.JointLimits(80.0, 5.0, -np.pi, np.pi),
         suffix_to_joint_effort: list[tuple[str, float]] = [],
         suffix_to_joint_velocity: list[tuple[str, float]] = [],
-        disable_mimics: bool = True,
+        disable_mimics: bool = False,
         mesh_ext: MeshExt = "stl",
     ) -> None:
         # Gets a default output directory.
@@ -569,7 +569,7 @@ class Converter:
 
         return joint_limits
 
-    def get_urdf_part(self, key, joint: Joint | None = None) -> urdf.Link:
+    def get_urdf_part(self, key: Key, joint: Joint | None = None) -> urdf.Link:
         part_name = self.key_name(key, None)
         part_instance = self.key_to_part_instance[key]
         part = self.euid_to_part[part_instance.euid]
@@ -736,12 +736,21 @@ class Converter:
                     parent=parent,
                     child=child,
                     origin=origin,
-                    axis=urdf.Axis((0.0, 0.0, -1.0)),  # if joint.lhs_is_first else 1.0)),
+                    axis=urdf.Axis((0.0, 0.0, -1.0)),
                     limits=urdf.JointLimits(
                         effort=effort,
                         velocity=velocity,
                         lower=min_value,
                         upper=max_value,
+                    ),
+                    mimic=(
+                        None
+                        if mimic_joint is None
+                        else urdf.JointMimic(
+                            joint=self.key_name(mimic_joint.parent, "joint"),
+                            multiplier=mimic_joint.multiplier,
+                            offset=0.0,
+                        )
                     ),
                 )
 
@@ -766,12 +775,21 @@ class Converter:
                     parent=parent,
                     child=child,
                     origin=origin,
-                    axis=urdf.Axis((0.0, 0.0, -1.0)),  # if joint.lhs_is_first else 1.0)),
+                    axis=urdf.Axis((0.0, 0.0, -1.0)),
                     limits=urdf.JointLimits(
                         effort=effort,
                         velocity=velocity,
                         lower=min_value,
                         upper=max_value,
+                    ),
+                    mimic=(
+                        None
+                        if mimic_joint is None
+                        else urdf.JointMimic(
+                            joint=self.key_name(mimic_joint.parent, "joint"),
+                            multiplier=mimic_joint.multiplier,
+                            offset=0.0,
+                        )
                     ),
                 )
 
