@@ -43,6 +43,20 @@ def inv_tf(a_to_b_tf: np.matrix) -> np.matrix:
     return np.matrix(np.linalg.inv(a_to_b_tf))
 
 
+def transform_inertia_tensor(inertia: list[float], rotation: np.matrix) -> np.matrix:
+    """Transforms the inertia tensor to a new frame.
+
+    Args:
+        inertia: The inertia tensor in the original frame.
+        rotation: The rotation matrix from the original frame to the new frame.
+
+    Returns:
+        The inertia tensor in the new frame.
+    """
+    inertia_matrix = np.array(inertia).reshape(3, 3)
+    return rotation.T @ inertia_matrix @ rotation
+
+
 @dataclass
 class Dynamics:
     mass: float

@@ -16,9 +16,10 @@ from typing import Any, Callable, Deque, Iterator, Literal, TypeVar
 import networkx as nx
 import numpy as np
 import stl
+from scipy.spatial.transform import Rotation as R
 
 from kol.formats import mjcf, urdf
-from kol.geometry import apply_matrix_, inv_tf, rotation_matrix_to_euler_angles
+from kol.geometry import apply_matrix_, inv_tf, transform_inertia_tensor
 from kol.mesh import MeshExt, stl_to_fmt
 from kol.onshape.api import OnshapeApi
 from kol.onshape.client import OnshapeClient
@@ -110,7 +111,7 @@ class Converter:
         default_revolute_joint_limits: urdf.JointLimits = urdf.JointLimits(80.0, 5.0, -np.pi, np.pi),
         suffix_to_joint_effort: list[tuple[str, float]] = [],
         suffix_to_joint_velocity: list[tuple[str, float]] = [],
-        disable_mimics: bool = False,
+        disable_mimics: bool = True,
         mesh_ext: MeshExt = "stl",
     ) -> None:
         # Gets a default output directory.
@@ -568,12 +569,11 @@ class Converter:
 
         return joint_limits
 
-    def get_urdf_part(self, key: Key, joint: Joint | None = None) -> urdf.Link:
+    def get_urdf_part(self, key, joint: Joint | None = None) -> urdf.Link:
         part_name = self.key_name(key, None)
         part_instance = self.key_to_part_instance[key]
         part = self.euid_to_part[part_instance.euid]
 
-        # Gets the configuration string suffix.
         if part.configuration == "default":
             configuration_str = ""
         elif len(part.configuration) > 40:
@@ -584,13 +584,10 @@ class Converter:
         part_color = self.part_color(part)
         part_dynamic = self.part_dynamics(part).bodies[part_instance.partId]
 
-        # If the part is the root part, move the STL to be relative to the
-        # center of mass and principle inertia axes, otherwise move it to
-        # the origin of the part frame.
-        com_to_part_tf = np.matrix(np.eye(4))
-        com_to_part_tf[:3, 3] = -np.array(part_dynamic.center_of_mass).reshape(3, 1)
+        com_to_part_tf = np.eye(4)
+        com_to_part_tf[:3, 3] = -np.array(part_dynamic.center_of_mass).reshape(3)
         if joint is None:
-            stl_origin_to_part_tf = np.matrix(com_to_part_tf)
+            stl_origin_to_part_tf = com_to_part_tf
         else:
             stl_origin_to_part_tf = inv_tf(joint.child_entity.matedCS.part_to_mate_tf)
         self.stl_origin_to_part_tf[key] = stl_origin_to_part_tf
@@ -600,20 +597,17 @@ class Converter:
 
         if part_file_path.exists():
             logger.info("Using cached file %s", part_file_path)
-
         else:
-            # Downloads the STL file.
             part_file_path_stl = part_file_path.with_suffix(".stl")
             if not part_file_path_stl.exists():
                 logger.info("Downloading file %s", part_file_path_stl)
                 buffer = io.BytesIO()
                 self.api.download_stl(part, buffer)
                 buffer.seek(0)
-                mesh = stl.mesh.Mesh.from_file(None, fh=buffer)
-                mesh = apply_matrix_(mesh, stl_origin_to_part_tf)
-                mesh.save(part_file_path_stl)
+                mesh_obj = stl.mesh.Mesh.from_file(None, fh=buffer)
+                mesh_obj = apply_matrix_(mesh_obj, stl_origin_to_part_tf)
+                mesh_obj.save(part_file_path_stl)
 
-            # Converts the mesh to the desired format.
             logger.info("Converting STL file to %s", part_file_path)
             stl_to_fmt(part_file_path_stl, part_file_path)
 
@@ -622,17 +616,14 @@ class Converter:
             logger.error("Part %s has a mass of %f, which is invalid", part_name, mass)
             mass = 1.0
 
-        # Move the mesh origin and dynamics from the part frame to the parent
-        # joint frame (since URDF expects this by convention).
         mesh_origin = urdf.Origin.zero_origin()
         center_of_mass = part_dynamic.center_of_mass_in_frame(stl_origin_to_part_tf)
-        # inertia = part_dynamic.inertia_in_frame(stl_origin_to_part_tf)
-        inertia = part_dynamic.inertia_matrix
 
-        # Aligns the inertia matrix with the principal axes.
+        inertia = part_dynamic.inertia_matrix
+        inertia_transformed = transform_inertia_tensor(inertia, stl_origin_to_part_tf[:3, :3])
+
         principal_axes = part_dynamic.principal_axes_in_frame(stl_origin_to_part_tf)
-        principal_axes_rpy = rotation_matrix_to_euler_angles(principal_axes)
-        # principal_axes_rpy = (0.0, 0.0, 0.0)
+        principal_axes_rpy = R.from_matrix(principal_axes).as_euler("xyz", degrees=False)
 
         urdf_file_path = f"./meshes/{part_file_name}"
         urdf_link_name = self.key_name(key, "link")
@@ -654,12 +645,12 @@ class Converter:
                 ),
                 mass=mass,
                 inertia=urdf.Inertia(
-                    ixx=float(inertia[0, 0]),
-                    ixy=float(inertia[0, 1]),
-                    ixz=float(inertia[0, 2]),
-                    iyy=float(inertia[1, 1]),
-                    iyz=float(inertia[1, 2]),
-                    izz=float(inertia[2, 2]),
+                    ixx=float(inertia_transformed[0, 0]),
+                    ixy=float(inertia_transformed[0, 1]),
+                    ixz=float(inertia_transformed[0, 2]),
+                    iyy=float(inertia_transformed[1, 1]),
+                    iyz=float(inertia_transformed[1, 2]),
+                    izz=float(inertia_transformed[2, 2]),
                 ),
             ),
             collision=urdf.CollisionLink(
@@ -745,21 +736,12 @@ class Converter:
                     parent=parent,
                     child=child,
                     origin=origin,
-                    axis=urdf.Axis((0.0, 0.0, -1.0 if joint.lhs_is_first else 1.0)),
+                    axis=urdf.Axis((0.0, 0.0, -1.0)),  # if joint.lhs_is_first else 1.0)),
                     limits=urdf.JointLimits(
                         effort=effort,
                         velocity=velocity,
                         lower=min_value,
                         upper=max_value,
-                    ),
-                    mimic=(
-                        None
-                        if mimic_joint is None
-                        else urdf.JointMimic(
-                            joint=self.key_name(mimic_joint.parent, "joint"),
-                            multiplier=mimic_joint.multiplier,
-                            offset=0.0,
-                        )
                     ),
                 )
 
@@ -784,21 +766,12 @@ class Converter:
                     parent=parent,
                     child=child,
                     origin=origin,
-                    axis=urdf.Axis((0.0, 0.0, -1.0 if joint.lhs_is_first else 1.0)),
+                    axis=urdf.Axis((0.0, 0.0, -1.0)),  # if joint.lhs_is_first else 1.0)),
                     limits=urdf.JointLimits(
                         effort=effort,
                         velocity=velocity,
                         lower=min_value,
                         upper=max_value,
-                    ),
-                    mimic=(
-                        None
-                        if mimic_joint is None
-                        else urdf.JointMimic(
-                            joint=self.key_name(mimic_joint.parent, "joint"),
-                            multiplier=mimic_joint.multiplier,
-                            offset=0.0,
-                        )
                     ),
                 )
 
