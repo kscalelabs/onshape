@@ -25,7 +25,7 @@ def rotation_matrix_to_euler_angles(rotation_matrix: np.matrix) -> tuple[float, 
     return x, y, z
 
 
-def apply_matrix_(mesh: stl.mesh.Mesh, matrix: np.matrix) -> stl.mesh.Mesh:
+def apply_matrix_(mesh: stl.mesh.Mesh, matrix: np.ndarray) -> stl.mesh.Mesh:
     rotation = matrix[0:3, 0:3]
     translation = matrix[0:3, 3:4].T.tolist()
 
@@ -43,7 +43,7 @@ def inv_tf(a_to_b_tf: np.matrix) -> np.matrix:
     return np.matrix(np.linalg.inv(a_to_b_tf))
 
 
-def transform_inertia_tensor(inertia: list[float], rotation: np.matrix) -> np.matrix:
+def transform_inertia_tensor(inertia: list[float] | np.matrix, rotation: np.ndarray) -> np.ndarray:
     """Transforms the inertia tensor to a new frame.
 
     Args:
