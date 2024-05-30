@@ -46,11 +46,10 @@ clean:
 #       Static Checks      #
 # ------------------------ #
 
-py-files := $(shell find . -name '*.py')
 
 format:
-	@black $(py-files)
-	@ruff format $(py-files)
+	@black kol
+	@ruff format kol
 .PHONY: format
 
 format-cpp:
@@ -59,9 +58,9 @@ format-cpp:
 .PHONY: format-cpp
 
 static-checks:
-	@black --diff --check $(py-files)
-	@ruff check $(py-files)
-	@mypy --install-types --non-interactive $(py-files)
+	@black --diff --check kol
+	@ruff check kol
+	@mypy --install-types --non-interactive kol
 .PHONY: lint
 
 mypy-daemon:

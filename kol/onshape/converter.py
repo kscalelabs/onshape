@@ -138,7 +138,7 @@ class Converter:
         self.cache_map: dict[str, Any] = {}
 
         # Map containing the transformations from the STL origin to the part frame.
-        self.stl_origin_to_part_tf: dict[Key, np.matrix] = {}
+        self.stl_origin_to_part_tf: dict[Key, np.ndarray] = {}
 
     def get_or_use_cached(
         self,
@@ -574,6 +574,7 @@ class Converter:
         part_instance = self.key_to_part_instance[key]
         part = self.euid_to_part[part_instance.euid]
 
+        # Gets the configuration string suffix.
         if part.configuration == "default":
             configuration_str = ""
         elif len(part.configuration) > 40:
@@ -584,6 +585,9 @@ class Converter:
         part_color = self.part_color(part)
         part_dynamic = self.part_dynamics(part).bodies[part_instance.partId]
 
+        # If the part is the root part, move the STL to be relative to the
+        # center of mass and principle inertia axes, otherwise move it to
+        # the origin of the part frame.
         com_to_part_tf = np.eye(4)
         com_to_part_tf[:3, 3] = -np.array(part_dynamic.center_of_mass).reshape(3)
         if joint is None:
@@ -598,6 +602,7 @@ class Converter:
         if part_file_path.exists():
             logger.info("Using cached file %s", part_file_path)
         else:
+            # Downloads the STL file.
             part_file_path_stl = part_file_path.with_suffix(".stl")
             if not part_file_path_stl.exists():
                 logger.info("Downloading file %s", part_file_path_stl)
@@ -608,6 +613,7 @@ class Converter:
                 mesh_obj = apply_matrix_(mesh_obj, stl_origin_to_part_tf)
                 mesh_obj.save(part_file_path_stl)
 
+            # Converts the mesh to the desired format.
             logger.info("Converting STL file to %s", part_file_path)
             stl_to_fmt(part_file_path_stl, part_file_path)
 
@@ -616,6 +622,8 @@ class Converter:
             logger.error("Part %s has a mass of %f, which is invalid", part_name, mass)
             mass = 1.0
 
+        # Move the mesh origin and dynamics from the part frame to the parent
+        # joint frame (since URDF expects this by convention).
         mesh_origin = urdf.Origin.zero_origin()
         center_of_mass = part_dynamic.center_of_mass_in_frame(stl_origin_to_part_tf)
 
