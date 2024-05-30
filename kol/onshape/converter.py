@@ -113,6 +113,7 @@ class Converter:
         suffix_to_joint_velocity: list[tuple[str, float]] = [],
         disable_mimics: bool = False,
         mesh_ext: MeshExt = "stl",
+        override_central_node: str | None = None,
     ) -> None:
         # Gets a default output directory.
         self.output_dir = (Path.cwd() / "robot" if output_dir is None else Path(output_dir)).resolve()
@@ -133,6 +134,7 @@ class Converter:
         self.suffix_to_joint_velocity = [(k.lower().strip(), v) for k, v in suffix_to_joint_velocity]
         self.disable_mimics = disable_mimics
         self.mesh_ext = mesh_ext
+        self.override_central_node = override_central_node
 
         # Map containing all cached items.
         self.cache_map: dict[str, Any] = {}
@@ -337,6 +339,10 @@ class Converter:
         return ("" if prefix is None else f"{prefix}_") + clean_name("_".join(self.key_to_name.get(key, key)))
 
     @functools.cached_property
+    def name_to_key(self) -> dict[str, Key]:
+        return {self.key_name(key, None): key for key in self.key_to_name}
+
+    @functools.cached_property
     def graph(self) -> nx.Graph:
         """Converts the assembly to an undirected graph of joints and parts.
 
@@ -404,6 +410,14 @@ class Converter:
         Returns:
             The key of the central node.
         """
+        if self.override_central_node is not None:
+            if self.override_central_node not in self.name_to_key:
+                first_five = list(self.name_to_key.keys())[:5]
+                raise ValueError(
+                    f"Central node {self.override_central_node} not found in the assembly. "
+                    f"First five keys: {first_five}"
+                )
+            return self.name_to_key[self.override_central_node]
         closeness_centrality = nx.closeness_centrality(self.graph)
         central_node: Key = max(closeness_centrality, key=closeness_centrality.get)
         return central_node
