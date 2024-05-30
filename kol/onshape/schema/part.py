@@ -58,7 +58,7 @@ class PartBody(BaseModel):
     def principal_axes(self) -> np.matrix:
         return np.matrix(np.array([axis.array for axis in self.principalAxes]))
 
-    def principal_axes_in_frame(self, frame: np.matrix) -> np.matrix:
+    def principal_axes_in_frame(self, frame: np.ndarray) -> np.ndarray:
         return frame[:3, :3] @ self.principal_axes
 
     @property
@@ -73,7 +73,7 @@ class PartBody(BaseModel):
     def center_of_mass(self) -> tuple[float, float, float]:
         return (self.centroid[0], self.centroid[1], self.centroid[2])
 
-    def center_of_mass_in_frame(self, frame: np.matrix) -> tuple[float, float, float]:
+    def center_of_mass_in_frame(self, frame: np.ndarray) -> tuple[float, float, float]:
         com = np.matrix(list(self.center_of_mass) + [1.0])
         com_in_frame = (frame * com.T)[:3]
         return (float(com_in_frame[0, 0]), float(com_in_frame[1, 0]), float(com_in_frame[2, 0]))

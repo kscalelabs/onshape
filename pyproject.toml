@@ -37,6 +37,7 @@ module = [
     "networkx.*",
     "pybullet.*",
     "stl.*",
+    "scipy.*",
 ]
 
 ignore_missing_imports = true
