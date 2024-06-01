@@ -359,7 +359,7 @@ class Converter:
             graph.add_node(key)
 
         def add_edge_safe(node_a: Key, node_b: Key, name: str) -> None:
-            for (node_lhs, node_rhs) in ((node_a, node_b), (node_b, node_a)):
+            for node_lhs, node_rhs in ((node_a, node_b), (node_b, node_a)):
                 if node_lhs not in graph:
                     raise ValueError(
                         f"Node {self.key_name(node_lhs, 'link')} (from {self.key_name(node_rhs, 'link')}) not found "
