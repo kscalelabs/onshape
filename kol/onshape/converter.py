@@ -359,10 +359,12 @@ class Converter:
             graph.add_node(key)
 
         def add_edge_safe(node_a: Key, node_b: Key, name: str) -> None:
-            if node_a not in graph:
-                raise ValueError(f"Node {self.key_name(node_a, 'link')} not found in graph")
-            if node_b not in graph:
-                raise ValueError(f"Node {self.key_name(node_b, 'link')} not found in graph")
+            for node_lhs, node_rhs in ((node_a, node_b), (node_b, node_a)):
+                if node_lhs not in graph:
+                    raise ValueError(
+                        f"Node {self.key_name(node_lhs, 'link')} (from {self.key_name(node_rhs, 'link')}) not found "
+                        "in graph. Do you have a mate between a part and the origin?"
+                    )
             graph.add_edge(node_a, node_b, name=name)
 
         # Add edges between nodes that have a feature connecting them.
