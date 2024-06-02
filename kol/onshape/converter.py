@@ -20,7 +20,7 @@ from scipy.spatial.transform import Rotation as R
 
 from kol.formats import mjcf, urdf
 from kol.geometry import apply_matrix_, inv_tf, transform_inertia_tensor
-from kol.mesh import MeshExt, stl_to_fmt
+from kol.mesh import MeshType, stl_to_fmt
 from kol.onshape.api import OnshapeApi
 from kol.onshape.client import OnshapeClient
 from kol.onshape.schema.assembly import (
@@ -112,7 +112,7 @@ class Converter:
         suffix_to_joint_effort: list[tuple[str, float]] = [],
         suffix_to_joint_velocity: list[tuple[str, float]] = [],
         disable_mimics: bool = False,
-        mesh_ext: MeshExt = "stl",
+        mesh_ext: MeshType = "stl",
         override_central_node: str | None = None,
     ) -> None:
         # Gets a default output directory.
