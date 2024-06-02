@@ -13,18 +13,21 @@ MeshType = Literal["stl", "obj"]
 
 @dataclass
 class Mesh:
+    """Defines a common representation for a mesh.
+
+    Attributes:
+        points: The points of the mesh, where each point is a 3D coordinate.
+        faces: The faces of the mesh, where each face is a triangle defined
+            by the indices of its vertices in the points array.
+    """
+
     points: NDArray
     faces: NDArray
-    edges: NDArray
 
     def __eq__(self, other: Any) -> bool:  # noqa: ANN401
         if not isinstance(other, Mesh):
             return False
-        return (
-            np.allclose(self.points, other.points)
-            and np.array_equal(self.faces, other.faces)
-            and np.array_equal(self.edges, other.edges)
-        )
+        return np.allclose(self.points, other.points) and np.array_equal(self.faces, other.faces)
 
 
 def get_mesh_type(file_path: str | Path) -> MeshType:
@@ -45,13 +48,13 @@ def fmt_to_stl(input_path: str | Path, stl_path: str | Path) -> None:
 
 
 def load_file(file_path: str | Path) -> Mesh:
-    """Loads a mesh file and returns the points, faces, and edges.
+    """Loads a mesh file to a common format.
 
     Args:
         file_path: The path to the mesh file.
 
     Returns:
-        A tuple containing the points, faces, and edges.
+        The loaded mesh.
     """
     ext = get_mesh_type(file_path)
 
@@ -67,7 +70,7 @@ def load_file(file_path: str | Path) -> Mesh:
 
 
 def save_file(mesh: Mesh, file_path: str | Path) -> None:
-    """Saves the points, faces, and edges to a mesh file.
+    """Saves the mesh to a file.
 
     Args:
         mesh: The mesh to save.
@@ -87,13 +90,13 @@ def save_file(mesh: Mesh, file_path: str | Path) -> None:
 
 
 def load_obj_file(obj_path: str | Path) -> Mesh:
-    """Loads an OBJ file and returns the points, faces, and edges.
+    """Loads an OBJ file and returns the mesh in the common format.
 
     Args:
         obj_path: The path to the OBJ file.
 
     Returns:
-        A tuple containing the points, faces, and edges.
+        The loaded mesh.
     """
     with open(obj_path) as file:
         points_list: list[tuple[float, float, float]] = []
@@ -109,17 +112,11 @@ def load_obj_file(obj_path: str | Path) -> Mesh:
                 faces_list.append((int(strs[1]), int(strs[2]), int(strs[3])))
     points = np.array(points_list)
     faces = np.array(faces_list)
-    edge_1 = faces[:, 0:2]
-    edge_2 = faces[:, 1:]
-    edge_3 = np.concatenate([faces[:, :1], faces[:, -1:]], axis=1)
-    edges = np.concatenate([edge_1, edge_2, edge_3], axis=0)
-    _, unique_edges_locs = np.unique(edges[:, 0] * (10**10) + edges[:, 1], return_index=True)
-    edges = edges[unique_edges_locs, :]
-    return Mesh(points, faces, edges)
+    return Mesh(points, faces)
 
 
 def save_obj_file(mesh: Mesh, obj_path: str | Path) -> None:
-    """Saves the points, faces, and edges to an OBJ file.
+    """Saves the mesh as an OBJ file.
 
     Args:
         mesh: The mesh to save.
@@ -133,28 +130,22 @@ def save_obj_file(mesh: Mesh, obj_path: str | Path) -> None:
 
 
 def load_stl_file(stl_path: str | Path) -> Mesh:
-    """Loads an STL file and returns the points, faces, and edges.
+    """Loads an STL file and returns the mesh in the common format.
 
     Args:
         stl_path: The path to the STL file.
 
     Returns:
-        A tuple containing the points, faces, and edges.
+        The loaded mesh.
     """
     mesh = stl.mesh.Mesh.from_file(stl_path)
     points = mesh.vectors.reshape(-1, 3)
     faces = np.arange(len(points)).reshape(-1, 3)
-    edge_1 = faces[:, 0:2]
-    edge_2 = faces[:, 1:]
-    edge_3 = np.concatenate([faces[:, :1], faces[:, -1:]], axis=1)
-    edges = np.concatenate([edge_1, edge_2, edge_3], axis=0)
-    _, unique_edges_locs = np.unique(edges[:, 0] * (10**10) + edges[:, 1], return_index=True)
-    edges = edges[unique_edges_locs, :]
-    return Mesh(points, faces, edges)
+    return Mesh(points, faces)
 
 
 def save_stl_file(mesh: Mesh, stl_path: str | Path) -> None:
-    """Saves the points, faces, and edges to an STL file.
+    """Saves the mesh as an STL file.
 
     Args:
         mesh: The mesh to save.
