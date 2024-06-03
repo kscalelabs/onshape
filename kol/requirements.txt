@@ -1,13 +1,14 @@
 # requirements.txt
 
-omegaconf
-requests
+mujoco
 networkx
 numpy
 numpy-stl
+omegaconf
 pydantic
-mujoco
+requests
 scipy
+tqdm
 
 # Types
 types-requests

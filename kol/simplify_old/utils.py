@@ -65,7 +65,7 @@ def q_matrices(points: NDArray, faces: NDArray, plane_eq_para: NDArray) -> list[
         plane_eq_para: The plane equations for each face.
 
     Returns:
-        The Q matrices for each point.
+        The Q matrices for each point, with shape ``(N, 4, 4)``.
     """
     q_matrices: list[NDArray] = []
     for i in range(0, points.shape[0]):
@@ -77,6 +77,7 @@ def q_matrices(points: NDArray, faces: NDArray, plane_eq_para: NDArray) -> list[
             p = p.reshape(1, len(p))
             q_temp = q_temp + np.matmul(p.T, p)
         q_matrices.append(q_temp)
+    breakpoint()
     return q_matrices
 
 
@@ -115,7 +116,7 @@ def get_nearby_point_pairs(points: NDArray, threshold: float) -> NDArray:
     return dist_pairs_arr
 
 
-def calculate_optimal_contraction_pairs_and_cost(candidate_pairs: NDArray) -> None:
+def calculate_optimal_contraction_pairs_and_cost(candidate_pairs: NDArray, q_matrices: NDArray) -> None:
     """Calculates the optimal contraction pairs and cost.
 
     Compute the optimal contraction target v_opt for each valid pair
@@ -126,15 +127,16 @@ def calculate_optimal_contraction_pairs_and_cost(candidate_pairs: NDArray) -> No
     Args:
         candidate_pairs: The candidate pairs of points to contract, with shape
             ``(M, 2)``.
+        q_matrices: The Q matrices for each point, with shape ``(N, 4, 4)``.
 
     Returns:
         The optimal contraction pairs and cost.
     """
     v_optimal = []
     cost = []
-    number_of_valid_pairs = self.valid_pairs.shape[0]
+    number_of_valid_pairs = candidate_pairs.shape[0]
     for i in range(0, number_of_valid_pairs):
-        current_valid_pair = self.valid_pairs[i, :]
+        current_valid_pair = candidate_pairs[i, :]
         v_1_location = current_valid_pair[0] - 1
         v_2_location = current_valid_pair[1] - 1
         q_1 = self.q_matrices[v_1_location]
