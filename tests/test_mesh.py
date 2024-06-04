@@ -21,33 +21,9 @@ def test_stl_to_type(mesh_type: MeshType, tmpdir: Path) -> None:
 
     assert stl_mesh == fmt_mesh
 
-
-def test_load_save(tmpdir: Path) -> None:
-    stl_path = Path(tmpdir / "random.stl")
-    obj_path = Path(tmpdir / "random.obj")
-
-    # Test STL loading and saving
-    stl_mesh = load_file("tests/data/random.stl")
-    save_file(stl_mesh, stl_path)
-    assert stl_path.exists()
-
-    stl_mesh2 = load_file(stl_path)
-    assert stl_mesh == stl_mesh2
-
-    # Test OBJ loading and saving
-    save_file(stl_mesh, obj_path)
-    assert obj_path.exists()
-
-    obj_mesh = load_file(obj_path)
-    assert stl_mesh == obj_mesh
-    save_file(obj_mesh, stl_path)
-    assert stl_path.exists()
-
-    stl_mesh3 = load_file(stl_path)
-    assert stl_mesh == stl_mesh3
-
-    # Cleanup
-    obj_path.unlink()
-    stl_path.unlink()
-    assert not obj_path.exists()
-    assert not stl_path.exists()
+    # Tests saving as the target format.
+    fmt_path = Path(tmpdir / f"random.{mesh_type}")
+    save_file(stl_mesh, fmt_path)
+    assert fmt_path.exists()
+    fmt_mesh = load_file(fmt_path)
+    assert stl_mesh == fmt_mesh

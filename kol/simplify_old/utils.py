@@ -116,7 +116,7 @@ def get_nearby_point_pairs(points: NDArray, threshold: float) -> NDArray:
     return dist_pairs_arr
 
 
-def calculate_optimal_contraction_pairs_and_cost(candidate_pairs: NDArray, q_matrices: NDArray) -> None:
+def calculate_optimal_contraction_pairs_and_cost(self, candidate_pairs: NDArray, q_matrices: NDArray) -> None:
     """Calculates the optimal contraction pairs and cost.
 
     Compute the optimal contraction target v_opt for each valid pair
