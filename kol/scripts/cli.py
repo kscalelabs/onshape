@@ -26,7 +26,7 @@ def main(args: Sequence[str] | None = None) -> None:
             show_mjcf.main(remaining_args)
         case "stl":
             visualize_stl.main(remaining_args)
-        case "meshsimplify":
+        case "simplify":
             simplify.main(remaining_args)
         case _:
             raise ValueError(f"Unknown subcommand: {parsed_args.subcommand}")
