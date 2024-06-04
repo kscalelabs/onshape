@@ -153,6 +153,13 @@ def save_stl_file(mesh: Mesh, stl_path: Union[str, Path]) -> None:
         mesh: The mesh to save.
         stl_path: The path to the STL file.
     """
+    # Check the maximum value in mesh.faces
+    # max_face_index = np.max(mesh.faces)
+    # if max_face_index >= len(mesh.points):
+    #     raise ValueError(
+    #         f"Index in mesh.faces ({max_face_index}) is out of bounds for mesh.points of size {len(mesh.points)}"
+    #     )
+
     # Create an empty STL mesh with the correct number of faces
     stl_mesh_obj = stl_mesh.Mesh(np.zeros(len(mesh.faces), dtype=stl_mesh.Mesh.dtype))
 

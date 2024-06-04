@@ -9,6 +9,7 @@ from numpy.typing import NDArray
 
 from kol.mesh import Mesh, load_file
 
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(message)s")
 logger = logging.getLogger(__name__)
 
 
@@ -26,7 +27,7 @@ def get_edges(faces: NDArray) -> NDArray:
     """
     edge_1 = faces[:, 0:2]
     edge_2 = faces[:, 1:]
-    edge_3 = np.concatenate([faces[:, :1], faces[:, 2:3]], axis=1)
+    edge_3 = np.concatenate([faces[:, :1], faces[:, -1:]], axis=1)
     edges = np.concatenate([edge_1, edge_2, edge_3], axis=0)
     _, unique_edges_locs = np.unique(edges[:, 0] * (10**10) + edges[:, 1], return_index=True)
     edges = edges[unique_edges_locs, :]
@@ -181,7 +182,10 @@ def calculate_optimal_contraction_pairs_and_cost(
     cost = np.array(cost)
     cost = cost.reshape(cost.shape[0])
     cost_argsort = np.argsort(cost)
+    cost = cost[cost_argsort]
+
     valid_pairs = valid_pairs[cost_argsort, :]
+
     v_optimal = np.array(v_optimal)
     v_optimal = v_optimal[cost_argsort, :]
 
@@ -219,9 +223,11 @@ def iteratively_remove_least_cost_valid_pairs(
     simplify_ratio: float,
 ) -> tuple[NDArray, NDArray, NDArray, NDArray]:
     new_point_count = 0
-    status_points = np.zeros(len(points))
-    status_faces = np.zeros(len(faces))
-    while (points.shape[0] - new_point_count) >= simplify_ratio * (points.shape[0]):
+    number_of_points = points.shape[0]
+    number_of_faces = faces.shape[0]
+    status_points = np.zeros(number_of_points)
+    status_faces = np.zeros(number_of_faces)
+    while (number_of_points - new_point_count) >= simplify_ratio * (points.shape[0]):
         # current valid pair
         current_valid_pair = new_valid_pair
         v_1_location = current_valid_pair[0] - 1  # point location in self.points
@@ -267,6 +273,7 @@ def iteratively_remove_least_cost_valid_pairs(
                 plane_equ_para[i, :] = calculate_plane_equation_for_one_face(point_1, point_2, point_3)
 
         # update q matrices
+        replace_loc = current_valid_pair - 1
         face_set_index = np.where(faces == v_1_location + 1)[0]
         q_temp = np.zeros((4, 4))
 
@@ -275,7 +282,7 @@ def iteratively_remove_least_cost_valid_pairs(
             p = p.reshape(1, len(p))
             q_temp = q_temp + np.matmul(p.T, p)
 
-        for i in current_valid_pair:
+        for i in replace_loc:
             q_matrices[i - 1] = q_temp
 
         # update valid_pairs, v_optimal, and cost
@@ -304,7 +311,7 @@ def iteratively_remove_least_cost_valid_pairs(
         cost = np.delete(cost, delete_locs, axis=0)
 
         # unique process for self.valid_pairs, self.v_optimal and self.cost
-        unique_valid_pairs_trans, unique_valid_pairs_loc = np.unique(
+        _, unique_valid_pairs_loc = np.unique(
             valid_pairs[:, 0] * (10**10) + valid_pairs[:, 1],
             return_index=True,
         )
@@ -434,7 +441,7 @@ def get_simplified_mesh(
         mesh.points,
         mesh.faces,
         valid_pairs,
-        valid_pairs[0],
+        valid_pairs[0, :],
         v_optimal,
         v_optimal[0, :],
         cost,
