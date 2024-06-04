@@ -48,6 +48,7 @@ clean:
 
 
 format:
+	@isort --profile black kol
 	@black kol
 	@ruff format kol
 .PHONY: format
@@ -58,6 +59,7 @@ format-cpp:
 .PHONY: format-cpp
 
 static-checks:
+	@isort --profile black --check --diff kol
 	@black --diff --check kol
 	@ruff check kol
 	@mypy --install-types --non-interactive kol
