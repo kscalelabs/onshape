@@ -116,3 +116,9 @@ def scale_mesh(mesh: Mesh, scale: float, about_origin: bool = False) -> Mesh:
     points *= scale
     points += com
     return Mesh(points=points, faces=mesh.faces)
+
+
+def combine_meshes(meshes: list[Mesh]) -> Mesh:
+    points = np.concatenate([mesh.points for mesh in meshes])
+    faces = np.concatenate([mesh.faces for mesh in meshes])
+    return Mesh(points=points, faces=faces)

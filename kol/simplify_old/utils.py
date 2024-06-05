@@ -177,6 +177,6 @@ def calculate_optimal_contraction_pairs_and_cost(self, candidate_pairs: NDArray,
     cost_arr = np.array(cost)
 
     cost_argsort = np.argsort(cost_arr)
-    valid_pairs = valid_pairs[cost_argsort, :]
+    # valid_pairs = valid_pairs[cost_argsort, :]
     v_optimal_arr = v_optimal_arr[cost_argsort, :]
     cost_arr = cost_arr[cost_argsort]
