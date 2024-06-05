@@ -50,12 +50,8 @@ clean:
 format:
 	@black kol
 	@ruff format kol
+	@isort kol
 .PHONY: format
-
-format-cpp:
-	@clang-format -i $(shell find . -name '*.cpp' -o -name '*.h')
-	@cmake-format -i $(shell find . -name 'CMakeLists.txt' -o -name '*.cmake')
-.PHONY: format-cpp
 
 static-checks:
 	@black --diff --check kol

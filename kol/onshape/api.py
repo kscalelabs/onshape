@@ -4,7 +4,13 @@ import logging
 from typing import BinaryIO
 
 from kol.onshape.client import DocumentInfo, OnshapeClient, WorkspaceType
-from kol.onshape.schema.assembly import Assembly, AssemblyMetadata, Part, RootAssembly, SubAssembly
+from kol.onshape.schema.assembly import (
+    Assembly,
+    AssemblyMetadata,
+    Part,
+    RootAssembly,
+    SubAssembly,
+)
 from kol.onshape.schema.document import Document
 from kol.onshape.schema.elements import Elements, ElementType
 from kol.onshape.schema.features import Features

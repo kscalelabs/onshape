@@ -1,10 +1,12 @@
+"""Defines utility functions for working with mesh files."""
+
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal, Union, cast, get_args
 
 import numpy as np
-from stl import mesh as stl_mesh
 from numpy.typing import NDArray
+from stl import mesh as stl_mesh
 
 MeshType = Literal["stl", "obj"]
 
