@@ -227,24 +227,22 @@ def iteratively_remove_least_cost_valid_pairs(
     number_of_faces = faces.shape[0]
     status_points = np.zeros(number_of_points)
     status_faces = np.zeros(number_of_faces)
+
     while (number_of_points - new_point_count) >= simplify_ratio * (points.shape[0]):
-        # current valid pair
+        # The current valid pair.
         current_valid_pair = new_valid_pair
-        v_1_location = current_valid_pair[0] - 1  # point location in self.points
+        v_1_location = current_valid_pair[0] - 1
         v_2_location = current_valid_pair[1] - 1
 
-        # update self.points
-        # put the top optimal vertex(point) into the sequence of points
+        # Put the top optimal vertex(point) into the sequence of points.
         points[v_1_location, :] = new_point.reshape(1, 3)
         points[v_2_location, :] = new_point.reshape(1, 3)
 
-        # set status of points
-        # 0 means no change, -1 means the point is deleted
-        # update v1, v2 to v_opt, then delete v2, keep v1
+        # Sets the status of points. 0 means no change, -1 means the point is
+        # deleted. Update v1, v2 to v_opt, then delete v2, keep v1.
         status_points[v_2_location] = -1
 
-        # set status of faces
-        # 0 means no change, -1 means the face will be deleted
+        # Set status of faces. 0 means no change, -1 means delete.
         v_1_in_faces_loc = np.where(faces == (v_1_location + 1))
         v_2_in_faces_loc = np.where(faces == (v_2_location + 1))
         v_1_2_in_one_face_loc = []
@@ -255,12 +253,11 @@ def iteratively_remove_least_cost_valid_pairs(
         if v_1_2_in_one_face_loc.size >= 1:
             status_faces[v_1_2_in_one_face_loc] = -1
 
-        # update faces
-        # points of faces involving v1 and v2 are changed accordingly
-        # set v2 to v1
+        # Update faces. Points of faces involving v1 and v2 are changed
+        # accordingly. Set v2 to v1.
         faces[v_2_in_faces_loc] = v_1_location + 1
 
-        # update plane_equ_para
+        # Update plane equations.
         v_1_2_in_faces_loc = np.unique(np.append(v_1_in_faces_loc[0], v_2_in_faces_loc[0]))
         for i in v_1_2_in_faces_loc:
             if status_faces[i] == -1:
@@ -269,10 +266,9 @@ def iteratively_remove_least_cost_valid_pairs(
                 point_1 = points[faces[i, 0] - 1, :]
                 point_2 = points[faces[i, 1] - 1, :]
                 point_3 = points[faces[i, 2] - 1, :]
-                # calculate plane equation given 3 points
                 plane_equ_para[i, :] = calculate_plane_equation_for_one_face(point_1, point_2, point_3)
 
-        # update q matrices
+        # Update the Q matrices.
         replace_loc = current_valid_pair - 1
         face_set_index = np.where(faces == v_1_location + 1)[0]
         q_temp = np.zeros((4, 4))
@@ -285,9 +281,6 @@ def iteratively_remove_least_cost_valid_pairs(
         for i in replace_loc:
             q_matrices[i - 1] = q_temp
 
-        # update valid_pairs, v_optimal, and cost
-        # processing valid_pairs
-        # replace all the point indexes containing current valid pair with new point index: target_loc+1
         v_1_loc_in_valid_pairs = np.where(valid_pairs == new_valid_pair[0])
         v_2_loc_in_valid_pairs = np.where(valid_pairs == new_valid_pair[1])
 
@@ -305,29 +298,22 @@ def iteratively_remove_least_cost_valid_pairs(
         if find_same_loc.size >= 1:
             delete_locs = np.append(delete_locs, find_same_loc)
 
-        # delete process for self.valid_pairs, self.v_optimal and self.cost
         valid_pairs = np.delete(valid_pairs, delete_locs, axis=0)
         v_optimal = np.delete(v_optimal, delete_locs, axis=0)
         cost = np.delete(cost, delete_locs, axis=0)
 
-        # unique process for self.valid_pairs, self.v_optimal and self.cost
-        _, unique_valid_pairs_loc = np.unique(
-            valid_pairs[:, 0] * (10**10) + valid_pairs[:, 1],
-            return_index=True,
-        )
+        _, unique_valid_pairs_loc = np.unique(valid_pairs[:, 0] * (10**10) + valid_pairs[:, 1], return_index=True)
         valid_pairs = valid_pairs[unique_valid_pairs_loc, :]
         v_optimal = v_optimal[unique_valid_pairs_loc, :]
         cost = cost[unique_valid_pairs_loc]
 
-        # re-calculate optimal contraction pairs and cost
+        # Re-calculate optimal contraction pairs and cost.
         v_target_loc_in_valid_pairs = np.where(valid_pairs == v_1_location + 1)[0]
         for i in v_target_loc_in_valid_pairs:
             current_valid_pair = valid_pairs[i, :]
             v_1_location = current_valid_pair[0] - 1
             v_2_location = current_valid_pair[1] - 1
-            # find Q_1
             q_1 = q_matrices[v_1_location]
-            # find Q_2
             q_2 = q_matrices[v_2_location]
             q = q_1 + q_2
             q_new = np.concatenate([q[:3, :], np.array([0, 0, 0, 1]).reshape(1, 4)], axis=0)
@@ -358,30 +344,36 @@ def iteratively_remove_least_cost_valid_pairs(
         new_valid_pair = valid_pairs[0, :]
 
         if new_point_count % 100 == 0:
-            print("Simplification: " + str(100 * (points.shape[0] - new_point_count) / (points.shape[0])) + "%")
-            print("Remaining: " + str(points.shape[0] - new_point_count) + " points")
-            print("\n")
+            logger.info("Simplification: %f%%", 100 * (points.shape[0] - new_point_count) / (points.shape[0]))
+            logger.info("Remaining: %d points", points.shape[0] - new_point_count)
 
         new_point_count = new_point_count + 1
 
-    print(
-        "Simplification: " + str(100 * (points.shape[0] - new_point_count) / (points.shape[0] + new_point_count)) + "%"
-    )
-    print("Remaining: " + str(points.shape[0] - new_point_count) + " points")
-    print("End\n")
+    logger.info("Simplification: %f%%", 100 * (points.shape[0] - new_point_count) / (points.shape[0]))
+    logger.info("Remaining: %d points", points.shape[0] - new_point_count)
 
     return points, status_points, faces, status_faces
 
 
-# Generate the simplified 3d model (points/vertices, faces)
 def generate_new_3d_model(
     points: NDArray,
     status_points: NDArray,
     faces: NDArray,
     status_faces: NDArray,
 ) -> tuple[NDArray, NDArray]:
+    """Generates a new 3D model.
+
+    Args:
+        points: The points of the mesh.
+        status_points: The status of each point.
+        faces: The faces of the mesh.
+        status_faces: The status of each face.
+
+    Returns:
+        The new points and faces.
+    """
     point_serial_number = np.arange(points.shape[0]) + 1
-    points_to_delete_locs = np.where(status_points == -1)[0]
+    (points_to_delete_locs,) = np.where(status_points == -1)
     points = np.delete(points, points_to_delete_locs, axis=0)
     point_serial_number = np.delete(point_serial_number, points_to_delete_locs)
     point_serial_number_after_del = np.arange(points.shape[0]) + 1
@@ -400,7 +392,7 @@ def get_simplified_mesh(
     mesh: str | Path | Mesh,
     threshold: float,
     simplify_ratio: float,
-) -> None:
+) -> Mesh:
     """Simplifies the mesh.
 
     Args:
@@ -451,5 +443,6 @@ def get_simplified_mesh(
     )
 
     logger.info("Generating new 3D model")
-    mesh.points, mesh.faces = generate_new_3d_model(points, status_points, faces, status_faces)
-    return mesh
+    points, faces = generate_new_3d_model(points, status_points, faces, status_faces)
+
+    return Mesh(points=points, faces=faces)
