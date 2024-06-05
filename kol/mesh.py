@@ -156,13 +156,6 @@ def save_stl_file(mesh: Mesh, stl_path: Union[str, Path]) -> None:
         mesh: The mesh to save.
         stl_path: The path to the STL file.
     """
-    # Check the maximum value in mesh.faces
-    # max_face_index = np.max(mesh.faces)
-    # if max_face_index >= len(mesh.points):
-    #     raise ValueError(
-    #         f"Index in mesh.faces ({max_face_index}) is out of bounds for mesh.points of size {len(mesh.points)}"
-    #     )
-
     # Create an empty STL mesh with the correct number of faces
     stl_mesh_obj = stl_mesh.Mesh(np.zeros(len(mesh.faces), dtype=stl_mesh.Mesh.dtype))
 
@@ -175,12 +168,6 @@ def save_stl_file(mesh: Mesh, stl_path: Union[str, Path]) -> None:
     stl_mesh_obj.save(stl_path)
 
     def calculate_normal(triangle: NDArray) -> NDArray:
-        # v1, v2, v3 = triangle
-        # u = (v2[0] - v1[0], v2[1] - v1[1], v2[2] - v1[2])
-        # v = (v3[0] - v1[0], v3[1] - v1[1], v3[2] - v1[2])
-        # normal = (u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0])
-        # length = (normal[0] ** 2 + normal[1] ** 2 + normal[2] ** 2) ** 0.5
-        # return np.asarray((normal[0] / length, normal[1] / length, normal[2] / length))
         return np.cross(triangle[1] - triangle[0], triangle[2] - triangle[0])
 
     with open(stl_path, "wb") as f:

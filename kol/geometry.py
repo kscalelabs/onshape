@@ -5,6 +5,9 @@ from dataclasses import dataclass
 
 import numpy as np
 import stl.mesh
+from scipy.spatial import ConvexHull
+
+from kol.mesh import Mesh
 
 
 def rotation_matrix_to_euler_angles(rotation_matrix: np.matrix) -> tuple[float, float, float]:
@@ -83,3 +86,33 @@ def combine_dynamics(dynamics: list[Dynamics]) -> Dynamics:
         inertia = inertia + dynamic.inertia + (np.dot(r, r) * identity - p.T * p) * dynamic.mass
 
     return Dynamics(mass, com, inertia)
+
+
+def get_mesh_convex_hull(mesh: Mesh) -> Mesh:
+    hull = ConvexHull(mesh.points)
+    return Mesh(points=mesh.points[hull.vertices], faces=hull.simplices)
+
+
+def get_center_of_mass(mesh: Mesh) -> tuple[float, float, float]:
+    total_volume = 0.0
+    center_of_mass = np.zeros(3)
+    for triangle in mesh.faces:
+        v0, v1, v2 = triangle
+        p0, p1, p2 = mesh.points[v0], mesh.points[v1], mesh.points[v2]
+        volume = np.dot(p0, np.cross(p1, p2)) / 6.0
+        centroid = (p0 + p1 + p2) / 4.0
+        total_volume += volume
+        center_of_mass += volume * centroid
+    center_of_mass /= total_volume
+    p0, p1, p2 = center_of_mass
+    return (p0, p1, p2)
+
+
+def scale_mesh(mesh: Mesh, scale: float, about_origin: bool = False) -> Mesh:
+    if scale <= 0:
+        raise ValueError(f"Scaling {scale} should be greater than 0.")
+    com = (0.0, 0.0, 0.0) if about_origin else get_center_of_mass(mesh)
+    points = mesh.points - com
+    points *= scale
+    points += com
+    return Mesh(points=points, faces=mesh.faces)
