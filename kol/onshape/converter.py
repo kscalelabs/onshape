@@ -26,6 +26,7 @@ from kol.geometry import (
     combine_meshes,
     get_mesh_convex_hull,
     inv_tf,
+    matrix_to_moments,
     scale_mesh,
     transform_inertia_tensor,
 )
@@ -851,20 +852,33 @@ class Converter:
         logger.info("Merging fixed joints")
         # While there still exists fixed joints, fuse the parts they connect.
         while any(j.mate_type == MateType.FASTENED for j in self.ordered_joint_list):
-            logger.info("Found fixed joint.")
             # Get first fixed joint from joint list.
             joint = next(j for j in self.ordered_joint_list if j.mate_type == MateType.FASTENED)
+            logger.info("Found fixed joint.")
             # BFS from joint to get all fixed connected parts.
             connected_parts = set()
+            visited = set()
             queue = [joint.child]
+            joints_to_remove = [joint]
             while queue:
                 part = queue.pop(0)
                 connected_parts.add(part)
-                queue.extend(
-                    j.child for j in self.ordered_joint_list if j.parent == part and j.mate_type == MateType.FASTENED
-                )
-            logger.info("Fusing parts: %s", ", ".join(self.key_name(p, "link") for p in connected_parts))
+                if part in visited:
+                    continue
+                visited.add(part)
+                for j in self.ordered_joint_list:
+                    if j.mate_type == MateType.FASTENED:
+                        if j.parent == part and j.child not in visited:
+                            queue.append(j.child)
+                            joints_to_remove.append(j)
+                        elif j.child == part and j.parent not in visited:
+                            queue.append(j.parent)
+                            joints_to_remove.append(j)
+            logger.info("Collected %d connected parts.", len(connected_parts))
+            logger.info("Fusing parts: %s.", ", ".join(self.key_name(p, "link") for p in connected_parts))
             new_part_name = "fused_" + "_".join(self.key_name(p, None) for p in connected_parts)
+            if len(new_part_name) > 50:
+                new_part_name = new_part_name[:16] + "..."
             # Calculate new stl.
             combined_stl_file_name = f"{new_part_name}.stl"
             combined_stl_file_path = self.mesh_dir / combined_stl_file_name
@@ -883,7 +897,6 @@ class Converter:
             collision_stl_file_path = self.mesh_dir / combined_collision_stl_name
             combined_collision.save(collision_stl_file_path)
             # Get combined dynamic, visual, and collision meshes.
-            print(connected_parts)
             part_instances = [self.key_to_part_instance[p] for p in connected_parts]
             parts = [self.euid_to_part[p.euid] for p in part_instances]
             part_dynamics = [self.part_dynamics(p) for p in parts]
@@ -904,25 +917,28 @@ class Converter:
                 origin=urdf.Origin.zero_origin(),
                 geometry=urdf.MeshGeometry(filename=f"./meshes/{combined_collision_stl_name}"),
             )
+            logger.info("Got combined meshes and dynamics.")
             # Add the fused part to the URDF.
             fused_part = urdf.Link(
                 name=new_part_name,
                 visual=combined_visual,
                 inertial=urdf.InertialLink(
-                    origin=urdf.Origin.zero_origin(), mass=combined_dynamics.mass, inertia=combined_dynamics.inertia
+                    origin=urdf.Origin.zero_origin(),
+                    mass=combined_dynamics.mass,
+                    inertia=matrix_to_moments(combined_dynamics.inertia),
                 ),
                 collision=combined_collision,
             )
             urdf_parts.append(fused_part)
+            # Remove parts that got fixed.
+            urdf_parts = [p for p in urdf_parts if p.name not in connected_parts]
+            self.ordered_joint_list = [j for j in self.ordered_joint_list if j not in joints_to_remove]
             # Rename joints involving any of the connected parts to the new part.
             for j in self.ordered_joint_list:
                 if j.parent in connected_parts:
-                    j.parent = joint.child
+                    j.parent = fused_part
                 if j.child in connected_parts:
-                    j.child = joint.child
-            # Remove parts that got fixed.
-            urdf_parts = [p for p in urdf_parts if p.name not in connected_parts]
-            self.ordered_joint_list = [j for j in self.ordered_joint_list if j.parent not in connected_parts]
+                    j.child = fused_part
         return urdf_parts
 
     def save_urdf(self) -> None:
@@ -931,9 +947,10 @@ class Converter:
 
         # Merge fixed joints.
         if self.merge_fixed_joints:
-            print("joint list before merge", self.ordered_joint_list)
-            print("joint types before merge", [j.mate_type for j in self.ordered_joint_list])
+            logger.info("Merging fixed joints")
+            logger.info("Initial joint count: %d", len(self.ordered_joint_list))
             urdf_parts = self.process_fixed_joints(urdf_parts)
+            logger.info("Final joint count: %d", len(self.ordered_joint_list))
 
         # Add the first link, since it has no incoming joint.
         part_link = self.get_urdf_part(self.central_node)
@@ -953,8 +970,6 @@ class Converter:
 
         # Creates a URDF joint for each feature connecting two parts.
         for joint in self.ordered_joint_list:
-            # Print joint type
-            print(type(joint))
             urdf_joint = self.get_urdf_joint(joint)
             urdf_link = self.get_urdf_part(joint.child, joint)
             urdf_parts.append(urdf_link)

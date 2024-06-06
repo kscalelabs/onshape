@@ -88,6 +88,19 @@ def combine_dynamics(dynamics: list[Dynamics]) -> Dynamics:
     return Dynamics(mass, com, inertia)
 
 
+def matrix_to_moments(matrix: np.matrix) -> any:
+    from kol.formats.urdf import Inertia
+
+    return Inertia(
+        ixx=matrix[0, 0],
+        iyy=matrix[1, 1],
+        izz=matrix[2, 2],
+        ixy=matrix[0, 1],
+        ixz=matrix[0, 2],
+        iyz=matrix[1, 2],
+    )
+
+
 def get_mesh_convex_hull(mesh: Mesh) -> Mesh:
     hull = ConvexHull(mesh.points)
     return Mesh(points=mesh.points[hull.vertices], faces=hull.simplices)
