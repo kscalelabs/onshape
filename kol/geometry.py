@@ -75,7 +75,7 @@ def combine_dynamics(dynamics: list[Dynamics]) -> Dynamics:
 
     for dynamic in dynamics:
         mass += dynamic.mass
-        com += dynamic.com * dynamic.mass
+        com += np.array(dynamic.com) * dynamic.mass
 
     if mass > 0:
         com /= mass

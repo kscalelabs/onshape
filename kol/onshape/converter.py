@@ -20,6 +20,7 @@ from scipy.spatial.transform import Rotation as R
 
 from kol.formats import mjcf, urdf
 from kol.geometry import (
+    Dynamics,
     apply_matrix_,
     combine_dynamics,
     combine_meshes,
@@ -28,7 +29,7 @@ from kol.geometry import (
     scale_mesh,
     transform_inertia_tensor,
 )
-from kol.mesh import MeshType, stl_to_fmt
+from kol.mesh import MeshType, load_file, stl_to_fmt
 from kol.onshape.api import OnshapeApi
 from kol.onshape.client import OnshapeClient
 from kol.onshape.schema.assembly import (
@@ -845,9 +846,94 @@ class Converter:
             case _:
                 raise ValueError(f"Unsupported mate type: {mate_type}")
 
+    def process_fixed_joints(self, urdf_parts: list[urdf.Link | urdf.BaseJoint]) -> list[urdf.Link | urdf.BaseJoint]:
+        """Processes the fixed joints in the assembly."""
+        logger.info("Merging fixed joints")
+        # While there still exists fixed joints, fuse the parts they connect.
+        while any(j.mate_type == MateType.FASTENED for j in self.ordered_joint_list):
+            logger.info("Found fixed joint.")
+            # Get first fixed joint from joint list.
+            joint = next(j for j in self.ordered_joint_list if j.mate_type == MateType.FASTENED)
+            # BFS from joint to get all fixed connected parts.
+            connected_parts = set()
+            queue = [joint.child]
+            while queue:
+                part = queue.pop(0)
+                connected_parts.add(part)
+                queue.extend(
+                    j.child for j in self.ordered_joint_list if j.parent == part and j.mate_type == MateType.FASTENED
+                )
+            logger.info("Fusing parts: %s", ", ".join(self.key_name(p, "link") for p in connected_parts))
+            new_part_name = "fused_" + "_".join(self.key_name(p, None) for p in connected_parts)
+            # Calculate new stl.
+            combined_stl_file_name = f"{new_part_name}.stl"
+            combined_stl_file_path = self.mesh_dir / combined_stl_file_name
+            combined_stl_file_path.unlink(missing_ok=True)
+            meshpaths = [f"{self.key_name(part, 'link')}.stl" for part in connected_parts]
+            # Remove "link_" from the beginning of the meshpaths
+            meshpaths = [meshpath[5:] for meshpath in meshpaths]
+            meshes = [load_file(self.mesh_dir / meshpath) for meshpath in meshpaths]
+            combined_mesh = combine_meshes(meshes)
+            combined_mesh.save(combined_stl_file_path)
+            # Get convex hull of combined mesh, and scale to good size.
+            combined_collision = get_mesh_convex_hull(combined_mesh)
+            combined_collision = scale_mesh(combined_mesh, 0.6)
+            # Save collision mesh to filepath
+            combined_collision_stl_name = f"{new_part_name}_collision.stl"
+            collision_stl_file_path = self.mesh_dir / combined_collision_stl_name
+            combined_collision.save(collision_stl_file_path)
+            # Get combined dynamic, visual, and collision meshes.
+            print(connected_parts)
+            part_instances = [self.key_to_part_instance[p] for p in connected_parts]
+            parts = [self.euid_to_part[p.euid] for p in part_instances]
+            part_dynamics = [self.part_dynamics(p) for p in parts]
+            part_bodies = [d.bodies[p.partId] for d, p in zip(part_dynamics, part_instances)]
+            true_dynamics = [
+                Dynamics(mass=p.mass[0], com=p.center_of_mass, inertia=p.inertia_matrix) for p in part_bodies
+            ]
+            combined_dynamics = combine_dynamics(true_dynamics)
+            combined_visual = urdf.VisualLink(
+                origin=urdf.Origin.zero_origin(),
+                geometry=urdf.MeshGeometry(filename=f"./meshes/{combined_stl_file_name}"),
+                material=urdf.Material(
+                    name=f"{new_part_name}_material",
+                    color=[0, 0, 0],
+                ),
+            )
+            combined_collision = urdf.CollisionLink(
+                origin=urdf.Origin.zero_origin(),
+                geometry=urdf.MeshGeometry(filename=f"./meshes/{combined_collision_stl_name}"),
+            )
+            # Add the fused part to the URDF.
+            fused_part = urdf.Link(
+                name=new_part_name,
+                visual=combined_visual,
+                inertial=urdf.InertialLink(
+                    origin=urdf.Origin.zero_origin(), mass=combined_dynamics.mass, inertia=combined_dynamics.inertia
+                ),
+                collision=combined_collision,
+            )
+            urdf_parts.append(fused_part)
+            # Rename joints involving any of the connected parts to the new part.
+            for j in self.ordered_joint_list:
+                if j.parent in connected_parts:
+                    j.parent = joint.child
+                if j.child in connected_parts:
+                    j.child = joint.child
+            # Remove parts that got fixed.
+            urdf_parts = [p for p in urdf_parts if p.name not in connected_parts]
+            self.ordered_joint_list = [j for j in self.ordered_joint_list if j.parent not in connected_parts]
+        return urdf_parts
+
     def save_urdf(self) -> None:
         """Saves a URDF file for the assembly to the output directory."""
         urdf_parts: list[urdf.Link | urdf.BaseJoint] = []
+
+        # Merge fixed joints.
+        if self.merge_fixed_joints:
+            print("joint list before merge", self.ordered_joint_list)
+            print("joint types before merge", [j.mate_type for j in self.ordered_joint_list])
+            urdf_parts = self.process_fixed_joints(urdf_parts)
 
         # Add the first link, since it has no incoming joint.
         part_link = self.get_urdf_part(self.central_node)
@@ -867,89 +953,12 @@ class Converter:
 
         # Creates a URDF joint for each feature connecting two parts.
         for joint in self.ordered_joint_list:
+            # Print joint type
+            print(type(joint))
             urdf_joint = self.get_urdf_joint(joint)
             urdf_link = self.get_urdf_part(joint.child, joint)
             urdf_parts.append(urdf_link)
             urdf_parts.append(urdf_joint)
-
-        print("joint list before merge", self.ordered_joint_list)
-        print("joint types before merge", [type(j) for j in self.ordered_joint_list])
-        # Merge fixed joints.
-        if self.merge_fixed_joints:
-            logger.info("Merging fixed joints")
-            # While there still exists fixed joints, fuse the parts they connect.
-            while any(isinstance(j, urdf.FixedJoint) for j in self.ordered_joint_list):
-                logger.info("Found fixed joint.")
-                # Get first fixed joint from joint list.
-                joint = next(j for j in self.ordered_joint_list if isinstance(j, urdf.FixedJoint))
-                # BFS from joint to get all fixed connected parts.
-                connected_parts = set()
-                queue = [joint.child]
-                while queue:
-                    part = queue.pop(0)
-                    connected_parts.add(part)
-                    queue.extend(
-                        j.child
-                        for j in self.ordered_joint_list
-                        if j.parent == part and isinstance(j.child, urdf.FixedJoint)
-                    )
-                logger.info("Fusing parts: %s", ", ".join(self.key_name(p, "link") for p in connected_parts))
-                new_part_name = f"fused_link_{joint.child}"
-                # Calculate new stl.
-                combined_stl_file_name = f"{joint.child}.stl"
-                combined_stl_file_path = self.mesh_dir / combined_stl_file_name
-                combined_stl_file_path.unlink(missing_ok=True)
-                meshes = [self.mesh_dir / f"{part}.stl" for part in connected_parts]
-                combined_mesh = combine_meshes(meshes)
-                combined_mesh.save(combined_stl_file_path)
-                # Get convex hull of combined mesh, and scale to good size.
-                combined_collision = get_mesh_convex_hull(combined_mesh)
-                combined_collision = scale_mesh(combined_mesh, 0.6)
-                # Save collision mesh to filepath
-                combined_collision_stl_name = f"{new_part_name}_collision.stl"
-                collision_stl_file_path = self.mesh_dir / combined_collision_stl_name
-                combined_collision.save(collision_stl_file_path)
-                # Fuse all connected parts into one.
-                combined_dynamics = combine_dynamics([self.part_dynamics(p).bodies[p.partId] for p in connected_parts])
-                combined_visual = urdf.VisualLink(
-                    origin=urdf.Origin.zero_origin(),
-                    geometry=urdf.MeshGeometry(filename=f"./meshes/{combined_stl_file_name}"),
-                    material=urdf.Material(
-                        name=f"{new_part_name}_material",
-                        color=[c / 255.0 for c in self.part_color(joint.child)],
-                    ),
-                )
-                combined_collision = urdf.CollisionLink(
-                    origin=urdf.Origin.zero_origin(),
-                    geometry=urdf.MeshGeometry(filename=f"./meshes/{combined_collision_stl_name}"),
-                )
-                # Add the fused part to the URDF.
-                fused_part = urdf.Link(
-                    name=new_part_name,
-                    visual=combined_visual,
-                    inertial=urdf.InertialLink(
-                        origin=urdf.Origin.zero_origin(),
-                        mass=combined_dynamics.mass[0],
-                        inertia=urdf.Inertia(
-                            ixx=combined_dynamics.inertia_matrix[0, 0],
-                            ixy=combined_dynamics.inertia_matrix[0, 1],
-                            ixz=combined_dynamics.inertia_matrix[0, 2],
-                            iyy=combined_dynamics.inertia_matrix[1, 1],
-                            iyz=combined_dynamics.inertia_matrix[1, 2],
-                            izz=combined_dynamics.inertia_matrix[2, 2],
-                        ),
-                    ),
-                    collision=combined_collision,
-                )
-                urdf_parts.append(fused_part)
-                # Rename joints involving any of the connected parts to the new part.
-                for j in self.ordered_joint_list:
-                    if j.parent in connected_parts:
-                        j.parent = joint.child
-                    if j.child in connected_parts:
-                        j.child = joint.child
-                # Remove parts that got fixed.
-                urdf_parts = [p for p in urdf_parts if p.name not in connected_parts]
 
         # Saves the final URDF.
         robot_name = clean_name(str(self.assembly_metadata.property_map.get("Name", "robot")))
