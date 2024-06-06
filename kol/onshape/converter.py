@@ -850,6 +850,7 @@ class Converter:
     def process_fixed_joints(self, urdf_parts: list[urdf.Link | urdf.BaseJoint]) -> list[urdf.Link | urdf.BaseJoint]:
         """Processes the fixed joints in the assembly."""
         logger.info("Merging fixed joints")
+        merged_links = set()
         # While there still exists fixed joints, fuse the parts they connect.
         while any(j.mate_type == MateType.FASTENED for j in self.ordered_joint_list):
             # Get first fixed joint from joint list.
@@ -939,22 +940,27 @@ class Converter:
                     j.parent = fused_part
                 if j.child in connected_parts:
                     j.child = fused_part
-        return urdf_parts
+            merged_links = merged_links.union(connected_parts)
+            # If we merged away central node, we add a flag.
+            if self.central_node in connected_parts:
+                merged_central = True
+        return urdf_parts, merged_central
 
     def save_urdf(self) -> None:
         """Saves a URDF file for the assembly to the output directory."""
         urdf_parts: list[urdf.Link | urdf.BaseJoint] = []
 
         # Merge fixed joints.
+        merged_central = False
         if self.merge_fixed_joints:
-            logger.info("Merging fixed joints")
-            logger.info("Initial joint count: %d", len(self.ordered_joint_list))
-            urdf_parts = self.process_fixed_joints(urdf_parts)
-            logger.info("Final joint count: %d", len(self.ordered_joint_list))
+            logger.info("Merging fixed joints. Initial joint count: %d", len(self.ordered_joint_list))
+            urdf_parts, merged_central = self.process_fixed_joints(urdf_parts)
+            logger.info("Merges complete. Final joint count: %d", len(self.ordered_joint_list))
 
         # Add the first link, since it has no incoming joint.
-        part_link = self.get_urdf_part(self.central_node)
-        urdf_parts.append(part_link)
+        if not merged_central:
+            part_link = self.get_urdf_part(self.central_node)
+            urdf_parts.append(part_link)
 
         # For debugging.
         # names = {k: chr(ord('a') + i) for i, k in enumerate(self.key_to_part_instance.keys())}
