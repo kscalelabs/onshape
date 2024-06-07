@@ -888,7 +888,44 @@ class Converter:
             # Remove "link_" from the beginning of the meshpaths
             meshpaths = [meshpath[5:] for meshpath in meshpaths]
             meshes = [load_file(self.mesh_dir / meshpath) for meshpath in meshpaths]
-            combined_mesh = combine_meshes(meshes)
+            # Based on joint positions each mesh is linked to, compute origins relative to first mesh
+            # Calculate the transformation matrix for the first mesh (identity)
+            initial_transform = np.eye(4)
+            relative_transforms = {joints_to_remove[0].child: initial_transform}  # First mesh is reference
+
+            # Calculate the transformation matrix for the first mesh (identity)
+            initial_transform = np.eye(4)
+            relative_transforms = {joints_to_remove[0].child: initial_transform}  # First mesh is reference
+
+            # Accumulate transformations from the root to each mesh
+            for j in joints_to_remove:  # Iterate over all joints
+                parent_key = j.parent
+                child_key = j.child
+
+                # Check if the parent_key is in the relative_transforms dictionary
+                if parent_key not in relative_transforms:
+                    continue
+
+                # Transformation from parent to child in the joint's context
+                parent_transform = inv_tf(j.parent_entity.matedCS.part_to_mate_tf)
+                child_transform = j.child_entity.matedCS.part_to_mate_tf
+
+                # Accumulated transformation from root to parent
+                accumulated_parent_transform = relative_transforms[parent_key]
+
+                # Transformation from root to child
+                accumulated_child_transform = (
+                    accumulated_parent_transform @ np.linalg.inv(parent_transform) @ child_transform
+                )
+
+                # Store the accumulated transformation for the child mesh
+                relative_transforms[child_key] = accumulated_child_transform
+
+            # Extract translation vectors from the accumulated transformation matrices
+            relative_origins = [relative_transforms[key][:3, 3] for key in relative_transforms]
+
+            # Combine the meshes using the relative origins
+            combined_mesh = combine_meshes(meshes, relative_origins)
             combined_mesh.save(combined_stl_file_path)
             # Get convex hull of combined mesh, and scale to good size.
             combined_collision = get_mesh_convex_hull(combined_mesh)

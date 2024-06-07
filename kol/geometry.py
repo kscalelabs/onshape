@@ -131,7 +131,18 @@ def scale_mesh(mesh: Mesh, scale: float, about_origin: bool = False) -> Mesh:
     return Mesh(points=points, faces=mesh.faces)
 
 
-def combine_meshes(meshes: list[Mesh]) -> Mesh:
+def combine_meshes(meshes: list[Mesh], relative_origins: list[matrix[]]) -> Mesh:
+    # Get transformations based on origins relative to first mesh
+    transformations = [np.eye(4)]
+    print(relative_origins)
+    for origin in relative_origins:
+        dx, dy, dz = origin[0], origin[1], origin[2]
+        transformation = np.eye(4)
+        transformation[0:3, 3] = [dx, dy, dz]
+        transformations.append(transformation)
+    # Apply transformations to points in each mesh
+    for i, mesh in enumerate(meshes):
+        meshes[i] = apply_matrix_(mesh, transformations[i])
     points = np.concatenate([mesh.points for mesh in meshes])
     faces = np.concatenate([mesh.faces for mesh in meshes])
     return Mesh(points=points, faces=faces)
