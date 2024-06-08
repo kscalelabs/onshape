@@ -131,18 +131,31 @@ def scale_mesh(mesh: Mesh, scale: float, about_origin: bool = False) -> Mesh:
     return Mesh(points=points, faces=mesh.faces)
 
 
-def combine_meshes(meshes: list[Mesh], relative_origins: list[matrix[]]) -> Mesh:
-    # Get transformations based on origins relative to first mesh
-    transformations = [np.eye(4)]
-    print(relative_origins)
-    for origin in relative_origins:
-        dx, dy, dz = origin[0], origin[1], origin[2]
-        transformation = np.eye(4)
-        transformation[0:3, 3] = [dx, dy, dz]
-        transformations.append(transformation)
-    # Apply transformations to points in each mesh
-    for i, mesh in enumerate(meshes):
-        meshes[i] = apply_matrix_(mesh, transformations[i])
-    points = np.concatenate([mesh.points for mesh in meshes])
-    faces = np.concatenate([mesh.faces for mesh in meshes])
-    return Mesh(points=points, faces=faces)
+def apply_transform(points: np.ndarray, transform: np.ndarray) -> np.ndarray:
+    """Apply a transformation matrix to a set of points."""
+    points_homogeneous = np.hstack([points, np.ones((points.shape[0], 1))])
+    transformed_points_homogeneous = points_homogeneous @ transform.T
+    transformed_points = transformed_points_homogeneous[:, :3]
+    transformed_points = np.asarray(transformed_points)
+    return transformed_points
+
+
+def combine_meshes(parent_mesh: Mesh, child_mesh: Mesh, relative_transform: np.ndarray) -> Mesh:
+    """Combine parent and child meshes, applying the relative transform to the child mesh points."""
+    # Ensure the transformation matrix is 4x4
+    if not isinstance(relative_transform, np.ndarray) or relative_transform.shape != (4, 4):
+        raise ValueError("relative_transform must be a 4x4 numpy array")
+
+    # Transform the child mesh points
+    transformed_child_points = apply_transform(child_mesh.points, relative_transform)
+
+    # Combine the points
+    combined_points = np.concatenate([parent_mesh.points, transformed_child_points])
+
+    # Offset the child faces indices by the number of parent points
+    offset_child_faces = child_mesh.faces + len(parent_mesh.points)
+
+    # Combine the faces
+    combined_faces = np.concatenate([parent_mesh.faces, offset_child_faces])
+
+    return Mesh(points=combined_points, faces=combined_faces)
