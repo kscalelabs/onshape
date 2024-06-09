@@ -159,3 +159,11 @@ def combine_meshes(parent_mesh: Mesh, child_mesh: Mesh, relative_transform: np.n
     combined_faces = np.concatenate([parent_mesh.faces, offset_child_faces])
 
     return Mesh(points=combined_points, faces=combined_faces)
+
+
+def process_key_name(key_name: str) -> str:
+    # Quick fix for now - if it starts with f_u_s_e_d, take every other character
+    if key_name.startswith("f_u_s_e_d"):
+        return "".join(key_name[i] for i in range(0, len(key_name), 2))
+    else:
+        return key_name

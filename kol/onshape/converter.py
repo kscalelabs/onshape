@@ -28,6 +28,7 @@ from kol.geometry import (
     get_mesh_convex_hull,
     inv_tf,
     matrix_to_moments,
+    process_key_name,
     scale_mesh,
     transform_inertia_tensor,
 )
@@ -862,22 +863,18 @@ class Converter:
             collected_parts = [parent, child]
             # Get relative transform between the two joints
             relative_transform = inv_tf(joint.child_entity.matedCS.part_to_mate_tf)
-
-            print(collected_parts)
-            key_name = self.key_name(parent, "link")
-            # if the key_name has three or more underscores, it is a fused part
-            if key_name.count("_") >= 3:
-                pass  # WIP
-            logger.info("Fusing parts: %s.", ", ".join(self.key_name(p, "link") for p in collected_parts))
-            new_part_name = "fused_" + "_".join(self.key_name(p, None) for p in collected_parts)
+            logger.info(
+                "Fusing parts: %s.", ", ".join(process_key_name(self.key_name(p, None)) for p in collected_parts)
+            )
+            new_part_name = "fused_" + "_".join(process_key_name(self.key_name(p, None)) for p in collected_parts)
             if len(new_part_name) > 50:
                 new_part_name = new_part_name[:46] + "..."
             # Calculate new stl.
             combined_stl_file_name = f"{new_part_name}.stl"
             combined_stl_file_path = self.mesh_dir / combined_stl_file_name
             combined_stl_file_path.unlink(missing_ok=True)
-            parent_meshpath = f"{self.key_name(parent, None)}.stl"
-            child_meshpath = f"{self.key_name(child, None)}.stl"
+            parent_meshpath = f"{process_key_name(self.key_name(parent, None))}.stl"
+            child_meshpath = f"{process_key_name(self.key_name(child, None))}.stl"
             parent_mesh = load_file(self.mesh_dir / parent_meshpath)
             child_mesh = load_file(self.mesh_dir / child_meshpath)
 
@@ -938,32 +935,30 @@ class Converter:
                 collision=combined_collision,
             )
             new_euid = uuid.uuid4().hex
+            print(new_euid)
             urdf_parts.append(fused_part)
-            print(new_part_name)
-            # new_part_name = tuple(new_part_name.split("_"))
             fused_part_instance = PartInstance(
                 name=new_part_name,
                 suppressed=False,
                 id=new_euid,
-                fullConfiguration="",
-                configuration="",
+                fullConfiguration="default",
+                configuration="default",
                 documentMicroversion="",
                 documentId="",
                 elementId="",
                 type="Part",
                 isStandardContent=False,
-                partId=new_part_name,
+                partId="JHD",
             )
             # Logging for debugging
             logger.debug(f"Registering fused_part_instance: {fused_part_instance}")
             logger.debug(f"Registering fused_part: {fused_part}")
 
             # Register the new part
-            # Make new part name into tuple split at underscore
-            self.key_to_part_instance[new_part_name] = fused_part_instance
-            self.euid_to_part[new_euid] = fused_part
-            print(self.key_name(new_part_name, None))
-
+            self.key_to_instance[new_part_name] = fused_part_instance
+            self.euid_to_part[fused_part_instance.euid] = fused_part
+            # Origin of new part is origin of parent link
+            self.stl_origin_to_part_tf[new_part_name] = joint.parent_entity.matedCS.part_to_mate_tf
             self.ordered_joint_list.remove(joint)
             # Rename joints involving any of the connected parts to the new part.
             for j in self.ordered_joint_list:
@@ -974,6 +969,7 @@ class Converter:
             # If we merged away central node, we add a flag.
             if self.central_node in collected_parts:
                 merged_central = True
+            logger.info("Successfully fused joint.")
         return urdf_parts, merged_central
 
     # def process_fixed_joints2(self, urdf_parts: list[urdf.Link | urdf.BaseJoint]) -> list[urdf.Link | urdf.BaseJoint]:
