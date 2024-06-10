@@ -1,203 +1,161 @@
 """Defines functions for merging urdf parts at fixed joints."""
 
-import datetime
-import functools
-import hashlib
-import io
-import itertools
 import logging
-import re
-import uuid
-from collections import deque
-from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, Deque, Iterator, Literal, TypeVar
 
-import networkx as nx
 import numpy as np
-import stl
-from scipy.spatial.transform import Rotation as R
+from lxml import etree
 
-from kol.formats import mjcf, urdf
 from kol.geometry import (
     Dynamics,
-    apply_matrix_,
     combine_dynamics,
     combine_meshes,
     get_mesh_convex_hull,
-    inv_tf,
     matrix_to_moments,
-    process_key_name,
+    origin_and_rpy_to_transform,
     scale_mesh,
-    transform_inertia_tensor,
 )
-from kol.mesh import MeshType, load_file, stl_to_fmt
-from kol.onshape.api import OnshapeApi
-from kol.onshape.client import OnshapeClient
-from kol.onshape.schema.assembly import (
-    Assembly,
-    AssemblyInstance,
-    AssemblyMetadata,
-    Instance,
-    Key,
-    MatedEntity,
-    MateFeature,
-    MateRelationFeature,
-    MateType,
-    Occurrence,
-    Part,
-    PartInstance,
-    RelationType,
-    RootAssembly,
-    SubAssembly,
-)
-from kol.onshape.schema.common import ElementUid
-from kol.onshape.schema.features import Feature, Features
-from kol.onshape.schema.part import PartDynamics, PartMetadata
-from kol.resolvers import ExpressionResolver
+from kol.mesh import load_file
+
+logger = logging.getLogger(__name__)
 
 
-def process_fixed_joints(self, urdf_parts: list[urdf.Link | urdf.BaseJoint]) -> list[urdf.Link | urdf.BaseJoint]:
+def parse_urdf(file_path: Path) -> etree:
+    with open(file_path, "r") as file:
+        urdf_xml = file.read()
+    if urdf_xml.startswith("<?xml"):
+        urdf_xml = urdf_xml.split("?>", 1)[1].strip()
+    return etree.fromstring(urdf_xml)
+
+
+def find_fixed_joint(urdf_etree: etree) -> etree.Element:
+    """Finds the first fixed joint in the assembly."""
+    for joint in urdf_etree.findall(".//joint"):
+        if joint.attrib["type"] == "fixed":
+            return joint
+    return None
+
+
+def get_link_by_name(urdf_etree: etree._Element, link_name: str) -> etree._Element:
+    """Finds the link element by its name."""
+    for link in urdf_etree.findall(".//link"):
+        if link.attrib["name"] == link_name:
+            return link
+    return None
+
+
+def combine_parts(
+    parent: etree.Element,
+    child: etree.Element,
+    relative_origin: np.ndarray,
+    relative_rpy: np.ndarray,
+    urdf_path: Path,
+    scaling: float,
+) -> etree.Element:
+    # Get new part name
+    parent_name = parent.attrib.get("name")[5:]
+    child_name = child.attrib.get("name")[5:]
+    if parent_name.startswith("fused_"):
+        parent_name = parent_name[6:]
+    if child_name.startswith("fused_"):
+        child_name = child_name[6:]
+    new_part_name = f"fused_{parent_name}_{child_name}"
+    if len(new_part_name) > 50:
+        new_part_name = new_part_name[:46] + "..."
+
+    # Get pathing and mesh files
+    mesh_dir = urdf_path.parent / "meshes"
+    combined_stl_file_name = f"{new_part_name}.stl"
+    combined_stl_file_path = mesh_dir / combined_stl_file_name
+    combined_stl_file_path.unlink(missing_ok=True)
+
+    # Get parent and child meshes
+    parent_mesh = load_file(mesh_dir / f"{parent_name}.stl")
+    child_mesh = load_file(mesh_dir / f"{child_name}.stl")
+
+    # Combine the meshes using the relative origins
+    relative_transform = origin_and_rpy_to_transform(relative_origin, relative_rpy)
+    combined_mesh = combine_meshes(parent_mesh, child_mesh, relative_transform)
+    combined_mesh.save(combined_stl_file_path)
+
+    # Get convex hull of combined mesh, and scale to good size.
+    combined_collision = get_mesh_convex_hull(combined_mesh)
+    combined_collision = scale_mesh(combined_mesh, scaling)
+
+    # Save collision mesh to filepath
+    combined_collision_stl_name = f"{new_part_name}_collision.stl"
+    collision_stl_file_path = mesh_dir / combined_collision_stl_name
+    combined_collision.save(collision_stl_file_path)
+
+    # Get combined dynamic mesh
+    parent_dynamics = parent.find("inertial")
+    child_dynamics = child.find("inertial")
+    parent_mass = float(parent_dynamics.find("mass").attrib["value"])
+    child_mass = float(child_dynamics.find("mass").attrib["value"])
+    parent_com = np.array([float(x) for x in parent_dynamics.find("origin").attrib["xyz"]])
+    child_com = np.array([float(x) for x in child_dynamics.find("origin").attrib["xyz"]])
+    parent_inertia = np.array([float(x) for x in parent_dynamics.find("inertia").attrib.values()]).reshape(3, 3)
+    child_inertia = np.array([float(x) for x in child_dynamics.find("inertia").attrib.values()]).reshape(3, 3)
+    parent_moments = matrix_to_moments(parent_inertia)
+    child_moments = matrix_to_moments(child_inertia)
+    parent_dynamics = Dynamics(parent_mass, parent_com, parent_moments)
+    child_dynamics = Dynamics(child_mass, child_com, child_moments)
+    combined_dynamics = combine_dynamics(parent_dynamics, child_dynamics, relative_transform)
+
+    # Create new part element
+    new_part = etree.Element("link", attrib={"name": new_part_name})
+
+    # Get combined visual mesh
+    new_visual = etree.SubElement(new_part, "visual")
+    new_visual_origin = etree.SubElement(new_visual, "origin", attrib={"xyz": "0 0 0", "rpy": "0 0 0"})
+    new_visual_geometry = etree.SubElement(new_visual, combined_stl_file_path)
+
+    # Get combined collision mesh
+
+    logger.info("Got combined meshes and dynamics.")
+
+    # Create new part element and populate
+
+
+def process_fixed_joints(urdf_etree: etree, scaling: float, urdf_path: str) -> etree:
     """Processes the fixed joints in the assembly."""
-    merged_central = False
     # While there still exists fixed joints, fuse the parts they connect.
-    while any(j.mate_type == MateType.FASTENED for j in self.ordered_joint_list):
-        # Get first fixed joint from joint list.
-        joint = next(j for j in self.ordered_joint_list if j.mate_type == MateType.FASTENED)
-        logger.info("Found fixed joint.")
-        # Get parent and child of fixed joint
-        parent = joint.parent
-        child = joint.child
-        collected_parts = [parent, child]
-        # Get relative transform between the two joints
-        relative_transform = inv_tf(joint.child_entity.matedCS.part_to_mate_tf)
-        logger.info("Fusing parts: %s.", ", ".join(process_key_name(self.key_name(p, None)) for p in collected_parts))
-        new_part_name = "fused_" + "_".join(process_key_name(self.key_name(p, None)) for p in collected_parts)
-        if len(new_part_name) > 50:
-            new_part_name = new_part_name[:46] + "..."
-        # Calculate new stl.
-        combined_stl_file_name = f"{new_part_name}.stl"
-        combined_stl_file_path = self.mesh_dir / combined_stl_file_name
-        combined_stl_file_path.unlink(missing_ok=True)
-        parent_meshpath = f"{process_key_name(self.key_name(parent, None))}.stl"
-        child_meshpath = f"{process_key_name(self.key_name(child, None))}.stl"
-        parent_mesh = load_file(self.mesh_dir / parent_meshpath)
-        child_mesh = load_file(self.mesh_dir / child_meshpath)
-
-        # Combine the meshes using the relative origins
-        combined_mesh = combine_meshes(parent_mesh, child_mesh, relative_transform)
-        for point in combined_mesh.points:
-            if len(point) != 3:
-                raise ValueError("Invalid point in combined mesh.", point)
-        for face in combined_mesh.faces:
-            if len(face) != 3:
-                raise ValueError("Invalid face in combined mesh.", face)
-        combined_mesh.save(combined_stl_file_path)
-        # Get convex hull of combined mesh, and scale to good size.
-        combined_collision = get_mesh_convex_hull(combined_mesh)
-        combined_collision = scale_mesh(combined_mesh, 0.6)
-
-        # Save collision mesh to filepath
-        combined_collision_stl_name = f"{new_part_name}_collision.stl"
-        collision_stl_file_path = self.mesh_dir / combined_collision_stl_name
-        combined_collision.save(collision_stl_file_path)
-
-        # Get combined dynamic mesh
-        part_instances = [self.key_to_part_instance[p] for p in collected_parts]
-        parts = [self.euid_to_part[p.euid] for p in part_instances]
-        part_dynamics = [self.part_dynamics(p) for p in parts]
-        part_bodies = [d.bodies[p.partId] for d, p in zip(part_dynamics, part_instances)]
-        true_dynamics = [Dynamics(mass=p.mass[0], com=p.center_of_mass, inertia=p.inertia_matrix) for p in part_bodies]
-        combined_dynamics = combine_dynamics(true_dynamics)
-
-        # Get combined visual mesh
-        combined_visual = urdf.VisualLink(
-            origin=urdf.Origin.zero_origin(),
-            geometry=urdf.MeshGeometry(filename=f"./meshes/{combined_stl_file_name}"),
-            material=urdf.Material(
-                name=f"{new_part_name}_material",
-                color=[0, 0, 0],
-            ),
-        )
-
-        # Get combined collision mesh
-        combined_collision = urdf.CollisionLink(
-            origin=urdf.Origin.zero_origin(),
-            geometry=urdf.MeshGeometry(filename=f"./meshes/{combined_collision_stl_name}"),
-        )
-        logger.info("Got combined meshes and dynamics.")
-
-        # Add the fused part to the URDF.
-        fused_part = urdf.Link(
-            name=new_part_name,
-            visual=combined_visual,
-            inertial=urdf.InertialLink(
-                origin=urdf.Origin.zero_origin(),
-                mass=combined_dynamics.mass,
-                inertia=matrix_to_moments(combined_dynamics.inertia),
-            ),
-            collision=combined_collision,
-        )
-        new_euid = uuid.uuid4().hex
-        print(new_euid)
-        urdf_parts.append(fused_part)
-        fused_part_instance = PartInstance(
-            name=new_part_name,
-            suppressed=False,
-            id=new_euid,
-            fullConfiguration="default",
-            configuration="default",
-            documentMicroversion="",
-            documentId="",
-            elementId="",
-            type="Part",
-            isStandardContent=False,
-            partId="JHD",
-        )
-        # Logging for debugging
-        logger.debug(f"Registering fused_part_instance: {fused_part_instance}")
-        logger.debug(f"Registering fused_part: {fused_part}")
-
-        # Register the new part
-        self.key_to_instance[new_part_name] = fused_part_instance
-        # Get part version of the new part
-        fused_part_part = Part(
-            isStandardContent=False,
-            partId=new_part_name,
-            bodyType="solid",
-            fullConfiguration="default",
-            configuration="default",
-            documentMicroversion="microversion_001",
-            documentId="doc_001",
-            elementId=new_euid,
-        )
-        self.euid_to_part[fused_part_instance.euid] = fused_part_part
-
-        # Origin of new part is origin of parent link
-        self.stl_origin_to_part_tf[new_part_name] = joint.parent_entity.matedCS.part_to_mate_tf
-        self.ordered_joint_list.remove(joint)
-        # Rename joints involving any of the connected parts to the new part.
-        for j in self.ordered_joint_list:
-            if j.parent in collected_parts:
-                j.parent = new_part_name
-            if j.child in collected_parts:
-                j.child = new_part_name
-        # If we merged away central node, we add a flag.
-        if self.central_node in collected_parts:
-            merged_central = True
-        logger.info("Successfully fused joint.")
-    return urdf_parts, merged_central
+    while (joint := find_fixed_joint(urdf_etree)) is not None:
+        # Get the parent and child of the fixed joint
+        parent_name = joint.find("parent").attrib["link"]
+        parent = get_link_by_name(urdf_etree, parent_name)
+        child_name = joint.find("child").attrib["link"]
+        child = get_link_by_name(urdf_etree, child_name)
+        logger.info("Fusing parts: %s, %s.", parent_name, child_name)
+        # Get the relative transform between the two joints
+        relative_origin = np.array([float(item) for item in (joint.find("origin").attrib["xyz"].split(" "))])
+        relative_rpy = np.array([float(item) for item in (joint.find("origin").attrib["rpy"].split(" "))])
+        # Fuse the parts and add to second index of etree to preserve central node
+        new_part = combine_parts(parent, child, relative_origin, relative_rpy, urdf_path, scaling)
+        urdf_etree.insert(1, new_part)
+        # Replace the parent and child at all joints with the new part
+        joint.find("parent").attrib["link"] = new_part.attrib["name"]
+        joint.find("child").attrib["link"] = new_part.attrib["name"]
+        # Remove the fixed joint
+        urdf_etree.remove(joint)
+        # Remove parent and child links from urdf
+        for link in urdf_etree.findall(".//link"):
+            if link.attrib["name"] in [parent, child]:
+                urdf_etree.remove(link)
+    return urdf_etree
 
 
 def get_merged_urdf(
-    urdf: Path,
+    urdf_path: Path,
     scaling: float,
+    cleanup_fused_meshes: bool,
 ) -> Path:
     """Merges meshes at each fixed joints to avoid collision issues.
 
     Args:
-        path: The path to the mesh file.
+        urdf_path: The path to the urdf file.
         scaling: The scaling factor to apply to the meshes.
+        cleanup_fused_meshes: Whether to remove the fused meshes after merging.
 
     Returns:
         The path to the merged urdf file.
@@ -205,4 +163,24 @@ def get_merged_urdf(
     if scaling < 0:
         raise ValueError(f"Scaling {scaling} should be greater than 0.")
 
-    return urdf
+    # Load the URDF file
+    logger.info("Getting element tree from mesh filepath.")
+    urdf = parse_urdf(urdf_path)
+    # Process the fixed joints
+    logger.info("Processing fixed joints. Starting joint count: %d", len(urdf.findall(".//joint")))
+    merged_urdf = process_fixed_joints(urdf, scaling, urdf_path)
+    logger.info("Finished processing fixed joints. Ending joint count:" + len(merged_urdf.findall(".//joint")))
+    # Cleanup the meshes directory by removing all meshes not referenced in urdf
+    deleted = 0
+    if cleanup_fused_meshes:
+        mesh_dir = urdf_path.parent / "meshes"
+        for mesh_file in mesh_dir.glob("*.stl"):
+            if mesh_file.name not in [link.attrib["filename"] for link in merged_urdf.findall(".//link")]:
+                mesh_file.unlink()
+                deleted += 1
+    logger.info("Cleaned up %d meshes.", deleted)
+    # Save the merged URDF
+    merged_urdf_path = urdf_path.parent / f"{urdf_path.stem}_merged.urdf"
+    with open(merged_urdf_path, "w") as file:
+        file.write(etree.tostring(merged_urdf).decode())
+    logger.info("Saved merged URDF to %s.", merged_urdf_path)

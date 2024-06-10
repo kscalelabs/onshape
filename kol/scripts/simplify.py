@@ -1,4 +1,4 @@
-"""Runs mesh simpification."""
+"""Runs mesh simpification on a single stl."""
 
 import argparse
 from typing import Sequence

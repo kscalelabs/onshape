@@ -161,9 +161,36 @@ def combine_meshes(parent_mesh: Mesh, child_mesh: Mesh, relative_transform: np.n
     return Mesh(points=combined_points, faces=combined_faces)
 
 
-def process_key_name(key_name: str) -> str:
-    # Quick fix for now - if it starts with f_u_s_e_d, take every other character
-    if key_name.startswith("f_u_s_e_d"):
-        return "".join(key_name[i] for i in range(0, len(key_name), 2))
-    else:
-        return key_name
+def origin_and_rpy_to_transform(relative_origin: np.ndarray, relative_rpy: np.ndarray) -> np.ndarray:
+    """Converts an origin and rpy to a transformation matrix."""
+    if relative_origin.shape != (3,):
+        raise ValueError("relative_origin must be a 3-element numpy array")
+    if relative_rpy.shape != (3,):
+        raise ValueError("relative_rpy must be a 3-element numpy array")
+
+    x, y, z = relative_origin
+    roll, pitch, yaw = relative_rpy
+
+    # Create the translation matrix
+    translation = np.array([[1, 0, 0, x], [0, 1, 0, y], [0, 0, 1, z], [0, 0, 0, 1]])
+
+    # Roll rotation matrix (around x-axis)
+    roll = np.array(
+        [[1, 0, 0, 0], [0, np.cos(roll), -np.sin(roll), 0], [0, np.sin(roll), np.cos(roll), 0], [0, 0, 0, 1]]
+    )
+
+    # Pitch rotation matrix (around y-axis)
+    pitch = np.array(
+        [[np.cos(pitch), 0, np.sin(pitch), 0], [0, 1, 0, 0], [-np.sin(pitch), 0, np.cos(pitch), 0], [0, 0, 0, 1]]
+    )
+
+    # Yaw rotation matrix (around z-axis)
+    yaw = np.array([[np.cos(yaw), -np.sin(yaw), 0, 0], [np.sin(yaw), np.cos(yaw), 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]])
+
+    # Combined rotation matrix
+    rpy = np.dot(yaw, np.dot(pitch, roll))
+
+    # Combined transformation matrix
+    transform = np.dot(translation, rpy)
+
+    return transform
