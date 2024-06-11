@@ -5,6 +5,7 @@ from pathlib import Path
 
 import numpy as np
 from lxml import etree
+from scipy.spatial.transform import Rotation as R
 
 from kol.formats.common import save_xml
 from kol.geometry import (
@@ -50,76 +51,19 @@ def string_to_nparray(string: str) -> np.ndarray:
     return np.array([float(item) for item in string.split(" ")])
 
 
-def combine_inertial_properties(rpy1, inertia1, com1, rpy2, inertia2, com2):
-    def rpy_to_rotation_matrix(rpy):
-        """Convert RPY to rotation matrix."""
-        roll, pitch, yaw = rpy
-        r_x = np.array([[1, 0, 0], [0, np.cos(roll), -np.sin(roll)], [0, np.sin(roll), np.cos(roll)]])
-        r_y = np.array([[np.cos(pitch), 0, np.sin(pitch)], [0, 1, 0], [-np.sin(pitch), 0, np.cos(pitch)]])
-        r_z = np.array([[np.cos(yaw), -np.sin(yaw), 0], [np.sin(yaw), np.cos(yaw), 0], [0, 0, 1]])
-        r = r_z @ r_y @ r_x
-        return r
-
-    def rotation_matrix_to_rpy(r):
-        """Convert rotation matrix to RPY."""
-        sy = np.sqrt(r[0, 0] ** 2 + r[1, 0] ** 2)
-        singular = sy < 1e-6
-
-        if not singular:
-            roll = np.arctan2(r[2, 1], r[2, 2])
-            pitch = np.arctan2(-r[2, 0], sy)
-            yaw = np.arctan2(r[1, 0], r[0, 0])
-        else:
-            roll = np.arctan2(-r[1, 2], r[1, 1])
-            pitch = np.arctan2(-r[2, 0], sy)
-            yaw = 0
-
-        return np.array([roll, pitch, yaw])
-
-    def combine_inertia_tensors(inertia1, rotation1, com1, inertia2, rotation2, com2, combined_com):
-        """Combine inertia tensors of two bodies."""
-        rotation1_inv = np.linalg.inv(rotation1)
-        rotation2_inv = np.linalg.inv(rotation2)
-
-        # Transform inertia tensors to the new frame
-        inertia1_transformed = rotation1 @ inertia1 @ rotation1_inv
-        inertia2_transformed = rotation2 @ inertia2 @ rotation2_inv
-
-        # Apply parallel axis theorem
-        com1_offset = com1 - combined_com
-        com2_offset = com2 - combined_com
-
-        inertia1_parallel = (
-            inertia1_transformed
-            + (np.dot(com1_offset, com1_offset) * np.eye(3) - np.outer(com1_offset, com1_offset)) * inertia1
-        )
-        inertia2_parallel = (
-            inertia2_transformed
-            + (np.dot(com2_offset, com2_offset) * np.eye(3) - np.outer(com2_offset, com2_offset)) * inertia2
-        )
-
-        # Combined inertia tensor
-        inertia_combined = inertia1_parallel + inertia2_parallel
-
-        return inertia_combined
-
-    # Convert RPY to rotation matrices
-    rotation1 = rpy_to_rotation_matrix(rpy1)
-    rotation2 = rpy_to_rotation_matrix(rpy2)
-
-    # Combine centers of mass
-    total_mass = inertia1[0][0] + inertia2[0][0]
-    combined_com = (inertia1[0][0] * com1 + inertia2[0][0] * com2) / total_mass
-
-    # Combine inertia tensors
-    combined_inertia = combine_inertia_tensors(
-        np.array(inertia1), rotation1, com1, np.array(inertia2), rotation2, com2, combined_com
-    )
-
-    # Convert combined inertia tensor back to RPY
-    combined_rpy = rotation_matrix_to_rpy(combined_inertia)
-
-    return combined_rpy
+def get_new_rpy(
+    mass_1: float,
+    mass_2: float,
+    rpy_1: np.ndarray,
+    rpy_2: np.ndarray,
+) -> np.ndarray:
+    rotation_1 = R.from_euler("xyz", rpy_1).as_matrix()
+    rotation_2 = R.from_euler("xyz", rpy_2).as_matrix()
+    combined_rotation_matrix = (mass_1 * rotation_1 + mass_2 * rotation_2) / (mass_1 + mass_2)
+    u, _, vt = np.linalg.svd(combined_rotation_matrix)
+    corrected_rotation_matrix = np.dot(u, vt)
+    new_rpy = R.from_matrix(corrected_rotation_matrix).as_euler("xyz")
+    return new_rpy
 
 
 def combine_parts(
@@ -185,39 +129,32 @@ def combine_parts(
 
     # Get combined visual mesh
     new_visual = etree.SubElement(new_part, "visual")
-    visual_origin = etree.SubElement(new_visual, "origin", attrib={"xyz": "0 0 0", "rpy": "0 0 0"})
+    visual_origin = etree.SubElement(new_visual, "origin", attrib={"xyz": "0 0 0", "rpy": "0 0 0"})  # noqa: F841
     visual_geometry = etree.SubElement(new_visual, "geometry")
-    visual_mesh = etree.SubElement(visual_geometry, "mesh", attrib={"filename": combined_stl_file_name})
+    visual_mesh = etree.SubElement(visual_geometry, "mesh", attrib={"filename": combined_stl_file_name})  # noqa: F841
     visual_material = etree.SubElement(new_visual, "material", attrib={"name": combined_stl_file_name + "_material"})
-    visual_color = etree.SubElement(visual_material, "color", attrib={"rgba": "0.5 0.5 0.5 1"})
+    visual_color = etree.SubElement(visual_material, "color", attrib={"rgba": "0.5 0.5 0.5 1"})  # noqa: F841
 
     # Get combined collision mesh
     new_collision = etree.SubElement(new_part, "collision")
-    collision_origin = etree.SubElement(new_collision, "origin", attrib={"xyz": "0 0 0", "rpy": "0 0 0"})
+    collision_origin = etree.SubElement(new_collision, "origin", attrib={"xyz": "0 0 0", "rpy": "0 0 0"})  # noqa: F841
     collision_geometry = etree.SubElement(new_collision, "geometry")
-    collision_mesh = etree.SubElement(collision_geometry, "mesh", attrib={"filename": combined_collision_stl_name})
+    collision_mesh = etree.SubElement(collision_geometry, "mesh", attrib={"filename": combined_collision_stl_name})  # noqa: F841
     logger.info("Got combined meshes and dynamics.")
 
     # Create inertial element
     new_inertial = etree.SubElement(new_part, "inertial")
-    inertial_mass = etree.SubElement(new_inertial, "mass", attrib={"value": str(combined_dynamics.mass)})
-    inertial_inertia = etree.SubElement(new_inertial, "inertia", attrib=matrix_to_moments(combined_dynamics.inertia))
-    # Get initial rpy of parent and child
-    # combined_rpy = combine_inertial_properties(
-    #     string_to_nparray(parent.find("inertial").find("origin").attrib["rpy"]),
-    #     parent_inertia,
-    #     parent_com,
-    #     string_to_nparray(child.find("inertial").find("origin").attrib["rpy"]),
-    #     child_inertia,
-    #     child_com,
-    # )
-    # Get inertial matrix of parent and child
-    inertial_origin = etree.SubElement(
+    inertial_mass = etree.SubElement(new_inertial, "mass", attrib={"value": str(combined_dynamics.mass)})  # noqa: F841
+    inertial_inertia = etree.SubElement(new_inertial, "inertia", attrib=matrix_to_moments(combined_dynamics.inertia))  # noqa: F841
+    parent_rpy = string_to_nparray(parent.find("inertial").find("origin").attrib["rpy"])
+    child_rpy = string_to_nparray(child.find("inertial").find("origin").attrib["rpy"])
+    new_rpy = get_new_rpy(parent_mass, child_mass, parent_rpy, child_rpy)
+    inertial_origin = etree.SubElement(  # noqa: F841
         new_inertial,
         "origin",
         attrib={
             "xyz": " ".join(map(str, combined_dynamics.com.tolist())),
-            "rpy": "0 0 0",
+            "rpy": " ".join(map(str, new_rpy.tolist())),
         },
     )  # Check in on this
     return new_part
@@ -239,7 +176,7 @@ def process_fixed_joints(urdf_etree: etree.ElementTree, scaling: float, urdf_pat
         relative_rpy = string_to_nparray(joint.find("origin").attrib["rpy"])
         # Fuse the parts and add to second index of etree to preserve central node
         new_part = combine_parts(parent, child, relative_origin, relative_rpy, urdf_path, scaling)
-        root.append(new_part)
+        root.insert(1, new_part)
         # Replace the parent and child at all joints with the new part
         root.remove(joint)
         for joint in root.findall(".//joint"):
@@ -283,7 +220,7 @@ def get_merged_urdf(
     # Cleanup the meshes directory by removing all meshes not referenced in urdf
     deleted = 0
     if cleanup_fused_meshes:
-        logger.info("Cleaning up obsoletemeshes.")
+        logger.info("Cleaning up obsolete meshes.")
         mesh_dir = urdf_path.parent / "meshes"
         for mesh_file in mesh_dir.glob("*.stl"):
             if mesh_file.name not in [link.attrib["filename"] for link in merged_urdf.findall(".//link")]:
