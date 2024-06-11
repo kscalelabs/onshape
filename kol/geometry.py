@@ -88,7 +88,7 @@ def combine_dynamics(dynamics: list[Dynamics]) -> Dynamics:
     return Dynamics(mass, com, inertia)
 
 
-def matrix_to_moments(matrix: np.matrix) -> np.matrix:
+def matrix_to_moments(matrix: np.matrix) -> dict[str, str]:
     return {
         "ixx": str(matrix[0, 0]),
         "ixy": str(matrix[0, 1]),

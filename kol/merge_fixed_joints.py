@@ -120,8 +120,8 @@ def combine_parts(
     child_com = string_to_nparray(child_dynamics.find("origin").attrib["xyz"])
     parent_inertia = np.array([float(x) for x in parent_dynamics.find("inertia").attrib.values()])
     child_inertia = np.array([float(x) for x in child_dynamics.find("inertia").attrib.values()])
-    parent_dynamics = Dynamics(parent_mass, parent_com, moments_to_matrix(parent_inertia))
-    child_dynamics = Dynamics(child_mass, child_com, moments_to_matrix(child_inertia))
+    parent_dynamics = Dynamics(parent_mass, parent_com, np.matrix(moments_to_matrix(parent_inertia)))
+    child_dynamics = Dynamics(child_mass, child_com, np.matrix(moments_to_matrix(child_inertia)))
     combined_dynamics = combine_dynamics([parent_dynamics, child_dynamics])
 
     # Create new part element
@@ -139,25 +139,25 @@ def combine_parts(
     new_collision = etree.SubElement(new_part, "collision")
     collision_origin = etree.SubElement(new_collision, "origin", attrib={"xyz": "0 0 0", "rpy": "0 0 0"})  # noqa: F841
     collision_geometry = etree.SubElement(new_collision, "geometry")
-    collision_mesh = etree.SubElement(
+    collision_mesh = etree.SubElement(  # noqa: F841
         collision_geometry,
         "mesh",
         attrib={"filename": combined_collision_stl_name},
-    )  # noqa: F841
+    )
     logger.info("Got combined meshes and dynamics.")
 
     # Create inertial element
     new_inertial = etree.SubElement(new_part, "inertial")
-    inertial_mass = etree.SubElement(
+    inertial_mass = etree.SubElement(  # noqa: F841
         new_inertial,
         "mass",
         attrib={"value": str(combined_dynamics.mass)},
-    )  # noqa: F841
-    inertial_inertia = etree.SubElement(
+    )
+    inertial_inertia = etree.SubElement(  # noqa: F841
         new_inertial,
         "inertia",
         attrib=matrix_to_moments(combined_dynamics.inertia),
-    )  # noqa: F841
+    )
     parent_rpy = string_to_nparray(parent.find("inertial").find("origin").attrib["rpy"])
     child_rpy = string_to_nparray(child.find("inertial").find("origin").attrib["rpy"])
     new_rpy = get_new_rpy(parent_mass, child_mass, parent_rpy, child_rpy)
@@ -172,7 +172,7 @@ def combine_parts(
     return new_part
 
 
-def process_fixed_joints(urdf_etree: etree.ElementTree, scaling: float, urdf_path: str) -> etree.ElementTree:
+def process_fixed_joints(urdf_etree: etree.ElementTree, scaling: float, urdf_path: Path) -> etree.ElementTree:
     """Processes the fixed joints in the assembly."""
     root = urdf_etree.getroot()
     # While there still exists fixed joints, fuse the parts they connect.
@@ -207,7 +207,7 @@ def get_merged_urdf(
     urdf_path: Path,
     scaling: float,
     cleanup_fused_meshes: bool,
-) -> Path:
+) -> None:
     """Merges meshes at each fixed joints to avoid collision issues.
 
     Args:

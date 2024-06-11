@@ -31,6 +31,7 @@ from kol.onshape.schema.assembly import (
     Key,
     MatedEntity,
     MateFeature,
+    MateGroupFeature,
     MateRelationFeature,
     MateType,
     Occurrence,
@@ -304,8 +305,8 @@ class Converter:
         return {p: i for p, i in self.key_to_instance.items() if isinstance(i, AssemblyInstance)}
 
     @functools.cached_property
-    def key_to_feature(self) -> dict[Key, MateRelationFeature | MateFeature]:
-        feature_mapping: dict[Key, MateRelationFeature | MateFeature] = {}
+    def key_to_feature(self) -> dict[Key, MateRelationFeature | MateFeature | MateGroupFeature]:
+        feature_mapping: dict[Key, MateRelationFeature | MateFeature | MateGroupFeature] = {}
         for feature in self.assembly.rootAssembly.features:
             feature_mapping[(feature.id,)] = feature
         for key, _, sub_assembly in self.traverse_assemblies():
