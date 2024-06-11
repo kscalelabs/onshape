@@ -6,8 +6,6 @@ from pathlib import Path
 from typing import Any, Optional, Union
 
 import numpy as np
-from lxml import etree
-from lxml.etree import ElementTree, _Element, _ElementTree
 from scipy.spatial.transform import Rotation as R
 
 from kol.formats.common import save_xml
@@ -26,24 +24,22 @@ from kol.mesh import load_file
 logger = logging.getLogger(__name__)
 
 
-def parse_urdf(file_path: Path) -> _Element:
+def parse_urdf(file_path: Path) -> ET.Element:
     with open(file_path, "r") as file:
         urdf_xml = file.read()
     if urdf_xml.startswith("<?xml"):
         urdf_xml = urdf_xml.split("?>", 1)[1].strip()
-    return etree.fromstring(urdf_xml)
+    return ET.fromstring(urdf_xml)
 
 
-def find_fixed_joint(urdf_etree: _Element) -> Optional[_Element]:
-    """Finds the first fixed joint in the assembly."""
+def find_fixed_joint(urdf_etree: ET.Element) -> Optional[ET.Element]:
     for joint in urdf_etree.findall(".//joint"):
         if joint.attrib["type"] == "fixed":
             return joint
     return None
 
 
-def get_link_by_name(urdf_etree: _Element, link_name: str | bytes) -> Optional[_Element]:
-    """Finds the link element by its name."""
+def get_link_by_name(urdf_etree: ET.Element, link_name: str | bytes) -> Optional[ET.Element]:
     for link in urdf_etree.findall(".//link"):
         if link.attrib["name"] == link_name:
             return link
@@ -72,13 +68,13 @@ def get_new_rpy(
 
 
 def combine_parts(
-    parent: _Element,
-    child: _Element,
+    parent: ET.Element,
+    child: ET.Element,
     relative_origin: np.ndarray,
     relative_rpy: np.ndarray,
     urdf_path: Path,
     scaling: float,
-) -> _Element:
+) -> ET.Element:
     # Get new part name
     parent_name = parent.attrib.get("name")
     if parent_name is None:
@@ -154,39 +150,27 @@ def combine_parts(
     combined_dynamics = combine_dynamics([parent_dynamics, child_dynamics])
 
     # Create new part element
-    new_part = etree.Element("link", attrib={"name": new_part_name})
+    new_part = ET.Element("link", attrib={"name": new_part_name})
 
     # Get combined visual mesh
-    new_visual = etree.SubElement(new_part, "visual")
-    visual_origin = etree.SubElement(new_visual, "origin", attrib={"xyz": "0 0 0", "rpy": "0 0 0"})  # noqa: F841
-    visual_geometry = etree.SubElement(new_visual, "geometry")
-    visual_mesh = etree.SubElement(visual_geometry, "mesh", attrib={"filename": combined_stl_file_name})  # noqa: F841
-    visual_material = etree.SubElement(new_visual, "material", attrib={"name": combined_stl_file_name + "_material"})
-    visual_color = etree.SubElement(visual_material, "color", attrib={"rgba": "0.5 0.5 0.5 1"})  # noqa: F841
+    new_visual = ET.SubElement(new_part, "visual")
+    ET.SubElement(new_visual, "origin", attrib={"xyz": "0 0 0", "rpy": "0 0 0"})
+    visual_geometry = ET.SubElement(new_visual, "geometry")
+    ET.SubElement(visual_geometry, "mesh", attrib={"filename": combined_stl_file_name})
+    visual_material = ET.SubElement(new_visual, "material", attrib={"name": combined_stl_file_name + "_material"})
+    ET.SubElement(visual_material, "color", attrib={"rgba": "0.5 0.5 0.5 1"})
 
     # Get combined collision mesh
-    new_collision = etree.SubElement(new_part, "collision")
-    collision_origin = etree.SubElement(new_collision, "origin", attrib={"xyz": "0 0 0", "rpy": "0 0 0"})  # noqa: F841
-    collision_geometry = etree.SubElement(new_collision, "geometry")
-    collision_mesh = etree.SubElement(  # noqa: F841
-        collision_geometry,
-        "mesh",
-        attrib={"filename": combined_collision_stl_name},
-    )
+    new_collision = ET.SubElement(new_part, "collision")
+    ET.SubElement(new_collision, "origin", attrib={"xyz": "0 0 0", "rpy": "0 0 0"})
+    collision_geometry = ET.SubElement(new_collision, "geometry")
+    ET.SubElement(collision_geometry, "mesh", attrib={"filename": combined_collision_stl_name})
     logger.info("Got combined meshes and dynamics.")
 
     # Create inertial element
-    new_inertial = etree.SubElement(new_part, "inertial")
-    inertial_mass = etree.SubElement(  # noqa: F841
-        new_inertial,
-        "mass",
-        attrib={"value": str(combined_dynamics.mass)},
-    )
-    inertial_inertia = etree.SubElement(  # noqa: F841
-        new_inertial,
-        "inertia",
-        attrib=matrix_to_moments(combined_dynamics.inertia),
-    )
+    new_inertial = ET.SubElement(new_part, "inertial")
+    ET.SubElement(new_inertial, "mass", attrib={"value": str(combined_dynamics.mass)})
+    ET.SubElement(new_inertial, "inertia", attrib=matrix_to_moments(combined_dynamics.inertia))
 
     parent_inertial = parent.find("inertial")
     child_inertial = child.find("inertial")
@@ -203,27 +187,29 @@ def combine_parts(
     child_rpy = string_to_nparray(child_rpy_origin.attrib["rpy"])
     new_rpy = get_new_rpy(parent_mass, child_mass, parent_rpy, child_rpy)
 
-    inertial_origin = etree.SubElement(  # noqa: F841
+    ET.SubElement(
         new_inertial,
         "origin",
         attrib={
             "xyz": " ".join(map(str, combined_dynamics.com.tolist())),
             "rpy": " ".join(map(str, new_rpy.tolist())),
         },
-    )  # Check in on this
+    )
     return new_part
 
 
-def process_fixed_joints(urdf_etree: _ElementTree, scaling: float, urdf_path: Path) -> _ElementTree:
+def process_fixed_joints(urdf_etree: ET.ElementTree, scaling: float, urdf_path: Path) -> ET.ElementTree:
     """Processes the fixed joints in the assembly."""
     if urdf_etree is None:
         raise ValueError("Invalid URDF etree.")
     root = urdf_etree.getroot()
+
     # While there still exists fixed joints, fuse the parts they connect.
     while True:
         joint = find_fixed_joint(root)
         if joint is None:
             break
+
         # Get the parent and child of the fixed joint
         parent_element = joint.find("parent")
         if parent_element is None:
@@ -241,8 +227,8 @@ def process_fixed_joints(urdf_etree: _ElementTree, scaling: float, urdf_path: Pa
         if child is None:
             raise ValueError(f"Child link {child_name!r} not found in the URDF")
 
-        logger.info("Fusing parts: %s, %s.", parent_name, child_name)
         # Get the relative transform between the two joints
+        logger.info("Fusing parts: %s, %s.", parent_name, child_name)
         origin_element = joint.find("origin")
         if origin_element is None:
             raise ValueError("Origin element not found in joint")
@@ -252,6 +238,7 @@ def process_fixed_joints(urdf_etree: _ElementTree, scaling: float, urdf_path: Pa
         # Fuse the parts and add to second index of etree to preserve central node
         new_part = combine_parts(parent, child, relative_origin, relative_rpy, urdf_path, scaling)
         root.insert(1, new_part)
+
         # Replace the parent and child at all joints with the new part
         root.remove(joint)
         for joint in root.findall(".//joint"):
@@ -265,10 +252,12 @@ def process_fixed_joints(urdf_etree: _ElementTree, scaling: float, urdf_path: Pa
                 parent_element.attrib["link"] = new_part.attrib["name"]
             if child_element.attrib["link"] == child_name or child_element.attrib["link"] == parent_name:
                 child_element.attrib["link"] = new_part.attrib["name"]
+
         # Remove the fixed joint and parent and child links
         for link in root.findall(".//link"):
             if link.attrib["name"] in [parent_name, child_name]:
                 root.remove(link)
+
     return urdf_etree
 
 
@@ -293,7 +282,7 @@ def get_merged_urdf(
     # Load the URDF file
     logger.info("Getting element tree from mesh filepath.")
     urdf = parse_urdf(urdf_path)
-    urdf_tree = ElementTree(urdf)
+    urdf_tree = ET.ElementTree(urdf)
     # Process the fixed joints
     logger.info("Processing fixed joints, starting joint count: %d", len(urdf_tree.findall(".//joint")))
     merged_urdf = process_fixed_joints(urdf_tree, scaling, urdf_path)
@@ -310,10 +299,8 @@ def get_merged_urdf(
                 mesh_file.unlink()
                 deleted += 1
         logger.info("Cleaned up %d meshes.", deleted)
+
     # Save the merged URDF
     merged_urdf_path = urdf_path.parent / f"{urdf_path.stem}_merged.urdf"
-    # Convert _ElementTree to ElementTree before saving
-    xml_str = etree.tostring(merged_urdf, encoding="utf-8", xml_declaration=True)
-    standard_etree = ET.ElementTree(ET.fromstring(xml_str))
-    save_xml(merged_urdf_path, standard_etree)
+    save_xml(merged_urdf_path, merged_urdf)
     logger.info("Saved merged URDF to %s.", merged_urdf_path)

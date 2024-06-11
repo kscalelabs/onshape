@@ -102,11 +102,11 @@ def matrix_to_moments(matrix: np.matrix) -> dict[str, str]:
 def moments_to_matrix(inertia_moments: np.ndarray) -> np.ndarray:
     """Convert a 6-element array of inertia moments into a 3x3 inertia matrix.
 
-    Parameters:
-    inertia_moments (list or array): A 6-element array [Ixx, Iyy, Izz, Ixy, Ixz, Iyz]
+    Args::
+        inertia_moments: A 6-element array ``[Ixx, Iyy, Izz, Ixy, Ixz, Iyz]``.
 
     Returns:
-    np.ndarray: A 3x3 inertia matrix
+        A (3, 3) inertia matrix.
     """
     ixx, iyy, izz, ixy, ixz, iyz = (
         inertia_moments[0],
@@ -159,7 +159,15 @@ def scale_mesh(mesh: Mesh, scale: float, about_origin: bool = False) -> Mesh:
 
 
 def apply_transform(points: np.ndarray, transform: np.ndarray) -> np.ndarray:
-    """Apply a transformation matrix to a set of points."""
+    """Apply a transformation matrix to a set of points.
+
+    Args:
+        points: A (n, 3) numpy array of points.
+        transform: A (4, 4) transformation matrix.
+
+    Returns:
+        A (n, 3) numpy array of transformed points.
+    """
     points_homogeneous = np.hstack([points, np.ones((points.shape[0], 1))])
     transformed_points_homogeneous = points_homogeneous @ transform.T
     transformed_points = transformed_points_homogeneous[:, :3]
@@ -168,28 +176,35 @@ def apply_transform(points: np.ndarray, transform: np.ndarray) -> np.ndarray:
 
 
 def combine_meshes(parent_mesh: Mesh, child_mesh: Mesh, relative_transform: np.ndarray) -> Mesh:
-    """Combine parent and child meshes, applying the relative transform to the child mesh points."""
-    # Ensure the transformation matrix is 4x4
+    """Combine parent and child meshes, applying the relative transform to the child mesh points.
+
+    Args:
+        parent_mesh: The parent mesh.
+        child_mesh: The child mesh.
+        relative_transform: The transformation matrix to apply to the child mesh points.
+
+    Returns:
+        A new mesh combining the parent and child meshes.
+    """
     if not isinstance(relative_transform, np.ndarray) or relative_transform.shape != (4, 4):
         raise ValueError("relative_transform must be a 4x4 numpy array")
-
-    # Transform the child mesh points
     transformed_child_points = apply_transform(child_mesh.points, relative_transform)
-
-    # Combine the points
     combined_points = np.concatenate([parent_mesh.points, transformed_child_points])
-
-    # Offset the child faces indices by the number of parent points
     offset_child_faces = child_mesh.faces + len(parent_mesh.points)
-
-    # Combine the faces
     combined_faces = np.concatenate([parent_mesh.faces, offset_child_faces])
-
     return Mesh(points=combined_points, faces=combined_faces)
 
 
 def origin_and_rpy_to_transform(relative_origin: np.ndarray, relative_rpy: np.ndarray) -> np.ndarray:
-    """Converts an origin and rpy to a transformation matrix."""
+    """Converts an origin and rpy to a transformation matrix.
+
+    Args:
+        relative_origin: A 3-element numpy array representing the relative origin.
+        relative_rpy: A 3-element numpy array representing the relative rpy.
+
+    Returns:
+        A (4, 4) transformation matrix.
+    """
     if relative_origin.shape != (3,):
         raise ValueError("relative_origin must be a 3-element numpy array")
     if relative_rpy.shape != (3,):
@@ -199,20 +214,44 @@ def origin_and_rpy_to_transform(relative_origin: np.ndarray, relative_rpy: np.nd
     roll, pitch, yaw = relative_rpy
 
     # Create the translation matrix
-    translation = np.array([[1, 0, 0, x], [0, 1, 0, y], [0, 0, 1, z], [0, 0, 0, 1]])
+    translation = np.array(
+        [
+            [1, 0, 0, x],
+            [0, 1, 0, y],
+            [0, 0, 1, z],
+            [0, 0, 0, 1],
+        ]
+    )
 
     # Roll rotation matrix (around x-axis)
     roll = np.array(
-        [[1, 0, 0, 0], [0, np.cos(roll), -np.sin(roll), 0], [0, np.sin(roll), np.cos(roll), 0], [0, 0, 0, 1]]
+        [
+            [1, 0, 0, 0],
+            [0, np.cos(roll), -np.sin(roll), 0],
+            [0, np.sin(roll), np.cos(roll), 0],
+            [0, 0, 0, 1],
+        ]
     )
 
     # Pitch rotation matrix (around y-axis)
     pitch = np.array(
-        [[np.cos(pitch), 0, np.sin(pitch), 0], [0, 1, 0, 0], [-np.sin(pitch), 0, np.cos(pitch), 0], [0, 0, 0, 1]]
+        [
+            [np.cos(pitch), 0, np.sin(pitch), 0],
+            [0, 1, 0, 0],
+            [-np.sin(pitch), 0, np.cos(pitch), 0],
+            [0, 0, 0, 1],
+        ]
     )
 
     # Yaw rotation matrix (around z-axis)
-    yaw = np.array([[np.cos(yaw), -np.sin(yaw), 0, 0], [np.sin(yaw), np.cos(yaw), 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]])
+    yaw = np.array(
+        [
+            [np.cos(yaw), -np.sin(yaw), 0, 0],
+            [np.sin(yaw), np.cos(yaw), 0, 0],
+            [0, 0, 1, 0],
+            [0, 0, 0, 1],
+        ]
+    )
 
     # Combined rotation matrix
     rpy = np.dot(yaw, np.dot(pitch, roll))

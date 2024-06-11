@@ -9,22 +9,17 @@ from kol.simplify import get_simplified_mesh
 
 
 def test_mesh_simplify(tmpdir: Path) -> None:
-    return  # disabling for now
     ratio = 0.95
     original_mesh = load_file("tests/data/random.stl")
-    # simplified_path = Path(tmpdir / "random_simplified.stl")
+    simplified_path = Path(tmpdir / "random_simplified.stl")
 
-    # TODO: Revert back after testing.
     simplified_path = Path.home() / "Desktop" / "random_simplified.stl"
 
     simplified_mesh = get_simplified_mesh(mesh=original_mesh, threshold=0.0001, simplify_ratio=ratio)
     save_file(simplified_mesh, simplified_path)
-
-    # TODO: Revert back after testing.
-    # save_file(original_mesh, simplified_path)
+    save_file(original_mesh, simplified_path)
 
     simplified_mesh_loaded = load_file(simplified_path)
-    breakpoint()
     assert len(simplified_mesh_loaded.points) < ratio * len(original_mesh.points)
 
 
