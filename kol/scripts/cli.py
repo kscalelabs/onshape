@@ -3,7 +3,15 @@
 import argparse
 from typing import Sequence
 
-from kol.scripts import get_mjcf, get_urdf, merge_fixed_joints, pybullet, show_mjcf, simplify, visualize_stl
+from kol.scripts import (
+    get_mjcf,
+    get_urdf,
+    merge_fixed_joints,
+    pybullet,
+    show_mjcf,
+    simplify,
+    visualize_stl,
+)
 
 
 def main(args: Sequence[str] | None = None) -> None:

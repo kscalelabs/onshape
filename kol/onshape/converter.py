@@ -19,11 +19,7 @@ import stl
 from scipy.spatial.transform import Rotation as R
 
 from kol.formats import mjcf, urdf
-from kol.geometry import (
-    apply_matrix_,
-    inv_tf,
-    transform_inertia_tensor,
-)
+from kol.geometry import apply_matrix_, inv_tf, transform_inertia_tensor
 from kol.mesh import MeshType, stl_to_fmt
 from kol.onshape.api import OnshapeApi
 from kol.onshape.client import OnshapeClient
