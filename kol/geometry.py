@@ -88,17 +88,44 @@ def combine_dynamics(dynamics: list[Dynamics]) -> Dynamics:
     return Dynamics(mass, com, inertia)
 
 
-def matrix_to_moments(matrix: np.matrix) -> any:
-    from kol.formats.urdf import Inertia
+def matrix_to_moments(matrix: np.matrix) -> np.matrix:
+    return {
+        "ixx": str(matrix[0, 0]),
+        "ixy": str(matrix[0, 1]),
+        "ixz": str(matrix[0, 2]),
+        "iyy": str(matrix[1, 1]),
+        "iyz": str(matrix[1, 2]),
+        "izz": str(matrix[2, 2]),
+    }
 
-    return Inertia(
-        ixx=matrix[0, 0],
-        iyy=matrix[1, 1],
-        izz=matrix[2, 2],
-        ixy=matrix[0, 1],
-        ixz=matrix[0, 2],
-        iyz=matrix[1, 2],
+
+def moments_to_matrix(inertia_moments: np.ndarray) -> np.ndarray:
+    """Convert a 6-element array of inertia moments into a 3x3 inertia matrix.
+
+    Parameters:
+    inertia_moments (list or array): A 6-element array [Ixx, Iyy, Izz, Ixy, Ixz, Iyz]
+
+    Returns:
+    np.ndarray: A 3x3 inertia matrix
+    """
+    ixx, iyy, izz, ixy, ixz, iyz = (
+        inertia_moments[0],
+        inertia_moments[1],
+        inertia_moments[2],
+        inertia_moments[3],
+        inertia_moments[4],
+        inertia_moments[5],
     )
+
+    inertia_matrix = np.array(
+        [
+            [ixx, ixy, ixz],
+            [ixy, iyy, iyz],
+            [ixz, iyz, izz],
+        ]
+    )
+
+    return inertia_matrix
 
 
 def get_mesh_convex_hull(mesh: Mesh) -> Mesh:
