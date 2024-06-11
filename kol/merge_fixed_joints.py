@@ -139,13 +139,25 @@ def combine_parts(
     new_collision = etree.SubElement(new_part, "collision")
     collision_origin = etree.SubElement(new_collision, "origin", attrib={"xyz": "0 0 0", "rpy": "0 0 0"})  # noqa: F841
     collision_geometry = etree.SubElement(new_collision, "geometry")
-    collision_mesh = etree.SubElement(collision_geometry, "mesh", attrib={"filename": combined_collision_stl_name})  # noqa: F841
+    collision_mesh = etree.SubElement(
+        collision_geometry,
+        "mesh",
+        attrib={"filename": combined_collision_stl_name},
+    )  # noqa: F841
     logger.info("Got combined meshes and dynamics.")
 
     # Create inertial element
     new_inertial = etree.SubElement(new_part, "inertial")
-    inertial_mass = etree.SubElement(new_inertial, "mass", attrib={"value": str(combined_dynamics.mass)})  # noqa: F841
-    inertial_inertia = etree.SubElement(new_inertial, "inertia", attrib=matrix_to_moments(combined_dynamics.inertia))  # noqa: F841
+    inertial_mass = etree.SubElement(
+        new_inertial,
+        "mass",
+        attrib={"value": str(combined_dynamics.mass)},
+    )  # noqa: F841
+    inertial_inertia = etree.SubElement(
+        new_inertial,
+        "inertia",
+        attrib=matrix_to_moments(combined_dynamics.inertia),
+    )  # noqa: F841
     parent_rpy = string_to_nparray(parent.find("inertial").find("origin").attrib["rpy"])
     child_rpy = string_to_nparray(child.find("inertial").find("origin").attrib["rpy"])
     new_rpy = get_new_rpy(parent_mass, child_mass, parent_rpy, child_rpy)
