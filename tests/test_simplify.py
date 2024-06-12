@@ -13,8 +13,6 @@ def test_mesh_simplify(tmpdir: Path) -> None:
     original_mesh = load_file("tests/data/random.stl")
     simplified_path = Path(tmpdir / "random_simplified.stl")
 
-    simplified_path = Path.home() / "Desktop" / "random_simplified.stl"
-
     simplified_mesh = get_simplified_mesh(mesh=original_mesh, threshold=0.0001, simplify_ratio=ratio)
     save_file(simplified_mesh, simplified_path)
     save_file(original_mesh, simplified_path)
