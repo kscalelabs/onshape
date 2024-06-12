@@ -9,6 +9,7 @@ pydantic
 requests
 scipy
 tqdm
+trimesh
 
 # Types
 types-requests
