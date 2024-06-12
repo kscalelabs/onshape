@@ -20,7 +20,7 @@ from scipy.spatial.transform import Rotation as R
 
 from kol.formats import mjcf, urdf
 from kol.geometry import apply_matrix_, inv_tf, transform_inertia_tensor
-from kol.mesh import MeshExt, stl_to_fmt
+from kol.mesh import MeshType, stl_to_fmt
 from kol.onshape.api import OnshapeApi
 from kol.onshape.client import OnshapeClient
 from kol.onshape.schema.assembly import (
@@ -31,6 +31,7 @@ from kol.onshape.schema.assembly import (
     Key,
     MatedEntity,
     MateFeature,
+    MateGroupFeature,
     MateRelationFeature,
     MateType,
     Occurrence,
@@ -112,8 +113,9 @@ class Converter:
         suffix_to_joint_effort: list[tuple[str, float]] = [],
         suffix_to_joint_velocity: list[tuple[str, float]] = [],
         disable_mimics: bool = False,
-        mesh_ext: MeshExt = "stl",
+        mesh_ext: MeshType = "stl",
         override_central_node: str | None = None,
+        merge_fixed_joints: bool = False,
     ) -> None:
         # Gets a default output directory.
         self.output_dir = (Path.cwd() / "robot" if output_dir is None else Path(output_dir)).resolve()
@@ -135,6 +137,7 @@ class Converter:
         self.disable_mimics = disable_mimics
         self.mesh_ext = mesh_ext
         self.override_central_node = override_central_node
+        self.merge_fixed_joints = merge_fixed_joints
 
         # Map containing all cached items.
         self.cache_map: dict[str, Any] = {}
@@ -302,8 +305,8 @@ class Converter:
         return {p: i for p, i in self.key_to_instance.items() if isinstance(i, AssemblyInstance)}
 
     @functools.cached_property
-    def key_to_feature(self) -> dict[Key, MateRelationFeature | MateFeature]:
-        feature_mapping: dict[Key, MateRelationFeature | MateFeature] = {}
+    def key_to_feature(self) -> dict[Key, MateRelationFeature | MateFeature | MateGroupFeature]:
+        feature_mapping: dict[Key, MateRelationFeature | MateFeature | MateGroupFeature] = {}
         for feature in self.assembly.rootAssembly.features:
             feature_mapping[(feature.id,)] = feature
         for key, _, sub_assembly in self.traverse_assemblies():

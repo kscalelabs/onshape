@@ -170,6 +170,22 @@ class MateFeature(BaseModel):
         return [root_key + mated.key for mated in self.featureData.matedEntities]
 
 
+class MateGroupFeatureOccurrence(BaseModel):
+    occurrence: list[str]
+
+
+class MateGroupFeatureData(BaseModel):
+    occurrences: list[MateGroupFeatureOccurrence]
+    name: str
+
+
+class MateGroupFeature(BaseModel):
+    id: str
+    suppressed: bool
+    featureType: Literal["mateGroup"]
+    featureData: MateGroupFeatureData
+
+
 class Pattern(BaseModel):
     pass
 
@@ -178,7 +194,7 @@ class RootAssembly(BaseModel):
     occurrences: list[Occurrence]
     instances: list[Instance]
     patterns: list[Pattern]
-    features: list[MateRelationFeature | MateFeature]
+    features: list[MateGroupFeature | MateRelationFeature | MateFeature]
     fullConfiguration: str
     configuration: str
     documentMicroversion: str
@@ -199,7 +215,7 @@ class RootAssembly(BaseModel):
 class SubAssembly(BaseModel):
     instances: list[Instance]
     patterns: list[Pattern]
-    features: list[MateRelationFeature | MateFeature]
+    features: list[MateGroupFeature | MateRelationFeature | MateFeature]
     fullConfiguration: str
     configuration: str
     documentMicroversion: str

@@ -7,7 +7,7 @@ import pytest
 
 from kol.formats import urdf
 from kol.logging import configure_logging
-from kol.mesh import MeshExt
+from kol.mesh import MeshType
 from kol.onshape.converter import Converter
 
 STOMPY_ONSHAPE_URL = (
@@ -24,7 +24,7 @@ def test_e2e(tmpdir: Path) -> None:
         tmpdir: The temporary directory to save the URDF file.
         ext: The mesh file format.
     """
-    for mesh_ext in get_args(MeshExt):
+    for mesh_ext in get_args(MeshType):
         Converter(
             document_url=STOMPY_ONSHAPE_URL,
             output_dir=tmpdir,

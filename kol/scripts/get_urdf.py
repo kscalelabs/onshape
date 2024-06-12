@@ -9,7 +9,7 @@ import numpy as np
 
 from kol.formats import urdf
 from kol.logging import configure_logging
-from kol.mesh import MeshExt
+from kol.mesh import MeshType
 from kol.onshape.converter import Converter
 
 
@@ -27,8 +27,9 @@ def main(args: Sequence[str] | None = None) -> None:
     parser.add_argument("--suffix-to-joint-effort", type=str, nargs="+", help="The suffix to joint effort mapping")
     parser.add_argument("--suffix-to-joint-velocity", type=str, nargs="+", help="The suffix to joint velocity mapping")
     parser.add_argument("--disable-mimics", action="store_true", help="Disable the mimic joints")
-    parser.add_argument("--mesh-ext", type=str, default="stl", choices=get_args(MeshExt), help="The mesh file format")
+    parser.add_argument("--mesh-ext", type=str, default="stl", choices=get_args(MeshType), help="The mesh file format")
     parser.add_argument("--override-central-node", type=str, default=None, help="Override central link")
+    parser.add_argument("--merge-fixed-joints", action="store_true", help="Merge fixed joints")
     parsed_args = parser.parse_args(args)
 
     configure_logging(level=logging.DEBUG if parsed_args.debug else logging.INFO)
@@ -65,6 +66,7 @@ def main(args: Sequence[str] | None = None) -> None:
         disable_mimics=parsed_args.disable_mimics,
         mesh_ext=parsed_args.mesh_ext,
         override_central_node=parsed_args.override_central_node,
+        merge_fixed_joints=parsed_args.merge_fixed_joints,
     ).save_urdf()
 
 

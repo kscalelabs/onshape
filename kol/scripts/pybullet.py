@@ -24,6 +24,7 @@ def main(args: Sequence[str] | None = None) -> None:
     parser.add_argument("--hide-origin", action="store_true", help="Do not show the origin")
     parser.add_argument("--show-inertia", action="store_true", help="Visualizes the inertia frames")
     parser.add_argument("--see-thru", action="store_true", help="Use see-through mode")
+    parser.add_argument("--show-collision", action="store_true", help="Show collision meshes")
     parsed_args = parser.parse_args(args)
 
     try:
@@ -63,6 +64,16 @@ def main(args: Sequence[str] | None = None) -> None:
     if not parsed_args.no_merge:
         flags |= p.URDF_MERGE_FIXED_LINKS
     robot = p.loadURDF(str(urdf_path), start_position, start_orientation, flags=flags, useFixedBase=0)
+
+    # Display collision meshes as separate object.
+    if parsed_args.show_collision:
+        collision_flags = p.URDF_USE_INERTIA_FROM_FILE | p.URDF_USE_SELF_COLLISION_EXCLUDE_ALL_PARENTS
+        collision = p.loadURDF(str(urdf_path), start_position, start_orientation, flags=collision_flags, useFixedBase=0)
+
+        # Make collision shapes semi-transparent.
+        joint_ids = [i for i in range(p.getNumJoints(collision))] + [-1]
+        for i in joint_ids:
+            p.changeVisualShape(collision, i, rgbaColor=[1, 0, 0, 0.5])
 
     # Initializes physics parameters.
     p.changeDynamics(floor, -1, lateralFriction=1, spinningFriction=-1, rollingFriction=-1)

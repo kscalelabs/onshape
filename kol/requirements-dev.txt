@@ -2,6 +2,7 @@
 
 black
 darglint
+isort
 mypy
 pytest
 ruff

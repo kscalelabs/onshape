@@ -6,7 +6,7 @@ include = '\.pyi?$'
 
 [tool.pytest.ini_options]
 
-addopts = "-rx -rf -x -q --full-trace"
+addopts = "-rx -rf -x -q"
 testpaths = ["tests"]
 
 markers = [
@@ -35,9 +35,10 @@ namespace_packages = false
 module = [
     "mujoco.*",
     "networkx.*",
+    "open3d.*",
     "pybullet.*",
-    "stl.*",
     "scipy.*",
+    "stl.*",
 ]
 
 ignore_missing_imports = true

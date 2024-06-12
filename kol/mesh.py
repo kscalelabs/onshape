@@ -1,55 +1,68 @@
-"""Defines utility functions for operations on meshes."""
+"""Defines utility functions for working with mesh files."""
 
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal, cast
+from typing import Any, Literal, Union, cast, get_args
 
-import stl.mesh
+import numpy as np
+import trimesh
+from numpy.typing import NDArray
 
-MeshExt = Literal["stl", "obj"]
+MeshType = Literal["stl", "obj"]
 
 
-def stl_to_obj(stl_path: str | Path, obj_path: str | Path) -> None:
-    """Converts an STL file to an OBJ file.
+@dataclass
+class Mesh:
+    """Defines a common representation for a mesh.
 
-    Args:
-        stl_path: The path to the STL file.
-        obj_path: The path to the OBJ file.
+    Attributes:
+        points: The points of the mesh, where each point is a 3D coordinate.
+        faces: The faces of the mesh, where each face is a triangle defined
+            by the indices of its vertices in the points array.
     """
-    mesh = stl.mesh.Mesh.from_file(stl_path)
 
-    vertices: dict[tuple[float, float, float], int] = {}
-    faces: list[tuple[int, int, int]] = []
-    index = 1
+    points: NDArray
+    faces: NDArray
 
-    # Process each triangle in the mesh
-    for i in range(len(mesh.vectors)):
-        face = []
-        for point in mesh.vectors[i]:
-            vertex = cast(tuple[float, float, float], tuple(point))
-            if vertex not in vertices:
-                vertices[vertex] = index
-                index += 1
-            face.append(vertices[vertex])
-        face_tuple = cast(tuple[int, int, int], tuple(face))
-        faces.append(face_tuple)
+    def __eq__(self, other: Any) -> bool:  # noqa: ANN401
+        if not isinstance(other, Mesh):
+            return False
+        return np.allclose(self.points, other.points) and np.array_equal(self.faces, other.faces)
 
-    with open(obj_path, "w") as f:
-        for vertex, _ in sorted(vertices.items(), key=lambda x: x[1]):
-            f.write(f"v {' '.join(map(str, vertex))}\n")
-        for face_tuple in faces:
-            f.write(f"f {' '.join(map(str, face_tuple))}\n")
+    def save(self, file_path: Union[str, Path]) -> None:
+        save_file(self, file_path)
+
+    @classmethod
+    def from_trimesh(cls, mesh: trimesh.Trimesh) -> "Mesh":
+        return cls(mesh.vertices, mesh.faces)
+
+    def to_trimesh(self) -> trimesh.Trimesh:
+        return trimesh.Trimesh(self.points, self.faces)
 
 
-def stl_to_fmt(stl_path: str | Path, output_path: str | Path) -> None:
-    stl_path = Path(stl_path)
-    ext = Path(output_path).suffix[1:]
+def get_mesh_type(file_path: Union[str, Path]) -> MeshType:
+    ext = Path(file_path).suffix[1:]
+    if ext not in get_args(MeshType):
+        raise ValueError(f"Unsupported mesh format: {ext}")
+    return cast(MeshType, ext)
 
-    match ext:
-        case "stl":
-            return
 
-        case "obj":
-            stl_to_obj(stl_path, output_path)
+def stl_to_fmt(stl_path: Union[str, Path], output_path: Union[str, Path]) -> None:
+    if get_mesh_type(output_path) != "stl":
+        save_file(load_file(stl_path), output_path)
 
-        case _:
-            raise ValueError(f"Unsupported mesh format: {ext}")
+
+def fmt_to_stl(input_path: Union[str, Path], stl_path: Union[str, Path]) -> None:
+    if get_mesh_type(input_path) != "stl":
+        save_file(load_file(input_path), stl_path)
+
+
+def load_file(file_path: Union[str, Path]) -> Mesh:
+    mesh = trimesh.load(file_path)
+    if not isinstance(mesh, trimesh.Trimesh):
+        raise ValueError(f"Unsupported mesh type: {type(mesh)}")
+    return Mesh.from_trimesh(mesh)
+
+
+def save_file(mesh: Mesh, file_path: Union[str, Path]) -> None:
+    mesh.to_trimesh().export(file_path)
