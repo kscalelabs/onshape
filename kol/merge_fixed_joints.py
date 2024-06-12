@@ -4,6 +4,8 @@ import logging
 import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Any, Optional, Union
+from copy import deepcopy
+from uuid import uuid4
 
 import numpy as np
 from scipy.spatial.transform import Rotation as R
@@ -19,9 +21,11 @@ from kol.geometry import (
     origin_and_rpy_to_transform,
     scale_mesh,
 )
-from kol.mesh import load_file
+from kol.mesh import load_file, Mesh
 
 logger = logging.getLogger(__name__)
+
+MAX_NAME_LENGTH: int = 64
 
 
 def parse_urdf(file_path: Path) -> ET.Element:
@@ -88,17 +92,20 @@ def combine_parts(
     if child_name.startswith("link_"):
         child_name = child_name[5:]
 
-    new_part_name = f"{parent_name}_{child_name}"
-    new_part_name = new_part_name.replace("fused_", "", 1)
-    new_part_name = "fused_" + new_part_name
-    if len(new_part_name) > 50:
-        new_part_name = new_part_name[:46] + "..."
+    # new_part_name = f"{parent_name}_{child_name}"
+    # new_part_name = new_part_name.replace("fused_", "", 1)
+    # new_part_name = "fused_" + new_part_name
+    # if len(new_part_name) > MAX_NAME_LENGTH:
+    #     new_part_name = f"{parent_name[:int(MAX_NAME_LENGTH/2)]}_{child_name[:int(MAX_NAME_LENGTH/2)]}"
+    #     new_part_name = new_part_name.replace("fused_", "", 1)
+    #     new_part_name = "fused_" + new_part_name
+    new_part_name = str(uuid4())[:8]
 
     # Get pathing and mesh files
     mesh_dir = urdf_path.parent / "meshes"
     combined_stl_file_name = f"{new_part_name}.stl"
     combined_stl_file_path = mesh_dir / combined_stl_file_name
-    combined_stl_file_path.unlink(missing_ok=True)
+    # combined_stl_file_path.unlink(missing_ok=True)
 
     # Get parent and child meshes
     parent_mesh = load_file(mesh_dir / f"{parent_name}.stl")
@@ -110,8 +117,9 @@ def combine_parts(
     combined_mesh.save(combined_stl_file_path)
 
     # Get convex hull of combined mesh, and scale to good size.
-    combined_collision = get_mesh_convex_hull(combined_mesh)
-    combined_collision = scale_mesh(combined_mesh, scaling)
+    combined_collision = deepcopy(combined_mesh)
+    combined_collision = get_mesh_convex_hull(combined_collision)
+    combined_collision = scale_mesh(combined_collision, scaling)
 
     # Save collision mesh to filepath
     combined_collision_stl_name = f"{new_part_name}_collision.stl"
@@ -248,9 +256,9 @@ def process_fixed_joints(urdf_etree: ET.ElementTree, scaling: float, urdf_path: 
             child_element = joint.find("child")
             if parent_element is None or child_element is None:
                 raise ValueError("Parent or child element not found in joint during update")
-            if parent_element.attrib["link"] == parent_name or parent_element.attrib["link"] == child_name:
+            if parent_element.attrib["link"] in [parent_name, child_name]:
                 parent_element.attrib["link"] = new_part.attrib["name"]
-            if child_element.attrib["link"] == child_name or child_element.attrib["link"] == parent_name:
+            if child_element.attrib["link"] in [child_name, parent_name]:
                 child_element.attrib["link"] = new_part.attrib["name"]
 
         # Remove the fixed joint and parent and child links

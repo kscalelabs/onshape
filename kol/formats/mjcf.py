@@ -475,6 +475,12 @@ class Robot:
     def adapt_world(self) -> None:
         root = self.tree.getroot()
 
+        # Turn off internal collisions
+        for element in root:
+            if element.tag == "geom":
+                element.attrib["contype"] = str(1)
+                element.attrib["conaffinity"] = str(0)
+
         compiler = root.find("compiler")
         if self.compiler is not None:
             compiler = self.compiler.to_xml(compiler)

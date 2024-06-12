@@ -8,6 +8,7 @@ import stl.mesh
 from scipy.spatial import ConvexHull
 
 from kol.mesh import Mesh
+import trimesh
 
 
 def rotation_matrix_to_euler_angles(rotation_matrix: np.matrix) -> tuple[float, float, float]:
@@ -130,7 +131,7 @@ def moments_to_matrix(inertia_moments: np.ndarray) -> np.ndarray:
 
 def get_mesh_convex_hull(mesh: Mesh) -> Mesh:
     hull = ConvexHull(mesh.points)
-    return Mesh(points=mesh.points[hull.vertices], faces=hull.simplices)
+    return Mesh(points=hull.points, faces=hull.simplices)
 
 
 def get_center_of_mass(mesh: Mesh) -> tuple[float, float, float]:
@@ -193,7 +194,7 @@ def combine_meshes(parent_mesh: Mesh, child_mesh: Mesh, relative_transform: np.n
     offset_child_faces = child_mesh.faces + len(parent_mesh.points)
     combined_faces = np.concatenate([parent_mesh.faces, offset_child_faces])
     return Mesh(points=combined_points, faces=combined_faces)
-
+    # return Mesh.from_trimesh(trimesh.util.concatenate([parent_mesh.to_trimesh(), child_mesh.to_trimesh().apply_transform(relative_transform)]))
 
 def origin_and_rpy_to_transform(relative_origin: np.ndarray, relative_rpy: np.ndarray) -> np.ndarray:
     """Converts an origin and rpy to a transformation matrix.
