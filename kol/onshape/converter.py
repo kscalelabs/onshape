@@ -639,7 +639,7 @@ class Converter:
         mass = part_dynamic.mass[0]
         if mass <= 0.0:
             logger.error("Part %s has a mass of %f, which is invalid", part_name, mass)
-            mass = 1.0
+            mass = 0.001
 
         # Move the mesh origin and dynamics from the part frame to the parent
         # joint frame (since URDF expects this by convention).

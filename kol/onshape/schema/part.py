@@ -17,7 +17,6 @@ class PartMetadata(BaseModel):
     jsonType: str
     isMesh: bool
     partId: str
-    partIdentity: str
     isFlattenedBody: bool
     partType: str
     meshState: int
