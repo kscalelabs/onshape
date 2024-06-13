@@ -10,6 +10,7 @@ from kol.scripts import (
     pybullet,
     show_mjcf,
     simplify,
+    simplify_meshes,
     visualize_stl,
 )
 
@@ -18,7 +19,7 @@ def main(args: Sequence[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description="K-Scale OnShape Library", add_help=False)
     parser.add_argument(
         "subcommand",
-        choices=["urdf", "mjcf", "pybullet", "mujoco", "stl", "simplify", "merge-fixed-joints"],
+        choices=["urdf", "mjcf", "pybullet", "mujoco", "stl", "simplify", "merge-fixed-joints", "simplify-all"],
         help="The subcommand to run",
     )
     parsed_args, remaining_args = parser.parse_known_args(args)
@@ -38,6 +39,8 @@ def main(args: Sequence[str] | None = None) -> None:
             simplify.main(remaining_args)
         case "merge-fixed-joints":
             merge_fixed_joints.main(remaining_args)
+        case "simplify-all":
+            simplify_meshes.main(remaining_args)
         case _:
             raise ValueError(f"Unknown subcommand: {parsed_args.subcommand}")
 
