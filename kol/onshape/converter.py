@@ -865,8 +865,8 @@ class Converter:
         for joint in self.ordered_joint_list:
             urdf_joint, urdf_link = None, None
             try:
-                urdf_joint: urdf.BaseJoint = self.get_urdf_joint(joint)
-                urdf_link: urdf.Link = self.get_urdf_part(joint.child, joint)
+                urdf_joint = self.get_urdf_joint(joint)
+                urdf_link = self.get_urdf_part(joint.child, joint)
                 if "screw" in urdf_link.name:
                     logging.warning("Skipping Screw Link")
                     continue
