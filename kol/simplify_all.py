@@ -10,14 +10,6 @@ logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
 
-def parse_urdf(file_path: Path) -> ET.Element:
-    with open(file_path, "r") as file:
-        urdf_xml = file.read()
-    if urdf_xml.startswith("<?xml"):
-        urdf_xml = urdf_xml.split("?>", 1)[1].strip()
-    return ET.fromstring(urdf_xml)
-
-
 def simplify_mesh(filepath: str, voxel_size: float) -> str:
     """Simplifies a mesh by clustering vertices."""
     mesh = o3d.io.read_triangle_mesh(filepath)
@@ -30,8 +22,9 @@ def simplify_mesh(filepath: str, voxel_size: float) -> str:
     ext = Path(filepath).suffix
     if ext.lower() == ".stl":
         simple_mesh.compute_vertex_normals()
-    new_filepath = filepath.replace(f"{ext}", f"_simple{ext}")
-    o3d.io.write_triangle_mesh(new_filepath, simple_mesh)
+    filepath = Path(filepath)
+    new_filepath = filepath.parent / f"{filepath.stem}_simple{filepath.suffix}"
+    new_filepath = str(new_filepath)
     return new_filepath
 
 
@@ -39,14 +32,13 @@ def simplify_all(
     urdf_path: Path,
     voxel_size: float,
 ) -> None:
-    if voxel_size < 0:
+    if voxel_size <= 0:
         raise ValueError(f"Voxel size must be non-negative, got {voxel_size}")
     mesh_dir = urdf_path.parent
     # Load the URDF file
     logger.info("Getting element tree from mesh filepath.")
-    urdf = parse_urdf(urdf_path)
-    urdf_etree = ET.ElementTree(urdf)
-    root = urdf_etree.getroot()
+    tree = ET.parse(urdf_path)
+    root = tree.getroot()
     # Collect all links in urdf and get their meshes
     links = root.findall(".//link")
     logger.info("Found %d links in URDF", len(links))
@@ -82,5 +74,5 @@ def simplify_all(
 
     # Save the updated URDF file
     new_urdf_path = urdf_path.with_name(urdf_path.stem + "_simplified" + urdf_path.suffix)
-    urdf_etree.write(new_urdf_path)
+    tree.write(new_urdf_path)
     logger.info("Simplification complete. Updated URDF saved as %s", new_urdf_path)
