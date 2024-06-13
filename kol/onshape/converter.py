@@ -20,7 +20,7 @@ from scipy.spatial.transform import Rotation as R
 
 from kol.formats import mjcf, urdf
 from kol.geometry import apply_matrix_, inv_tf, transform_inertia_tensor
-from kol.mesh import MeshType, stl_to_fmt
+from kol.mesh import MeshType, get_mesh_type, stl_to_fmt
 from kol.onshape.api import OnshapeApi
 from kol.onshape.client import OnshapeClient
 from kol.onshape.schema.assembly import (
@@ -53,6 +53,7 @@ T = TypeVar("T")
 Color = tuple[int, int, int, int]
 
 DEFAULT_COLOR: Color = (0, 0, 255, 255)  # Blue
+DEFAULT_MASS: float = 0.001
 
 
 def clean_name(name: str) -> str:
@@ -633,13 +634,15 @@ class Converter:
                 mesh_obj.save(part_file_path_stl)
 
             # Converts the mesh to the desired format.
-            logger.info("Converting STL file to %s", part_file_path)
-            stl_to_fmt(part_file_path_stl, part_file_path)
+            if get_mesh_type(part_file_path) != "stl":
+                logger.info("Converting STL file to %s", part_file_path)
+                stl_to_fmt(part_file_path_stl, part_file_path)
 
         mass = part_dynamic.mass[0]
         if mass <= 0.0:
-            logger.error("Part %s has a mass of %f, which is invalid", part_name, mass)
-            mass = 0.001
+            logger.warning("Part %s has a mass of %f, which is invalid", part_name, mass)
+            logger.warning("Part %s set to default mass %f", part_name, DEFAULT_MASS)
+            mass = DEFAULT_MASS
 
         # Move the mesh origin and dynamics from the part frame to the parent
         # joint frame (since URDF expects this by convention).
@@ -860,10 +863,32 @@ class Converter:
 
         # Creates a URDF joint for each feature connecting two parts.
         for joint in self.ordered_joint_list:
-            urdf_joint = self.get_urdf_joint(joint)
-            urdf_link = self.get_urdf_part(joint.child, joint)
-            urdf_parts.append(urdf_link)
-            urdf_parts.append(urdf_joint)
+            urdf_joint, urdf_link = None, None
+            try:
+                urdf_joint = self.get_urdf_joint(joint)
+                urdf_link = self.get_urdf_part(joint.child, joint)
+                if "screw" in urdf_link.name:
+                    logging.warning("Skipping Screw Link")
+                    continue
+                if "tapping_insert" in urdf_link.name:
+                    logging.warning("Skipping Tapping Insert Link")
+                    continue
+                if "bearing" in urdf_link.name:
+                    logging.warning("Skipping Bearing Link")
+                    continue
+                if "hex_nut" in urdf_link.name:
+                    logging.warning("Skipping Hex Nut Link")
+                    continue
+            except Exception as e:
+                logging.warning("Exception creating joint")
+                logging.warning(e)
+                if urdf_joint is not None:
+                    logging.warning("Joint %s", urdf_joint)
+                if urdf_link is not None:
+                    logging.warning("Link %s", urdf_link)
+            if (urdf_link is not None) and (urdf_joint is not None):
+                urdf_parts.append(urdf_link)
+                urdf_parts.append(urdf_joint)
 
         # Saves the final URDF.
         robot_name = clean_name(str(self.assembly_metadata.property_map.get("Name", "robot")))

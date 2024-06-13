@@ -79,6 +79,7 @@ class Feature(BaseModel):
 
 class FeatureStatus(str, Enum):
     OK = "OK"
+    ERROR = "ERROR"
 
 
 class FeatureStateMessage(BaseModel):
