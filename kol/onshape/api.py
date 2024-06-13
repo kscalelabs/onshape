@@ -90,6 +90,11 @@ class OnshapeApi:
             f"/e/{part.elementId}/p/{escape_url(part.partId)}"
         )
         data = self.client.request("get", path, query={"configuration": part.configuration}).json()
+
+        try:
+            PartMetadata.model_validate(data)
+        except:
+            breakpoint()
         return PartMetadata.model_validate(data)
 
     def get_part_mass_properties(self, part: Part) -> PartDynamics:
