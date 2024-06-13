@@ -5,10 +5,10 @@ from dataclasses import dataclass
 
 import numpy as np
 import stl.mesh
+import trimesh
 from scipy.spatial import ConvexHull
 
 from kol.mesh import Mesh
-import trimesh
 
 
 def rotation_matrix_to_euler_angles(rotation_matrix: np.matrix) -> tuple[float, float, float]:

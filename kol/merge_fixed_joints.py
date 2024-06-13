@@ -2,9 +2,9 @@
 
 import logging
 import xml.etree.ElementTree as ET
+from copy import deepcopy
 from pathlib import Path
 from typing import Any, Optional, Union
-from copy import deepcopy
 from uuid import uuid4
 
 import numpy as np
@@ -21,7 +21,7 @@ from kol.geometry import (
     origin_and_rpy_to_transform,
     scale_mesh,
 )
-from kol.mesh import load_file, Mesh
+from kol.mesh import Mesh, load_file
 
 logger = logging.getLogger(__name__)
 

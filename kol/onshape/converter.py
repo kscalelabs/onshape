@@ -20,7 +20,7 @@ from scipy.spatial.transform import Rotation as R
 
 from kol.formats import mjcf, urdf
 from kol.geometry import apply_matrix_, inv_tf, transform_inertia_tensor
-from kol.mesh import MeshType, stl_to_fmt
+from kol.mesh import MeshType, get_mesh_type, stl_to_fmt
 from kol.onshape.api import OnshapeApi
 from kol.onshape.client import OnshapeClient
 from kol.onshape.schema.assembly import (
@@ -45,7 +45,6 @@ from kol.onshape.schema.common import ElementUid
 from kol.onshape.schema.features import Feature, Features
 from kol.onshape.schema.part import PartDynamics, PartMetadata
 from kol.resolvers import ExpressionResolver
-from kol.mesh import get_mesh_type
 
 logger = logging.getLogger(__name__)
 
