@@ -1,16 +1,16 @@
 # requirements.txt
 
-mujoco
-networkx
-numpy
-numpy-stl
-omegaconf
-open3d
-pydantic
-requests
-scipy
-tqdm
-trimesh
+mujoco==3.1.6
+networkx==3.3
+numpy==1.26.4
+numpy-stl==3.1.1
+omegaconf==2.3.0
+open3d==0.18.0
+pydantic==2.7.4
+requests==2.32.3
+scipy==1.13.1
+tqdm==4.66.4
+trimesh==4.4.1
 
 # Types
-types-requests
+types-requests==2.32.0.20240602

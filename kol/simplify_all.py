@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
 
-def simplify_mesh(filepath: str, voxel_size: float) -> str:
+def simplify_mesh(filepath: str, voxel_size: float) -> tuple[str, str]:
     """Simplifies a mesh by clustering vertices."""
     mesh = o3d.io.read_triangle_mesh(filepath)
     simple_mesh = mesh.simplify_vertex_clustering(
@@ -25,7 +25,8 @@ def simplify_mesh(filepath: str, voxel_size: float) -> str:
     filepath = Path(filepath)
     new_filepath = filepath.parent / f"{filepath.stem}_simple{filepath.suffix}"
     new_filepath = str(new_filepath)
-    return new_filepath
+
+    return new_filepath, simple_mesh
 
 
 def simplify_all(
@@ -54,10 +55,12 @@ def simplify_all(
                     filepaths.add(mesh_dir / geometry.attrib["filename"])
 
     new_filepaths = {}
+    new_meshes = {}
     for filepath in filepaths:
         logger.info("Simplifying mesh %s", filepath)
-        new_filepath = simplify_mesh(str(filepath), voxel_size)
+        new_filepath, new_mesh = simplify_mesh(str(filepath), voxel_size)
         new_filepaths[str(filepath)] = new_filepath
+        new_meshes[new_filepath] = new_mesh
 
     # Update the URDF file with new file paths
     logger.info("Updating URDF with new mesh file paths")
@@ -76,3 +79,11 @@ def simplify_all(
     new_urdf_path = urdf_path.with_name(urdf_path.stem + "_simplified" + urdf_path.suffix)
     tree.write(new_urdf_path)
     logger.info("Simplification complete. Updated URDF saved as %s", new_urdf_path)
+
+    # Save all the new meshes
+    for new_filepath, new_mesh in new_meshes.items():
+        match Path(new_filepath).suffix.lower():
+            case ".ply":
+                o3d.io.write_triangle_mesh(new_filepath, new_mesh, write_ascii=True)
+            case _:
+                o3d.io.write_triangle_mesh(new_filepath, new_mesh)
