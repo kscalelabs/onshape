@@ -54,7 +54,7 @@ T = TypeVar("T")
 Color = tuple[int, int, int, int]
 
 DEFAULT_COLOR: Color = (0, 0, 255, 255)  # Blue
-DEFAULT_MASS: float = 1.0
+DEFAULT_MASS: float = 0.001
 
 
 def clean_name(name: str) -> str:
