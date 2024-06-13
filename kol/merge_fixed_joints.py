@@ -21,7 +21,9 @@ from kol.geometry import (
     origin_and_rpy_to_transform,
     scale_mesh,
 )
-from kol.mesh import Mesh, load_file
+# from kol.mesh import Mesh, load_file
+from kol.mesh import load_file
+
 
 logger = logging.getLogger(__name__)
 
