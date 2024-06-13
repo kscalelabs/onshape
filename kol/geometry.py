@@ -196,6 +196,7 @@ def combine_meshes(parent_mesh: Mesh, child_mesh: Mesh, relative_transform: np.n
     return Mesh(points=combined_points, faces=combined_faces)
     # return Mesh.from_trimesh(trimesh.util.concatenate([parent_mesh.to_trimesh(), child_mesh.to_trimesh().apply_transform(relative_transform)]))
 
+
 def origin_and_rpy_to_transform(relative_origin: np.ndarray, relative_rpy: np.ndarray) -> np.ndarray:
     """Converts an origin and rpy to a transformation matrix.
 
