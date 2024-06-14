@@ -30,14 +30,6 @@ logger = logging.getLogger(__name__)
 MAX_NAME_LENGTH: int = 64
 
 
-def parse_urdf(file_path: Path) -> ET.Element:
-    with open(file_path, "r") as file:
-        urdf_xml = file.read()
-    if urdf_xml.startswith("<?xml"):
-        urdf_xml = urdf_xml.split("?>", 1)[1].strip()
-    return ET.fromstring(urdf_xml)
-
-
 def find_fixed_joint(urdf_etree: ET.Element) -> Optional[ET.Element]:
     for joint in urdf_etree.findall(".//joint"):
         if joint.attrib["type"] == "fixed":
@@ -73,6 +65,18 @@ def get_new_rpy(
     return new_rpy
 
 
+def get_color(element: ET.Element) -> np.ndarray:
+    visual_elem = element.find("visual")
+    if visual_elem is not None:
+        material_elem = visual_elem.find("material")
+        if material_elem is not None:
+            color_elem = material_elem.find("color")
+            if color_elem is not None:
+                rgba = color_elem.attrib["rgba"].split()
+                return np.array([float(x) for x in rgba])
+    return np.array([0.5, 0.5, 0.5, 1.0])  # Default color if not found
+
+
 def combine_parts(
     parent: ET.Element,
     child: ET.Element,
@@ -81,129 +85,81 @@ def combine_parts(
     urdf_path: Path,
     scaling: float,
 ) -> ET.Element:
-    # Get new part name
-    parent_name = parent.attrib.get("name")
-    if parent_name is None:
-        raise ValueError("Parent link does not have a name")
-    if parent_name.startswith("link_"):
-        parent_name = parent_name[5:]
+    def get_part_name(element: ET.Element) -> str:
+        name = element.attrib.get("name")
+        if name is None:
+            raise ValueError(f"{element.tag} link does not have a name")
+        return name[5:] if name.startswith("link_") else name
 
-    child_name = child.attrib.get("name")
-    if child_name is None:
-        raise ValueError("Child link does not have a name")
-    if child_name.startswith("link_"):
-        child_name = child_name[5:]
+    def create_mesh_files(parent_name: str, child_name: str, combined_mesh_name: str):
+        mesh_dir = urdf_path.parent / "meshes"
+        parent_mesh = load_file(mesh_dir / f"{parent_name}.stl")
+        child_mesh = load_file(mesh_dir / f"{child_name}.stl")
+        combined_mesh = combine_meshes(parent_mesh, child_mesh, relative_transform)
+        combined_mesh.save(mesh_dir / f"{combined_mesh_name}.stl")
+        return mesh_dir, combined_mesh
 
-    # new_part_name = f"{parent_name}_{child_name}"
-    # new_part_name = new_part_name.replace("fused_", "", 1)
-    # new_part_name = "fused_" + new_part_name
-    # if len(new_part_name) > MAX_NAME_LENGTH:
-    #     new_part_name = f"{parent_name[:int(MAX_NAME_LENGTH/2)]}_{child_name[:int(MAX_NAME_LENGTH/2)]}"
-    #     new_part_name = new_part_name.replace("fused_", "", 1)
-    #     new_part_name = "fused_" + new_part_name
+    def create_collision_mesh(mesh, mesh_name: str):
+        collision_mesh = deepcopy(mesh)
+        collision_mesh = get_mesh_convex_hull(collision_mesh)
+        collision_mesh = scale_mesh(collision_mesh, scaling)
+        collision_mesh.save(mesh_dir / f"{mesh_name}_collision.stl")
+
+    def get_dynamics(element: ET.Element) -> Dynamics:
+        dynamics_elem = element.find("inertial")
+        if dynamics_elem is None:
+            raise ValueError("Inertial elements not found")
+
+        mass = float(dynamics_elem.find("mass").attrib["value"])
+        com = string_to_nparray(dynamics_elem.find("origin").attrib["xyz"])
+        inertia_values = [float(x) for x in dynamics_elem.find("inertia").attrib.values()]
+        inertia = np.matrix(moments_to_matrix(inertia_values))
+
+        return Dynamics(mass, com, inertia)
+
+    parent_name = get_part_name(parent)
+    child_name = get_part_name(child)
     new_part_name = str(uuid4())[:8]
 
-    # Get pathing and mesh files
-    mesh_dir = urdf_path.parent / "meshes"
-    combined_stl_file_name = f"{new_part_name}.stl"
-    combined_stl_file_path = mesh_dir / combined_stl_file_name
-    # combined_stl_file_path.unlink(missing_ok=True)
-
-    # Get parent and child meshes
-    parent_mesh = load_file(mesh_dir / f"{parent_name}.stl")
-    child_mesh = load_file(mesh_dir / f"{child_name}.stl")
-
-    # Combine the meshes using the relative origins
     relative_transform = origin_and_rpy_to_transform(relative_origin, relative_rpy)
-    combined_mesh = combine_meshes(parent_mesh, child_mesh, relative_transform)
-    combined_mesh.save(combined_stl_file_path)
+    mesh_dir, combined_mesh = create_mesh_files(parent_name, child_name, new_part_name)
+    create_collision_mesh(combined_mesh, new_part_name)
 
-    # Get convex hull of combined mesh, and scale to good size.
-    combined_collision = deepcopy(combined_mesh)
-    combined_collision = get_mesh_convex_hull(combined_collision)
-    combined_collision = scale_mesh(combined_collision, scaling)
-
-    # Save collision mesh to filepath
-    combined_collision_stl_name = f"{new_part_name}_collision.stl"
-    collision_stl_file_path = mesh_dir / combined_collision_stl_name
-    combined_collision.save(collision_stl_file_path)
-
-    # Get combined dynamics
-    parent_dynamics = parent.find("inertial")
-    child_dynamics = child.find("inertial")
-    if parent_dynamics is None or child_dynamics is None:
-        raise ValueError("Inertial elements not found in parent or child")
-
-    parent_mass_element = parent_dynamics.find("mass")
-    child_mass_element = child_dynamics.find("mass")
-    if parent_mass_element is None or child_mass_element is None:
-        raise ValueError("Mass elements not found in parent or child inertial")
-    parent_mass = float(parent_mass_element.attrib["value"])
-    child_mass = float(child_mass_element.attrib["value"])
-
-    parent_origin_element = parent_dynamics.find("origin")
-    child_origin_element = child_dynamics.find("origin")
-    if parent_origin_element is None or child_origin_element is None:
-        raise ValueError("Origin elements not found in parent or child inertial")
-    parent_com = string_to_nparray(parent_origin_element.attrib["xyz"])
-    child_com = string_to_nparray(child_origin_element.attrib["xyz"])
-
-    parent_inertia_element = parent_dynamics.find("inertia")
-    child_inertia_element = child_dynamics.find("inertia")
-    if parent_inertia_element is None or child_inertia_element is None:
-        raise ValueError("Inertia elements not found in parent or child inertial")
-    parent_inertia = np.array([float(x) for x in parent_inertia_element.attrib.values()])
-    child_inertia = np.array([float(x) for x in child_inertia_element.attrib.values()])
-
-    parent_dynamics = Dynamics(parent_mass, parent_com, np.matrix(moments_to_matrix(parent_inertia)))
-    child_dynamics = Dynamics(child_mass, child_com, np.matrix(moments_to_matrix(child_inertia)))
+    parent_dynamics = get_dynamics(parent)
+    child_dynamics = get_dynamics(child)
     combined_dynamics = combine_dynamics([parent_dynamics, child_dynamics])
 
-    # Create new part element
     new_part = ET.Element("link", attrib={"name": new_part_name})
 
-    # Get combined visual mesh
-    new_visual = ET.SubElement(new_part, "visual")
-    ET.SubElement(new_visual, "origin", attrib={"xyz": "0 0 0", "rpy": "0 0 0"})
-    visual_geometry = ET.SubElement(new_visual, "geometry")
-    ET.SubElement(visual_geometry, "mesh", attrib={"filename": combined_stl_file_name})
-    visual_material = ET.SubElement(new_visual, "material", attrib={"name": combined_stl_file_name + "_material"})
-    ET.SubElement(visual_material, "color", attrib={"rgba": "0.5 0.5 0.5 1"})
+    def create_visual_and_collision_elements(tag: str, file_name: str) -> None:
+        element = ET.SubElement(new_part, tag, {})
+        ET.SubElement(element, "origin", {"xyz": "0 0 0", "rpy": "0 0 0"})
+        geometry = ET.SubElement(element, "geometry", {})
+        ET.SubElement(geometry, "mesh", {"filename": file_name})
+        if tag == "visual":
+            parent_color = get_color(parent)
+            child_color = get_color(child)
+            combined_color = (parent_color + child_color) / 2
+            material = ET.SubElement(element, "material", {"name": f"{file_name}_material"})  # same as parent joint
+            ET.SubElement(
+                material, "color", {"rgba": " ".join(map(str, combined_color))}
+            )  # average of parent and child colors
 
-    # Get combined collision mesh
-    new_collision = ET.SubElement(new_part, "collision")
-    ET.SubElement(new_collision, "origin", attrib={"xyz": "0 0 0", "rpy": "0 0 0"})
-    collision_geometry = ET.SubElement(new_collision, "geometry")
-    ET.SubElement(collision_geometry, "mesh", attrib={"filename": combined_collision_stl_name})
-    logger.info("Got combined meshes and dynamics.")
+    create_visual_and_collision_elements("visual", f"{new_part_name}.stl")
+    create_visual_and_collision_elements("collision", f"{new_part_name}_collision.stl")
 
-    # Create inertial element
-    new_inertial = ET.SubElement(new_part, "inertial")
-    ET.SubElement(new_inertial, "mass", attrib={"value": str(combined_dynamics.mass)})
-    ET.SubElement(new_inertial, "inertia", attrib=matrix_to_moments(combined_dynamics.inertia))
+    new_inertial = ET.SubElement(new_part, "inertial", {})
+    ET.SubElement(new_inertial, "mass", {"value": str(combined_dynamics.mass)})
+    ET.SubElement(new_inertial, "inertia", matrix_to_moments(combined_dynamics.inertia))
 
-    parent_inertial = parent.find("inertial")
-    child_inertial = child.find("inertial")
-
-    if parent_inertial is None or child_inertial is None:
-        raise ValueError("Inertial elements not found in parent or child")
-
-    parent_rpy_origin = parent_inertial.find("origin")
-    child_rpy_origin = child_inertial.find("origin")
-
-    if parent_rpy_origin is None or child_rpy_origin is None:
-        raise ValueError("Origin element not found in parent or child inertial")
-    parent_rpy = string_to_nparray(parent_rpy_origin.attrib["rpy"])
-    child_rpy = string_to_nparray(child_rpy_origin.attrib["rpy"])
-    new_rpy = get_new_rpy(parent_mass, child_mass, parent_rpy, child_rpy)
+    parent_rpy = string_to_nparray(parent.find("inertial/origin").attrib["rpy"])
+    child_rpy = string_to_nparray(child.find("inertial/origin").attrib["rpy"])
+    new_rpy = get_new_rpy(parent_dynamics.mass, child_dynamics.mass, parent_rpy, child_rpy)
 
     ET.SubElement(
         new_inertial,
         "origin",
-        attrib={
-            "xyz": " ".join(map(str, combined_dynamics.com.tolist())),
-            "rpy": " ".join(map(str, new_rpy.tolist())),
-        },
+        {"xyz": " ".join(map(str, combined_dynamics.com.tolist())), "rpy": " ".join(map(str, new_rpy.tolist()))},
     )
     return new_part
 
@@ -260,6 +216,24 @@ def process_fixed_joints(urdf_etree: ET.ElementTree, scaling: float, urdf_path: 
                 raise ValueError("Parent or child element not found in joint during update")
             if parent_element.attrib["link"] in [parent_name, child_name]:
                 parent_element.attrib["link"] = new_part.attrib["name"]
+                # Remap joint to be relative to the new part
+                origin_element = joint.find("origin")
+                if origin_element is None:
+                    raise ValueError("Origin element not found in joint during update")
+                # Origin is concat of current joint origin and origin of child link that's been fused
+                origin = string_to_nparray(origin_element.attrib["xyz"])
+                origin = origin + relative_origin
+                origin_element.attrib["xyz"] = " ".join(map(str, origin))
+                # RPY calculated by multiplying the rotation matrices of the two parts
+                rpy = string_to_nparray(origin_element.attrib["rpy"])
+                # Convert to rotation matrices
+                rotation = R.from_euler("xyz", rpy).as_matrix()
+                relative_rotation = R.from_euler("xyz", relative_rpy).as_matrix()
+                # Multiply the rotation matrices
+                combined_rotation = np.dot(rotation, relative_rotation)
+                # Convert back to euler angles
+                combined_rpy = R.from_matrix(combined_rotation).as_euler("xyz")
+                origin_element.attrib["rpy"] = " ".join(map(str, combined_rpy))
             if child_element.attrib["link"] in [child_name, parent_name]:
                 child_element.attrib["link"] = new_part.attrib["name"]
 
@@ -291,8 +265,8 @@ def get_merged_urdf(
 
     # Load the URDF file
     logger.info("Getting element tree from mesh filepath.")
-    urdf = parse_urdf(urdf_path)
-    urdf_tree = ET.ElementTree(urdf)
+    logger.info("Getting element tree from mesh filepath.")
+    urdf_tree = ET.parse(urdf_path)
     # Process the fixed joints
     logger.info("Processing fixed joints, starting joint count: %d", len(urdf_tree.findall(".//joint")))
     merged_urdf = process_fixed_joints(urdf_tree, scaling, urdf_path)
