@@ -42,7 +42,7 @@ from kol.onshape.schema.assembly import (
     SubAssembly,
 )
 from kol.onshape.schema.common import ElementUid
-from kol.onshape.schema.features import Feature, Features
+from kol.onshape.schema.features import Feature, Features, FeatureStatus
 from kol.onshape.schema.part import PartDynamics, PartMetadata
 from kol.resolvers import ExpressionResolver
 
@@ -564,7 +564,14 @@ class Converter:
 
         # Gets the joint information for each feature from the assembly features.
         joint_limits: dict[ElementUid, JointLimits] = {}
+
         for assembly_key, assembly_feature in assembly_features.items():
+            for feature_state in assembly_feature.featureStates:
+                if feature_state.value.message.featureStatus != FeatureStatus.OK:
+                    logging.warn(
+                        "Feature %s has status %s", feature_state.key, feature_state.value.message.featureStatus
+                    )
+
             for feature in assembly_feature.features:
                 key = ElementUid(
                     document_id=assembly_key.document_id,
