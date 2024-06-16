@@ -21,9 +21,7 @@ from kol.geometry import (
     origin_and_rpy_to_transform,
     scale_mesh,
 )
-
-# from kol.mesh import Mesh, load_file
-from kol.mesh import load_file
+from kol.mesh import Mesh, load_file
 
 logger = logging.getLogger(__name__)
 
@@ -91,7 +89,7 @@ def combine_parts(
             raise ValueError(f"{element.tag} link does not have a name")
         return name[5:] if name.startswith("link_") else name
 
-    def create_mesh_files(parent_name: str, child_name: str, combined_mesh_name: str):
+    def create_mesh_files(parent_name: str, child_name: str, combined_mesh_name: str) -> tuple[Path, Any]:
         mesh_dir = urdf_path.parent / "meshes"
         parent_mesh = load_file(mesh_dir / f"{parent_name}.stl")
         child_mesh = load_file(mesh_dir / f"{child_name}.stl")
@@ -99,9 +97,9 @@ def combine_parts(
         combined_mesh.save(mesh_dir / f"{combined_mesh_name}.stl")
         return mesh_dir, combined_mesh
 
-    def create_collision_mesh(mesh, mesh_name: str):
+    def create_collision_mesh(mesh: Mesh, mesh_name: str) -> None:
         collision_mesh = deepcopy(mesh)
-        collision_mesh = get_mesh_convex_hull(collision_mesh)
+        # collision_mesh = get_mesh_convex_hull(collision_mesh)
         collision_mesh = scale_mesh(collision_mesh, scaling)
         collision_mesh.save(mesh_dir / f"{mesh_name}_collision.stl")
 
@@ -119,15 +117,15 @@ def combine_parts(
 
     parent_name = get_part_name(parent)
     child_name = get_part_name(child)
-    new_part_name = str(uuid4())[:8]
+    new_part_name = "fused_part_" + str(uuid4())[:8]
 
     relative_transform = origin_and_rpy_to_transform(relative_origin, relative_rpy)
     mesh_dir, combined_mesh = create_mesh_files(parent_name, child_name, new_part_name)
     create_collision_mesh(combined_mesh, new_part_name)
 
-    parent_dynamics = get_dynamics(parent)
-    child_dynamics = get_dynamics(child)
-    combined_dynamics = combine_dynamics([parent_dynamics, child_dynamics])
+    # parent_dynamics = get_dynamics(parent)
+    # child_dynamics = get_dynamics(child)
+    # combined_dynamics = combine_dynamics([parent_dynamics, child_dynamics])
 
     new_part = ET.Element("link", attrib={"name": new_part_name})
 
@@ -148,19 +146,19 @@ def combine_parts(
     create_visual_and_collision_elements("visual", f"{new_part_name}.stl")
     create_visual_and_collision_elements("collision", f"{new_part_name}_collision.stl")
 
-    new_inertial = ET.SubElement(new_part, "inertial", {})
-    ET.SubElement(new_inertial, "mass", {"value": str(combined_dynamics.mass)})
-    ET.SubElement(new_inertial, "inertia", matrix_to_moments(combined_dynamics.inertia))
+    # new_inertial = ET.SubElement(new_part, "inertial", {})
+    # ET.SubElement(new_inertial, "mass", {"value": str(combined_dynamics.mass)})
+    # ET.SubElement(new_inertial, "inertia", matrix_to_moments(combined_dynamics.inertia))
 
-    parent_rpy = string_to_nparray(parent.find("inertial/origin").attrib["rpy"])
-    child_rpy = string_to_nparray(child.find("inertial/origin").attrib["rpy"])
-    new_rpy = get_new_rpy(parent_dynamics.mass, child_dynamics.mass, parent_rpy, child_rpy)
+    # parent_rpy = string_to_nparray(parent.find("inertial/origin").attrib["rpy"])
+    # child_rpy = string_to_nparray(child.find("inertial/origin").attrib["rpy"])
+    # new_rpy = get_new_rpy(parent_dynamics.mass, child_dynamics.mass, parent_rpy, child_rpy)
 
-    ET.SubElement(
-        new_inertial,
-        "origin",
-        {"xyz": " ".join(map(str, combined_dynamics.com.tolist())), "rpy": " ".join(map(str, new_rpy.tolist()))},
-    )
+    # ET.SubElement(
+    #     new_inertial,
+    #     "origin",
+    #     {"xyz": " ".join(map(str, combined_dynamics.com.tolist())), "rpy": " ".join(map(str, new_rpy.tolist()))},
+    # )
     return new_part
 
 
@@ -205,13 +203,13 @@ def process_fixed_joints(urdf_etree: ET.ElementTree, scaling: float, urdf_path: 
         new_part = combine_parts(parent, child, relative_origin, relative_rpy, urdf_path, scaling)
         root.insert(1, new_part)
 
-        # Replace the parent and child at all joints with the new part
+        # Replace the parent and child at all auxillary joints with the new part
         root.remove(joint)
-        for joint in root.findall(".//joint"):
-            if joint is None:
-                raise ValueError("Joint element not found in root")
-            parent_element = joint.find("parent")
-            child_element = joint.find("child")
+        for aux_joint in root.findall(".//joint"):
+            if aux_joint is None:
+                raise ValueError("Corrupted joint element found in urdf.")
+            parent_element = aux_joint.find("parent")
+            child_element = aux_joint.find("child")
             if parent_element is None or child_element is None:
                 raise ValueError("Parent or child element not found in joint during update")
             if parent_element.attrib["link"] in [parent_name, child_name]:
@@ -265,7 +263,6 @@ def get_merged_urdf(
 
     # Load the URDF file
     logger.info("Getting element tree from mesh filepath.")
-    logger.info("Getting element tree from mesh filepath.")
     urdf_tree = ET.parse(urdf_path)
     # Process the fixed joints
     logger.info("Processing fixed joints, starting joint count: %d", len(urdf_tree.findall(".//joint")))
@@ -278,8 +275,23 @@ def get_merged_urdf(
     if cleanup_fused_meshes:
         logger.info("Cleaning up obsolete meshes.")
         mesh_dir = urdf_path.parent / "meshes"
+        all_links = merged_urdf.findall(".//link")
+        all_visuals = (link.find("visual") for link in all_links)
+        all_stl_names = [
+            visual.find("geometry/mesh").attrib["filename"] for visual in all_visuals if visual is not None
+        ]
+        all_collisions = (link.find("collision") for link in all_links)
+        all_collision_names = [
+            collision.find("geometry/mesh").attrib["filename"] for collision in all_collisions if collision is not None
+        ]
+        all_stls = all_stl_names + all_collision_names
+        all_stls = [
+            filepath[len("./meshes/") :] if filepath.startswith("./meshes/") else filepath for filepath in all_stls
+        ]
         for mesh_file in mesh_dir.glob("*.stl"):
-            if mesh_file.name not in [link.attrib["filename"] for link in merged_urdf.findall(".//link")]:
+            filename = mesh_file.name
+            link_filename = "link_" + filename
+            if filename not in all_stls and link_filename not in all_stls:
                 mesh_file.unlink()
                 deleted += 1
         logger.info("Cleaned up %d meshes.", deleted)

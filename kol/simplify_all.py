@@ -3,15 +3,22 @@
 import logging
 import xml.etree.ElementTree as ET
 from pathlib import Path
+from kol.formats.common import save_xml
 
 import open3d as o3d
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
+total_removed = 0
+
 
 def simplify_mesh(filepath: str, voxel_size: float) -> tuple[str, str]:
     """Simplifies a mesh by clustering vertices."""
+    # if file path doesn't include /meshes/, add it in after robot/
+    if "/meshes/" not in filepath:
+        filepath = filepath.replace("robot/", "robot/meshes/")
+    print(filepath)
     mesh = o3d.io.read_triangle_mesh(filepath)
     simple_mesh = mesh.simplify_vertex_clustering(
         voxel_size=voxel_size,
@@ -25,6 +32,8 @@ def simplify_mesh(filepath: str, voxel_size: float) -> tuple[str, str]:
     filepath = Path(filepath)
     new_filepath = filepath.parent / f"{filepath.stem}_simple{filepath.suffix}"
     new_filepath = str(new_filepath)
+    if "/meshes/" not in new_filepath:
+        new_filepath = new_filepath.replace("robot/", "robot/meshes/")
 
     return new_filepath, simple_mesh
 
@@ -77,7 +86,7 @@ def simplify_all(
 
     # Save the updated URDF file
     new_urdf_path = urdf_path.with_name(urdf_path.stem + "_simplified" + urdf_path.suffix)
-    tree.write(new_urdf_path)
+    save_xml(new_urdf_path, tree)
     logger.info("Simplification complete. Updated URDF saved as %s", new_urdf_path)
 
     # Save all the new meshes

@@ -8,9 +8,9 @@ from kol.simplify_all import simplify_all
 
 
 def main(args: Sequence[str] | None = None) -> None:
-    parser = argparse.ArgumentParser(description="Simplify meshes ina  urdf.")
+    parser = argparse.ArgumentParser(description="Simplify meshes in a urdf.")
     parser.add_argument("filepath", type=str, help="The path to the urdf file")
-    parser.add_argument("--voxel-size", type=float, default=0.01, help="Size of the voxels that will be merged.")
+    parser.add_argument("--voxel-size", type=float, default=0.001, help="Size of the voxels that will be merged.")
     parsed_args = parser.parse_args(args)
 
     urdf_path = Path(parsed_args.filepath)
