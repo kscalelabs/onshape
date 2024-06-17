@@ -230,7 +230,7 @@ def origin_and_rpy_to_transform(relative_origin: np.ndarray, relative_rpy: np.nd
     )
 
     # Roll rotation matrix (around x-axis)
-    roll = np.array(
+    roll_mat = np.array(
         [
             [1, 0, 0, 0],
             [0, np.cos(roll), -np.sin(roll), 0],
@@ -240,7 +240,7 @@ def origin_and_rpy_to_transform(relative_origin: np.ndarray, relative_rpy: np.nd
     )
 
     # Pitch rotation matrix (around y-axis)
-    pitch = np.array(
+    pitch_mat = np.array(
         [
             [np.cos(pitch), 0, np.sin(pitch), 0],
             [0, 1, 0, 0],
@@ -250,7 +250,7 @@ def origin_and_rpy_to_transform(relative_origin: np.ndarray, relative_rpy: np.nd
     )
 
     # Yaw rotation matrix (around z-axis)
-    yaw = np.array(
+    yaw_mat = np.array(
         [
             [np.cos(yaw), -np.sin(yaw), 0, 0],
             [np.sin(yaw), np.cos(yaw), 0, 0],
@@ -260,7 +260,7 @@ def origin_and_rpy_to_transform(relative_origin: np.ndarray, relative_rpy: np.nd
     )
 
     # Combined rotation matrix
-    rpy = np.dot(yaw, np.dot(pitch, roll))
+    rpy = np.dot(yaw_mat, np.dot(pitch_mat, roll_mat))
 
     # Combined transformation matrix
     transform = np.dot(translation, rpy)
