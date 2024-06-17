@@ -18,7 +18,6 @@ from kol.geometry import (
     get_mesh_convex_hull,
     matrix_to_moments,
     moments_to_matrix,
-    origin_and_rpy_to_transform,
     scale_mesh,
 )
 from kol.mesh import Mesh, load_file
@@ -47,6 +46,73 @@ def get_part_name(element: ET.Element) -> str:
     if name is None:
         raise ValueError(f"{element.tag} link does not have a name")
     return name[5:] if name.startswith("link_") else name
+
+
+def origin_and_rpy_to_transform(relative_origin: np.ndarray, relative_rpy: np.ndarray) -> np.ndarray:
+    """Converts an origin and rpy to a transformation matrix.
+
+    Args:
+        relative_origin: A 3-element numpy array representing the relative origin.
+        relative_rpy: A 3-element numpy array representing the relative rpy.
+
+    Returns:
+        A (4, 4) transformation matrix.
+    """
+    if relative_origin.shape != (3,):
+        raise ValueError("relative_origin must be a 3-element numpy array")
+    if relative_rpy.shape != (3,):
+        raise ValueError("relative_rpy must be a 3-element numpy array")
+
+    x, y, z = relative_origin
+    roll, pitch, yaw = relative_rpy
+
+    # Create the translation matrix
+    translation = np.array(
+        [
+            [1, 0, 0, x],
+            [0, 1, 0, y],
+            [0, 0, 1, z],
+            [0, 0, 0, 1],
+        ]
+    )
+
+    # Roll rotation matrix (around x-axis)
+    roll_mat = np.array(
+        [
+            [1, 0, 0, 0],
+            [0, np.cos(roll), -np.sin(roll), 0],
+            [0, np.sin(roll), np.cos(roll), 0],
+            [0, 0, 0, 1],
+        ]
+    )
+
+    # Pitch rotation matrix (around y-axis)
+    pitch_mat = np.array(
+        [
+            [np.cos(pitch), 0, np.sin(pitch), 0],
+            [0, 1, 0, 0],
+            [-np.sin(pitch), 0, np.cos(pitch), 0],
+            [0, 0, 0, 1],
+        ]
+    )
+
+    # Yaw rotation matrix (around z-axis)
+    yaw_mat = np.array(
+        [
+            [np.cos(yaw), -np.sin(yaw), 0, 0],
+            [np.sin(yaw), np.cos(yaw), 0, 0],
+            [0, 0, 1, 0],
+            [0, 0, 0, 1],
+        ]
+    )
+
+    # Combined rotation matrix
+    rpy = np.dot(yaw_mat, np.dot(pitch_mat, roll_mat))
+
+    # Combined transformation matrix
+    transform = np.dot(translation, rpy)
+
+    return transform
 
 
 def find_all_mesh_transforms(root: ET.Element) -> Tuple[dict[str, np.ndarray], dict[str, np.ndarray]]:
@@ -240,14 +306,22 @@ def process_fixed_joints(urdf_etree: ET.ElementTree, scaling: float, urdf_path: 
                 raise ValueError("Corrupted joint element found in urdf.")
             parent_element = aux_joint.find("parent")
             child_element = aux_joint.find("child")
+            # print names of parent and child elements
+            print(parent_element.attrib["link"], child_element.attrib["link"])
             if parent_element is None or child_element is None:
                 raise ValueError("Parent or child element not found in joint during update")
             if parent_element.attrib["link"] in [parent_name, child_name]:
                 parent_element.attrib["link"] = new_part.attrib["name"]
                 # Remap joint to be relative to the new part
                 if aux_joint.attrib["name"] in joint_positions:
+                    parent_name = parent_element.attrib["link"]
+                    if parent_name.startswith("fused_component_"):
+                        parent_name = parent_name[16:]
+                    if not parent_name.startswith("link_"):
+                        parent_name = "link_" + parent_name
                     new_joint_transform = np.dot(
-                        np.linalg.inv(joint_positions[joint.attrib["name"]]), joint_positions[aux_joint.attrib["name"]]
+                        np.linalg.inv(mesh_positions[parent_name]),
+                        joint_positions[aux_joint.attrib["name"]],
                     )
                     # get the new relative origin and rpy
                     new_relative_origin = new_joint_transform[:3, 3]
@@ -257,6 +331,7 @@ def process_fixed_joints(urdf_etree: ET.ElementTree, scaling: float, urdf_path: 
             if child_element.attrib["link"] in [child_name, parent_name]:
                 child_element.attrib["link"] = new_part.attrib["name"]
         root.remove(joint)
+
     return urdf_etree
 
 
