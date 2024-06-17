@@ -116,7 +116,7 @@ class Converter:
         disable_mimics: bool = False,
         mesh_ext: MeshType = "stl",
         override_central_node: str | None = None,
-        merge_fixed_joints: bool = False,
+        skip_small_parts: bool = False,
     ) -> None:
         # Gets a default output directory.
         self.output_dir = (Path.cwd() / "robot" if output_dir is None else Path(output_dir)).resolve()
@@ -138,7 +138,7 @@ class Converter:
         self.disable_mimics = disable_mimics
         self.mesh_ext = mesh_ext
         self.override_central_node = override_central_node
-        self.merge_fixed_joints = merge_fixed_joints
+        self.skip_small_parts = skip_small_parts
 
         # Map containing all cached items.
         self.cache_map: dict[str, Any] = {}
@@ -874,18 +874,19 @@ class Converter:
             try:
                 urdf_joint = self.get_urdf_joint(joint)
                 urdf_link = self.get_urdf_part(joint.child, joint)
-                if "screw" in urdf_link.name:
-                    logging.warning("Skipping Screw Link")
-                    continue
-                if "tapping_insert" in urdf_link.name:
-                    logging.warning("Skipping Tapping Insert Link")
-                    continue
-                if "bearing" in urdf_link.name:
-                    logging.warning("Skipping Bearing Link")
-                    continue
-                if "hex_nut" in urdf_link.name:
-                    logging.warning("Skipping Hex Nut Link")
-                    continue
+                if self.skip_small_parts:
+                    if "screw" in urdf_link.name:
+                        logging.warning("Skipping Screw Link")
+                        continue
+                    if "tapping_insert" in urdf_link.name:
+                        logging.warning("Skipping Tapping Insert Link")
+                        continue
+                    if "bearing" in urdf_link.name:
+                        logging.warning("Skipping Bearing Link")
+                        continue
+                    if "hex_nut" in urdf_link.name:
+                        logging.warning("Skipping Hex Nut Link")
+                        continue
             except Exception as e:
                 logging.warning("Exception creating joint")
                 logging.warning(e)

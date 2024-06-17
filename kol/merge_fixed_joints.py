@@ -4,38 +4,28 @@ import logging
 import xml.etree.ElementTree as ET
 from copy import deepcopy
 from pathlib import Path
-from typing import Any, Optional, Union
-from uuid import uuid4
+from typing import Any, Optional, Tuple, Union
 
 import numpy as np
 from scipy.spatial.transform import Rotation as R
 
 from kol.formats.common import save_xml
-from kol.geometry import (
-    Dynamics,
-    combine_dynamics,
-    combine_meshes,
-    get_mesh_convex_hull,
-    matrix_to_moments,
-    moments_to_matrix,
-    origin_and_rpy_to_transform,
-    scale_mesh,
-)
+from kol.geometry import combine_meshes, scale_mesh
 
-# from kol.mesh import Mesh, load_file
+# from kol.geometry import (
+#     # Dynamics,
+#     # combine_dynamics,
+#     combine_meshes,
+#     # get_mesh_convex_hull,
+#     # matrix_to_moments,
+#     # moments_to_matrix,
+#     scale_mesh,
+# )
 from kol.mesh import load_file
 
 logger = logging.getLogger(__name__)
 
 MAX_NAME_LENGTH: int = 64
-
-
-def parse_urdf(file_path: Path) -> ET.Element:
-    with open(file_path, "r") as file:
-        urdf_xml = file.read()
-    if urdf_xml.startswith("<?xml"):
-        urdf_xml = urdf_xml.split("?>", 1)[1].strip()
-    return ET.fromstring(urdf_xml)
 
 
 def find_fixed_joint(urdf_etree: ET.Element) -> Optional[ET.Element]:
@@ -50,6 +40,128 @@ def get_link_by_name(urdf_etree: ET.Element, link_name: str | bytes) -> Optional
         if link.attrib["name"] == link_name:
             return link
     return None
+
+
+def get_part_name(element: ET.Element) -> str:
+    name = element.attrib.get("name")
+    if name is None:
+        raise ValueError(f"{element.tag} link does not have a name")
+    return name[5:] if name.startswith("link_") else name
+
+
+def origin_and_rpy_to_transform(relative_origin: np.ndarray, relative_rpy: np.ndarray) -> np.ndarray:
+    """Converts an origin and rpy to a transformation matrix.
+
+    Args:
+        relative_origin: A 3-element numpy array representing the relative origin.
+        relative_rpy: A 3-element numpy array representing the relative rpy.
+
+    Returns:
+        A (4, 4) transformation matrix.
+    """
+    if relative_origin.shape != (3,):
+        raise ValueError("relative_origin must be a 3-element numpy array")
+    if relative_rpy.shape != (3,):
+        raise ValueError("relative_rpy must be a 3-element numpy array")
+
+    x, y, z = relative_origin
+    roll, pitch, yaw = relative_rpy
+
+    # Create the translation matrix
+    translation = np.array(
+        [
+            [1, 0, 0, x],
+            [0, 1, 0, y],
+            [0, 0, 1, z],
+            [0, 0, 0, 1],
+        ]
+    )
+
+    # Roll rotation matrix (around x-axis)
+    roll_mat = np.array(
+        [
+            [1, 0, 0, 0],
+            [0, np.cos(roll), -np.sin(roll), 0],
+            [0, np.sin(roll), np.cos(roll), 0],
+            [0, 0, 0, 1],
+        ]
+    )
+
+    # Pitch rotation matrix (around y-axis)
+    pitch_mat = np.array(
+        [
+            [np.cos(pitch), 0, np.sin(pitch), 0],
+            [0, 1, 0, 0],
+            [-np.sin(pitch), 0, np.cos(pitch), 0],
+            [0, 0, 0, 1],
+        ]
+    )
+
+    # Yaw rotation matrix (around z-axis)
+    yaw_mat = np.array(
+        [
+            [np.cos(yaw), -np.sin(yaw), 0, 0],
+            [np.sin(yaw), np.cos(yaw), 0, 0],
+            [0, 0, 1, 0],
+            [0, 0, 0, 1],
+        ]
+    )
+
+    # Combined rotation matrix
+    rpy = np.dot(yaw_mat, np.dot(pitch_mat, roll_mat))
+
+    # Combined transformation matrix
+    transform = np.dot(translation, rpy)
+
+    return transform
+
+
+def find_all_mesh_transforms(root: ET.Element) -> Tuple[dict[str, np.ndarray], dict[str, np.ndarray]]:
+    """Goes joint by joint and gets the transforms of each link relative to root."""
+    link_transforms = {}
+    joint_transforms = {}
+    # add first link and joint to the dictionaries
+    first_link = root.find(".//link")
+    if first_link is None or "name" not in first_link.attrib:
+        raise ValueError("Root link not found or has no name attribute")
+    link_transforms[first_link.attrib["name"]] = np.eye(4)
+    # get all joints from root
+    joints = root.findall(".//joint")
+    # start by joints from the base link
+    for joint in joints:
+        # get parent info
+        parent_element = joint.find("parent")
+        if parent_element is None or "link" not in parent_element.attrib:
+            raise ValueError("Parent element not found or has no link attribute in joint")
+        parent_name = parent_element.attrib["link"]
+        parent = get_link_by_name(root, parent_name)
+        if parent is None:
+            raise ValueError(f"Parent link {parent_name!r} not found in the URDF")
+        # get child info
+        child_element = joint.find("child")
+        if child_element is None or "link" not in child_element.attrib:
+            raise ValueError("Child element not found or has no link attribute in joint")
+        child_name = child_element.attrib["link"]
+        child = get_link_by_name(root, child_name)
+        if child is None:
+            raise ValueError(f"Child link {child_name!r} not found in the URDF")
+
+        # get the relative transform between the two joints
+        origin_element = joint.find("origin")
+        if origin_element is None or "xyz" not in origin_element.attrib or "rpy" not in origin_element.attrib:
+            raise ValueError("Origin element not found or missing required attributes in joint")
+        relative_origin = string_to_nparray(origin_element.attrib["xyz"])
+        relative_rpy = string_to_nparray(origin_element.attrib["rpy"])
+        relative_transform = origin_and_rpy_to_transform(relative_origin, relative_rpy)
+        # populate dictionary for each link
+        if parent_name in link_transforms:
+            link_transforms[child_name] = np.dot(link_transforms[parent_name], relative_transform)
+            joint_transforms[joint.attrib["name"]] = link_transforms[child_name]
+        else:
+            link_transforms[parent_name] = np.eye(4)
+            link_transforms[child_name] = np.dot(link_transforms[parent_name], relative_transform)
+            joint_transforms[joint.attrib["name"]] = link_transforms[child_name]
+    return link_transforms, joint_transforms
 
 
 def string_to_nparray(string: Union[str, bytes, Any]) -> np.ndarray:  # noqa: ANN401
@@ -73,138 +185,74 @@ def get_new_rpy(
     return new_rpy
 
 
+def get_color(element: ET.Element) -> np.ndarray:
+    visual_elem = element.find("visual")
+    if visual_elem is not None:
+        material_elem = visual_elem.find("material")
+        if material_elem is not None:
+            color_elem = material_elem.find("color")
+            if color_elem is not None:
+                rgba = color_elem.attrib["rgba"].split()
+                return np.array([float(x) for x in rgba])
+    return np.array([0.5, 0.5, 0.5, 1.0])  # Default color if not found
+
+
 def combine_parts(
     parent: ET.Element,
     child: ET.Element,
-    relative_origin: np.ndarray,
-    relative_rpy: np.ndarray,
+    mesh_transforms: dict[str, np.ndarray],
     urdf_path: Path,
     scaling: float,
 ) -> ET.Element:
-    # Get new part name
-    parent_name = parent.attrib.get("name")
-    if parent_name is None:
-        raise ValueError("Parent link does not have a name")
-    if parent_name.startswith("link_"):
-        parent_name = parent_name[5:]
+    parent_name = get_part_name(parent)
+    child_name = get_part_name(child)
+    # make sure name is always oldest parent name
+    if parent_name.startswith("fused_component_"):
+        new_part_name = parent_name
+    else:
+        new_part_name = "fused_component_" + parent_name
 
-    child_name = child.attrib.get("name")
-    if child_name is None:
-        raise ValueError("Child link does not have a name")
-    if child_name.startswith("link_"):
-        child_name = child_name[5:]
-
-    # new_part_name = f"{parent_name}_{child_name}"
-    # new_part_name = new_part_name.replace("fused_", "", 1)
-    # new_part_name = "fused_" + new_part_name
-    # if len(new_part_name) > MAX_NAME_LENGTH:
-    #     new_part_name = f"{parent_name[:int(MAX_NAME_LENGTH/2)]}_{child_name[:int(MAX_NAME_LENGTH/2)]}"
-    #     new_part_name = new_part_name.replace("fused_", "", 1)
-    #     new_part_name = "fused_" + new_part_name
-    new_part_name = str(uuid4())[:8]
-
-    # Get pathing and mesh files
     mesh_dir = urdf_path.parent / "meshes"
-    combined_stl_file_name = f"{new_part_name}.stl"
-    combined_stl_file_path = mesh_dir / combined_stl_file_name
-    # combined_stl_file_path.unlink(missing_ok=True)
-
-    # Get parent and child meshes
     parent_mesh = load_file(mesh_dir / f"{parent_name}.stl")
     child_mesh = load_file(mesh_dir / f"{child_name}.stl")
-
-    # Combine the meshes using the relative origins
-    relative_transform = origin_and_rpy_to_transform(relative_origin, relative_rpy)
+    # pare down parent name to just the name of the mesh
+    if parent_name.startswith("fused_component_"):
+        parent_name = parent_name[16:]
+    if not parent_name.startswith("link_"):
+        parent_name = "link_" + parent_name
+    # process child name similarly
+    if child_name.startswith("fused_component_"):
+        child_name = child_name[16:]
+    if not child_name.startswith("link_"):
+        child_name = "link_" + child_name
+    parent_transform_inv = np.linalg.inv(mesh_transforms[parent_name])
+    relative_transform = np.dot(parent_transform_inv, mesh_transforms[child_name])
     combined_mesh = combine_meshes(parent_mesh, child_mesh, relative_transform)
-    combined_mesh.save(combined_stl_file_path)
+    combined_mesh.save(mesh_dir / f"{new_part_name}.stl")
 
-    # Get convex hull of combined mesh, and scale to good size.
-    combined_collision = deepcopy(combined_mesh)
-    combined_collision = get_mesh_convex_hull(combined_collision)
-    combined_collision = scale_mesh(combined_collision, scaling)
+    collision_mesh = deepcopy(combined_mesh)
+    collision_mesh = scale_mesh(collision_mesh, scaling)
+    collision_mesh.save(mesh_dir / f"{new_part_name}_collision.stl")
 
-    # Save collision mesh to filepath
-    combined_collision_stl_name = f"{new_part_name}_collision.stl"
-    collision_stl_file_path = mesh_dir / combined_collision_stl_name
-    combined_collision.save(collision_stl_file_path)
-
-    # Get combined dynamics
-    parent_dynamics = parent.find("inertial")
-    child_dynamics = child.find("inertial")
-    if parent_dynamics is None or child_dynamics is None:
-        raise ValueError("Inertial elements not found in parent or child")
-
-    parent_mass_element = parent_dynamics.find("mass")
-    child_mass_element = child_dynamics.find("mass")
-    if parent_mass_element is None or child_mass_element is None:
-        raise ValueError("Mass elements not found in parent or child inertial")
-    parent_mass = float(parent_mass_element.attrib["value"])
-    child_mass = float(child_mass_element.attrib["value"])
-
-    parent_origin_element = parent_dynamics.find("origin")
-    child_origin_element = child_dynamics.find("origin")
-    if parent_origin_element is None or child_origin_element is None:
-        raise ValueError("Origin elements not found in parent or child inertial")
-    parent_com = string_to_nparray(parent_origin_element.attrib["xyz"])
-    child_com = string_to_nparray(child_origin_element.attrib["xyz"])
-
-    parent_inertia_element = parent_dynamics.find("inertia")
-    child_inertia_element = child_dynamics.find("inertia")
-    if parent_inertia_element is None or child_inertia_element is None:
-        raise ValueError("Inertia elements not found in parent or child inertial")
-    parent_inertia = np.array([float(x) for x in parent_inertia_element.attrib.values()])
-    child_inertia = np.array([float(x) for x in child_inertia_element.attrib.values()])
-
-    parent_dynamics = Dynamics(parent_mass, parent_com, np.matrix(moments_to_matrix(parent_inertia)))
-    child_dynamics = Dynamics(child_mass, child_com, np.matrix(moments_to_matrix(child_inertia)))
-    combined_dynamics = combine_dynamics([parent_dynamics, child_dynamics])
-
-    # Create new part element
     new_part = ET.Element("link", attrib={"name": new_part_name})
 
-    # Get combined visual mesh
-    new_visual = ET.SubElement(new_part, "visual")
-    ET.SubElement(new_visual, "origin", attrib={"xyz": "0 0 0", "rpy": "0 0 0"})
-    visual_geometry = ET.SubElement(new_visual, "geometry")
-    ET.SubElement(visual_geometry, "mesh", attrib={"filename": combined_stl_file_name})
-    visual_material = ET.SubElement(new_visual, "material", attrib={"name": combined_stl_file_name + "_material"})
-    ET.SubElement(visual_material, "color", attrib={"rgba": "0.5 0.5 0.5 1"})
+    def create_visual_and_collision_elements(tag: str, file_name: str) -> None:
+        element = ET.SubElement(new_part, tag, {})
+        ET.SubElement(element, "origin", {"xyz": "0 0 0", "rpy": "0 0 0"})
+        geometry = ET.SubElement(element, "geometry", {})
+        ET.SubElement(geometry, "mesh", {"filename": file_name})
+        if tag == "visual":
+            parent_color = get_color(parent)
+            child_color = get_color(child)
+            combined_color = (parent_color + child_color) / 2
+            material = ET.SubElement(element, "material", {"name": f"{file_name}_material"})  # same as parent joint
+            ET.SubElement(
+                material, "color", {"rgba": " ".join(map(str, combined_color))}
+            )  # average of parent and child colors
 
-    # Get combined collision mesh
-    new_collision = ET.SubElement(new_part, "collision")
-    ET.SubElement(new_collision, "origin", attrib={"xyz": "0 0 0", "rpy": "0 0 0"})
-    collision_geometry = ET.SubElement(new_collision, "geometry")
-    ET.SubElement(collision_geometry, "mesh", attrib={"filename": combined_collision_stl_name})
-    logger.info("Got combined meshes and dynamics.")
+    create_visual_and_collision_elements("visual", f"{new_part_name}.stl")
+    create_visual_and_collision_elements("collision", f"{new_part_name}_collision.stl")
 
-    # Create inertial element
-    new_inertial = ET.SubElement(new_part, "inertial")
-    ET.SubElement(new_inertial, "mass", attrib={"value": str(combined_dynamics.mass)})
-    ET.SubElement(new_inertial, "inertia", attrib=matrix_to_moments(combined_dynamics.inertia))
-
-    parent_inertial = parent.find("inertial")
-    child_inertial = child.find("inertial")
-
-    if parent_inertial is None or child_inertial is None:
-        raise ValueError("Inertial elements not found in parent or child")
-
-    parent_rpy_origin = parent_inertial.find("origin")
-    child_rpy_origin = child_inertial.find("origin")
-
-    if parent_rpy_origin is None or child_rpy_origin is None:
-        raise ValueError("Origin element not found in parent or child inertial")
-    parent_rpy = string_to_nparray(parent_rpy_origin.attrib["rpy"])
-    child_rpy = string_to_nparray(child_rpy_origin.attrib["rpy"])
-    new_rpy = get_new_rpy(parent_mass, child_mass, parent_rpy, child_rpy)
-
-    ET.SubElement(
-        new_inertial,
-        "origin",
-        attrib={
-            "xyz": " ".join(map(str, combined_dynamics.com.tolist())),
-            "rpy": " ".join(map(str, new_rpy.tolist())),
-        },
-    )
     return new_part
 
 
@@ -213,6 +261,8 @@ def process_fixed_joints(urdf_etree: ET.ElementTree, scaling: float, urdf_path: 
     if urdf_etree is None:
         raise ValueError("Invalid URDF etree.")
     root = urdf_etree.getroot()
+    # Create dictionary to store each mesh position relative to its oldest parent
+    mesh_positions, joint_positions = find_all_mesh_transforms(root)
 
     # While there still exists fixed joints, fuse the parts they connect.
     while True:
@@ -222,16 +272,16 @@ def process_fixed_joints(urdf_etree: ET.ElementTree, scaling: float, urdf_path: 
 
         # Get the parent and child of the fixed joint
         parent_element = joint.find("parent")
-        if parent_element is None:
-            raise ValueError("Parent element not found in joint")
+        if parent_element is None or "link" not in parent_element.attrib:
+            raise ValueError("Parent element not found or has no link attribute in joint")
         parent_name = parent_element.attrib["link"]
         parent = get_link_by_name(root, parent_name)
         if parent is None:
             raise ValueError(f"Parent link {parent_name!r} not found in the URDF")
 
         child_element = joint.find("child")
-        if child_element is None:
-            raise ValueError("Child element not found in joint")
+        if child_element is None or "link" not in child_element.attrib:
+            raise ValueError("Child element not found or has no link attribute in joint")
         child_name = child_element.attrib["link"]
         child = get_link_by_name(root, child_name)
         if child is None:
@@ -242,31 +292,57 @@ def process_fixed_joints(urdf_etree: ET.ElementTree, scaling: float, urdf_path: 
         origin_element = joint.find("origin")
         if origin_element is None:
             raise ValueError("Origin element not found in joint")
-        relative_origin = string_to_nparray(origin_element.attrib["xyz"])
-        relative_rpy = string_to_nparray(origin_element.attrib["rpy"])
+
+        # Remove the fixed child link
+        for link in root.findall(".//link"):
+            if "name" in link.attrib and link.attrib["name"] in [parent_name, child_name]:
+                root.remove(link)
 
         # Fuse the parts and add to second index of etree to preserve central node
-        new_part = combine_parts(parent, child, relative_origin, relative_rpy, urdf_path, scaling)
+        new_part = combine_parts(parent, child, mesh_positions, urdf_path, scaling)
         root.insert(1, new_part)
 
-        # Replace the parent and child at all joints with the new part
-        root.remove(joint)
-        for joint in root.findall(".//joint"):
-            if joint is None:
-                raise ValueError("Joint element not found in root")
-            parent_element = joint.find("parent")
-            child_element = joint.find("child")
-            if parent_element is None or child_element is None:
-                raise ValueError("Parent or child element not found in joint during update")
+        # Replace the parent and child at all auxiliary joints with the new part
+        for aux_joint in root.findall(".//joint"):
+            if aux_joint == joint:
+                continue
+            if aux_joint is None:
+                raise ValueError("Corrupted joint element found in urdf.")
+            parent_element = aux_joint.find("parent")
+            child_element = aux_joint.find("child")
+            # print names of parent and child elements
+            if (
+                parent_element is None
+                or "link" not in parent_element.attrib
+                or child_element is None
+                or "link" not in child_element.attrib
+            ):
+                raise ValueError("Parent or child element not found or has no link attribute in joint during update")
+            print(parent_element.attrib["link"], child_element.attrib["link"])
             if parent_element.attrib["link"] in [parent_name, child_name]:
                 parent_element.attrib["link"] = new_part.attrib["name"]
+                # Remap joint to be relative to the new part
+                if aux_joint.attrib["name"] in joint_positions:
+                    parent_name = parent_element.attrib["link"]
+                    if parent_name.startswith("fused_component_"):
+                        parent_name = parent_name[16:]
+                    if not parent_name.startswith("link_"):
+                        parent_name = "link_" + parent_name
+                    new_joint_transform = np.dot(
+                        np.linalg.inv(mesh_positions[parent_name]),
+                        joint_positions[aux_joint.attrib["name"]],
+                    )
+                    # get the new relative origin and rpy
+                    new_relative_origin = new_joint_transform[:3, 3]
+                    new_relative_rpy = R.from_matrix(new_joint_transform[:3, :3]).as_euler("xyz")
+                    origin_elem = aux_joint.find("origin")
+                    if origin_elem is None:
+                        raise ValueError("Origin element not found in aux joint during update")
+                    origin_elem.attrib["xyz"] = " ".join(map(str, new_relative_origin))
+                    origin_elem.attrib["rpy"] = " ".join(map(str, new_relative_rpy))
             if child_element.attrib["link"] in [child_name, parent_name]:
                 child_element.attrib["link"] = new_part.attrib["name"]
-
-        # Remove the fixed joint and parent and child links
-        for link in root.findall(".//link"):
-            if link.attrib["name"] in [parent_name, child_name]:
-                root.remove(link)
+        root.remove(joint)
 
     return urdf_etree
 
@@ -291,8 +367,7 @@ def get_merged_urdf(
 
     # Load the URDF file
     logger.info("Getting element tree from mesh filepath.")
-    urdf = parse_urdf(urdf_path)
-    urdf_tree = ET.ElementTree(urdf)
+    urdf_tree = ET.parse(urdf_path)
     # Process the fixed joints
     logger.info("Processing fixed joints, starting joint count: %d", len(urdf_tree.findall(".//joint")))
     merged_urdf = process_fixed_joints(urdf_tree, scaling, urdf_path)
@@ -304,8 +379,32 @@ def get_merged_urdf(
     if cleanup_fused_meshes:
         logger.info("Cleaning up obsolete meshes.")
         mesh_dir = urdf_path.parent / "meshes"
+        all_links = merged_urdf.findall(".//link")
+        all_stl_names = []
+        for link in all_links:
+            visual = link.find("visual")
+            if visual is not None:
+                mesh = visual.find("geometry/mesh")
+                if mesh is not None:
+                    all_stl_names.append(mesh.attrib["filename"])
+
+        all_collision_names = []
+        for link in all_links:
+            collision = link.find("collision")
+            if collision is not None:
+                mesh = collision.find("geometry/mesh")
+                if mesh is not None:
+                    all_collision_names.append(mesh.attrib["filename"])
+
+        all_stls = all_stl_names + all_collision_names
+        all_stls = [
+            filepath[len("./meshes/") :] if filepath.startswith("./meshes/") else filepath for filepath in all_stls
+        ]
+
         for mesh_file in mesh_dir.glob("*.stl"):
-            if mesh_file.name not in [link.attrib["filename"] for link in merged_urdf.findall(".//link")]:
+            filename = mesh_file.name
+            link_filename = "link_" + filename
+            if filename not in all_stls and link_filename not in all_stls:
                 mesh_file.unlink()
                 deleted += 1
         logger.info("Cleaned up %d meshes.", deleted)

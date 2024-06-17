@@ -29,7 +29,7 @@ def main(args: Sequence[str] | None = None) -> None:
     parser.add_argument("--disable-mimics", action="store_true", help="Disable the mimic joints")
     parser.add_argument("--mesh-ext", type=str, default="stl", choices=get_args(MeshType), help="The mesh file format")
     parser.add_argument("--override-central-node", type=str, default=None, help="Override central link")
-    parser.add_argument("--merge-fixed-joints", action="store_true", help="Merge fixed joints")
+    parser.add_argument("--skip-small-parts", action="store_true", help="Skip small parts")
     parsed_args = parser.parse_args(args)
 
     configure_logging(level=logging.DEBUG if parsed_args.debug else logging.INFO)
@@ -66,7 +66,7 @@ def main(args: Sequence[str] | None = None) -> None:
         disable_mimics=parsed_args.disable_mimics,
         mesh_ext=parsed_args.mesh_ext,
         override_central_node=parsed_args.override_central_node,
-        merge_fixed_joints=parsed_args.merge_fixed_joints,
+        skip_small_parts=parsed_args.skip_small_parts,
     ).save_urdf()
 
 
