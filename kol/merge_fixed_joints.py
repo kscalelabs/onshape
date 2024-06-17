@@ -11,15 +11,15 @@ from scipy.spatial.transform import Rotation as R
 
 from kol.formats.common import save_xml
 from kol.geometry import (
-    Dynamics,
-    combine_dynamics,
+    # Dynamics,
+    # combine_dynamics,
     combine_meshes,
-    get_mesh_convex_hull,
-    matrix_to_moments,
-    moments_to_matrix,
+    # get_mesh_convex_hull,
+    # matrix_to_moments,
+    # moments_to_matrix,
     scale_mesh,
 )
-from kol.mesh import Mesh, load_file
+from kol.mesh import load_file
 
 logger = logging.getLogger(__name__)
 
