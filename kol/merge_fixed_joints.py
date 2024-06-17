@@ -5,7 +5,6 @@ import xml.etree.ElementTree as ET
 from copy import deepcopy
 from pathlib import Path
 from typing import Any, Optional, Tuple, Union
-from uuid import uuid4
 
 import numpy as np
 from scipy.spatial.transform import Rotation as R
@@ -120,23 +119,26 @@ def find_all_mesh_transforms(root: ET.Element) -> Tuple[dict[str, np.ndarray], d
     link_transforms = {}
     joint_transforms = {}
     # add first link and joint to the dictionaries
-    link_transforms[root.find(".//link").attrib["name"]] = np.eye(4)
+    first_link = root.find(".//link")
+    if first_link is None or "name" not in first_link.attrib:
+        raise ValueError("Root link not found or has no name attribute")
+    link_transforms[first_link.attrib["name"]] = np.eye(4)
     # get all joints from root
     joints = root.findall(".//joint")
     # start by joints from the base link
     for joint in joints:
         # get parent info
         parent_element = joint.find("parent")
-        if parent_element is None:
-            raise ValueError("Parent element not found in joint")
+        if parent_element is None or "link" not in parent_element.attrib:
+            raise ValueError("Parent element not found or has no link attribute in joint")
         parent_name = parent_element.attrib["link"]
         parent = get_link_by_name(root, parent_name)
         if parent is None:
             raise ValueError(f"Parent link {parent_name!r} not found in the URDF")
         # get child info
         child_element = joint.find("child")
-        if child_element is None:
-            raise ValueError("Child element not found in joint")
+        if child_element is None or "link" not in child_element.attrib:
+            raise ValueError("Child element not found or has no link attribute in joint")
         child_name = child_element.attrib["link"]
         child = get_link_by_name(root, child_name)
         if child is None:
@@ -144,8 +146,8 @@ def find_all_mesh_transforms(root: ET.Element) -> Tuple[dict[str, np.ndarray], d
 
         # get the relative transform between the two joints
         origin_element = joint.find("origin")
-        if origin_element is None:
-            raise ValueError("Origin element not found in joint")
+        if origin_element is None or "xyz" not in origin_element.attrib or "rpy" not in origin_element.attrib:
+            raise ValueError("Origin element not found or missing required attributes in joint")
         relative_origin = string_to_nparray(origin_element.attrib["xyz"])
         relative_rpy = string_to_nparray(origin_element.attrib["rpy"])
         relative_transform = origin_and_rpy_to_transform(relative_origin, relative_rpy)
@@ -268,16 +270,16 @@ def process_fixed_joints(urdf_etree: ET.ElementTree, scaling: float, urdf_path: 
 
         # Get the parent and child of the fixed joint
         parent_element = joint.find("parent")
-        if parent_element is None:
-            raise ValueError("Parent element not found in joint")
+        if parent_element is None or "link" not in parent_element.attrib:
+            raise ValueError("Parent element not found or has no link attribute in joint")
         parent_name = parent_element.attrib["link"]
         parent = get_link_by_name(root, parent_name)
         if parent is None:
             raise ValueError(f"Parent link {parent_name!r} not found in the URDF")
 
         child_element = joint.find("child")
-        if child_element is None:
-            raise ValueError("Child element not found in joint")
+        if child_element is None or "link" not in child_element.attrib:
+            raise ValueError("Child element not found or has no link attribute in joint")
         child_name = child_element.attrib["link"]
         child = get_link_by_name(root, child_name)
         if child is None:
@@ -291,7 +293,7 @@ def process_fixed_joints(urdf_etree: ET.ElementTree, scaling: float, urdf_path: 
 
         # Remove the fixed child link
         for link in root.findall(".//link"):
-            if link.attrib["name"] in [parent_name, child_name]:
+            if "name" in link.attrib and link.attrib["name"] in [parent_name, child_name]:
                 root.remove(link)
 
         # Fuse the parts and add to second index of etree to preserve central node
@@ -307,9 +309,14 @@ def process_fixed_joints(urdf_etree: ET.ElementTree, scaling: float, urdf_path: 
             parent_element = aux_joint.find("parent")
             child_element = aux_joint.find("child")
             # print names of parent and child elements
+            if (
+                parent_element is None
+                or "link" not in parent_element.attrib
+                or child_element is None
+                or "link" not in child_element.attrib
+            ):
+                raise ValueError("Parent or child element not found or has no link attribute in joint during update")
             print(parent_element.attrib["link"], child_element.attrib["link"])
-            if parent_element is None or child_element is None:
-                raise ValueError("Parent or child element not found in joint during update")
             if parent_element.attrib["link"] in [parent_name, child_name]:
                 parent_element.attrib["link"] = new_part.attrib["name"]
                 # Remap joint to be relative to the new part
@@ -326,8 +333,11 @@ def process_fixed_joints(urdf_etree: ET.ElementTree, scaling: float, urdf_path: 
                     # get the new relative origin and rpy
                     new_relative_origin = new_joint_transform[:3, 3]
                     new_relative_rpy = R.from_matrix(new_joint_transform[:3, :3]).as_euler("xyz")
-                    aux_joint.find("origin").attrib["xyz"] = " ".join(map(str, new_relative_origin))
-                    aux_joint.find("origin").attrib["rpy"] = " ".join(map(str, new_relative_rpy))
+                    origin_elem = aux_joint.find("origin")
+                    if origin_elem is None:
+                        raise ValueError("Origin element not found in aux joint during update")
+                    origin_elem.attrib["xyz"] = " ".join(map(str, new_relative_origin))
+                    origin_elem.attrib["rpy"] = " ".join(map(str, new_relative_rpy))
             if child_element.attrib["link"] in [child_name, parent_name]:
                 child_element.attrib["link"] = new_part.attrib["name"]
         root.remove(joint)
@@ -368,18 +378,27 @@ def get_merged_urdf(
         logger.info("Cleaning up obsolete meshes.")
         mesh_dir = urdf_path.parent / "meshes"
         all_links = merged_urdf.findall(".//link")
-        all_visuals = (link.find("visual") for link in all_links)
-        all_stl_names = [
-            visual.find("geometry/mesh").attrib["filename"] for visual in all_visuals if visual is not None
-        ]
-        all_collisions = (link.find("collision") for link in all_links)
-        all_collision_names = [
-            collision.find("geometry/mesh").attrib["filename"] for collision in all_collisions if collision is not None
-        ]
+        all_stl_names = []
+        for link in all_links:
+            visual = link.find("visual")
+            if visual is not None:
+                mesh = visual.find("geometry/mesh")
+                if mesh is not None:
+                    all_stl_names.append(mesh.attrib["filename"])
+
+        all_collision_names = []
+        for link in all_links:
+            collision = link.find("collision")
+            if collision is not None:
+                mesh = collision.find("geometry/mesh")
+                if mesh is not None:
+                    all_collision_names.append(mesh.attrib["filename"])
+
         all_stls = all_stl_names + all_collision_names
         all_stls = [
             filepath[len("./meshes/") :] if filepath.startswith("./meshes/") else filepath for filepath in all_stls
         ]
+
         for mesh_file in mesh_dir.glob("*.stl"):
             filename = mesh_file.name
             link_filename = "link_" + filename

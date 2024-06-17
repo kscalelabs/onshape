@@ -3,9 +3,10 @@
 import logging
 import xml.etree.ElementTree as ET
 from pathlib import Path
-from kol.formats.common import save_xml
 
 import open3d as o3d
+
+from kol.formats.common import save_xml
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
