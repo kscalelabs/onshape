@@ -4,6 +4,7 @@ import argparse
 from typing import Sequence
 
 from kol.scripts import (
+    cleanup_mesh_dir,
     get_mjcf,
     get_urdf,
     merge_fixed_joints,
@@ -19,7 +20,17 @@ def main(args: Sequence[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description="K-Scale OnShape Library", add_help=False)
     parser.add_argument(
         "subcommand",
-        choices=["urdf", "mjcf", "pybullet", "mujoco", "stl", "simplify", "merge-fixed-joints", "simplify-all"],
+        choices=[
+            "urdf",
+            "mjcf",
+            "pybullet",
+            "mujoco",
+            "stl",
+            "simplify",
+            "merge-fixed-joints",
+            "simplify-all",
+            "cleanup-mesh-dir",
+        ],
         help="The subcommand to run",
     )
     parsed_args, remaining_args = parser.parse_known_args(args)
@@ -41,6 +52,8 @@ def main(args: Sequence[str] | None = None) -> None:
             merge_fixed_joints.main(remaining_args)
         case "simplify-all":
             simplify_meshes.main(remaining_args)
+        case "cleanup-mesh-dir":
+            cleanup_mesh_dir.main(remaining_args)
         case _:
             raise ValueError(f"Unknown subcommand: {parsed_args.subcommand}")
 
