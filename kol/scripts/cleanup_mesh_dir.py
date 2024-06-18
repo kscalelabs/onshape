@@ -24,6 +24,7 @@ def main(args: Sequence[str] | None = None) -> None:
 
     all_links = urdf_tree.findall(".//link")
     all_stl_names = []
+    # Collect all mesh filenames from visual and collision tags
     for link in all_links:
         visual = link.find("visual")
         if visual is not None:
@@ -36,6 +37,8 @@ def main(args: Sequence[str] | None = None) -> None:
             mesh = collision.find("geometry/mesh")
             if mesh is not None:
                 all_stl_names.append(mesh.attrib["filename"])
+
+    # Remove meshes not mentioned in the urdf
     all_stl_names = [name.split("/")[-1] for name in all_stl_names]
     for mesh_file in mesh_dir.glob("*.stl"):
         if mesh_file.name not in all_stl_names:

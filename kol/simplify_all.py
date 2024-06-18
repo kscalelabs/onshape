@@ -15,7 +15,7 @@ total_removed = 0
 
 
 def simplify_mesh(filepath: str, voxel_size: float) -> tuple[str, str]:
-    """Simplifies a mesh by clustering vertices."""
+    """Simplifies a single mesh by clustering vertices."""
     # if file path doesn't include /meshes/, add it in after robot/
     if "/meshes/" not in filepath:
         filepath = filepath.replace("robot/", "robot/meshes/")
@@ -26,6 +26,7 @@ def simplify_mesh(filepath: str, voxel_size: float) -> tuple[str, str]:
         contraction=o3d.geometry.SimplificationContraction.Average,
     )
     logger.info("Simplified mesh from %d to %d vertices", len(mesh.vertices), len(simple_mesh.vertices))
+
     # Remove old mesh and save the simplified one
     ext = Path(filepath).suffix
     if ext.lower() == ".stl":
@@ -63,6 +64,8 @@ def simplify_all(
                 geometry = element.find("geometry/mesh")
                 if geometry is not None and "filename" in geometry.attrib:
                     filepaths.add(mesh_dir / geometry.attrib["filename"])
+                else:
+                    logger.warning("No geometry found for %s tag in link %s", tag, link.attrib["name"])
 
     new_filepaths = {}
     new_meshes = {}
@@ -84,6 +87,12 @@ def simplify_all(
                     new_filepath = new_filepaths.get(str(mesh_dir / old_filepath), "")
                     if new_filepath:
                         geometry.attrib["filename"] = str(Path(new_filepath).relative_to(mesh_dir))
+                    else:
+                        logger.warning("No new filepath found for %s tag in link %s", tag, link.attrib["name"])
+                else:
+                    logger.warning("No geometry found for %s tag in link %s", tag, link.attrib["name"])
+            else:
+                logger.warning("No geometry found for %s tag in link %s", tag, link.attrib["name"])
 
     # Save the updated URDF file
     new_urdf_path = urdf_path.with_name(urdf_path.stem + "_simplified" + urdf_path.suffix)
