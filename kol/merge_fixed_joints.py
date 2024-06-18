@@ -67,7 +67,6 @@ def origin_and_rpy_to_transform(relative_origin: np.ndarray, relative_rpy: np.nd
     x, y, z = relative_origin
     roll, pitch, yaw = relative_rpy
 
-    # Create the translation matrix
     translation = np.array(
         [
             [1, 0, 0, x],
@@ -76,8 +75,6 @@ def origin_and_rpy_to_transform(relative_origin: np.ndarray, relative_rpy: np.nd
             [0, 0, 0, 1],
         ]
     )
-
-    # Roll rotation matrix (around x-axis)
     roll_mat = np.array(
         [
             [1, 0, 0, 0],
@@ -86,8 +83,6 @@ def origin_and_rpy_to_transform(relative_origin: np.ndarray, relative_rpy: np.nd
             [0, 0, 0, 1],
         ]
     )
-
-    # Pitch rotation matrix (around y-axis)
     pitch_mat = np.array(
         [
             [np.cos(pitch), 0, np.sin(pitch), 0],
@@ -96,8 +91,6 @@ def origin_and_rpy_to_transform(relative_origin: np.ndarray, relative_rpy: np.nd
             [0, 0, 0, 1],
         ]
     )
-
-    # Yaw rotation matrix (around z-axis)
     yaw_mat = np.array(
         [
             [np.cos(yaw), -np.sin(yaw), 0, 0],
@@ -107,12 +100,8 @@ def origin_and_rpy_to_transform(relative_origin: np.ndarray, relative_rpy: np.nd
         ]
     )
 
-    # Combined rotation matrix
     rpy = np.dot(yaw_mat, np.dot(pitch_mat, roll_mat))
-
-    # Combined transformation matrix
     transform = np.dot(translation, rpy)
-
     return transform
 
 
@@ -125,9 +114,9 @@ def find_all_mesh_transforms(root: ET.Element) -> Tuple[dict[str, np.ndarray], d
     if first_link is None or "name" not in first_link.attrib:
         raise ValueError("Root link not found or has no name attribute")
     link_transforms[first_link.attrib["name"]] = np.eye(4)
+
     # get all joints from root
     joints = root.findall(".//joint")
-    # start by joints from the base link
     for joint in joints:
         # get parent info
         parent_element = joint.find("parent")

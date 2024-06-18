@@ -71,6 +71,32 @@ You can visualize the resulting MJCF using MuJoCO:
 mjpython -m kol.scripts.cli mujoco robot/<mjcf-name>.xml
 ```
 
+### Advanced Tools
+For improving simulation speed and reducing internal collisions, you can choose to merge a URDF at each of 
+its fixed joints.
+
+``` bash
+kol merge-fixed-joints robot/URDF.urdf
+```
+
+To simplify each of the meshes in a URDF using vertex clustering:
+``` bash
+kol simplify-all robot/URDF.urdf
+```
+
+To cleanup the meshes directory by removing all meshes not referenced in a urdf:
+``` bash
+kol cleanup-mesh-dir robot/URDF.urdf
+```
+
+For example, if you wanted to download the 5-DOF stompy arm, merge and simplify, then clean the directory.
+``` bash
+kol urdf https://cad.onshape.com/documents/afaee604f6ca311526a6aec8/w/29af84cb974c2d825b71de39/e/4fef6bce7179a665e62b03ba
+&& kol merge-fixed-joints robot/assembly_1.urdf
+&& kol simplify-all robot/assembly_1_merged.urdf
+&& kol cleanup-mesh-dir robot/assembly_1_merged_simplified.urdf
+```
+
 ### Notes
 
 - [OnShape API explorer](https://cad.onshape.com/glassworks/explorer/#/Assembly/getFeatures)
