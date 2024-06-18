@@ -310,7 +310,6 @@ def process_fixed_joints(urdf_etree: ET.ElementTree, scaling: float, urdf_path: 
                 raise ValueError("Corrupted joint element found in urdf.")
             parent_element = aux_joint.find("parent")
             child_element = aux_joint.find("child")
-            # print names of parent and child elements
             if (
                 parent_element is None
                 or "link" not in parent_element.attrib
@@ -318,7 +317,6 @@ def process_fixed_joints(urdf_etree: ET.ElementTree, scaling: float, urdf_path: 
                 or "link" not in child_element.attrib
             ):
                 raise ValueError("Parent or child element not found or has no link attribute in joint during update")
-            print(parent_element.attrib["link"], child_element.attrib["link"])
             if parent_element.attrib["link"] in [parent_name, child_name]:
                 parent_element.attrib["link"] = new_part.attrib["name"]
                 # Remap joint to be relative to the new part
@@ -350,14 +348,12 @@ def process_fixed_joints(urdf_etree: ET.ElementTree, scaling: float, urdf_path: 
 def get_merged_urdf(
     urdf_path: Path,
     scaling: float,
-    cleanup_fused_meshes: bool,
 ) -> None:
     """Merges meshes at each fixed joints to avoid collision issues.
 
     Args:
         urdf_path: The path to the urdf file.
         scaling: The scaling factor to apply to the meshes.
-        cleanup_fused_meshes: Whether to remove the fused meshes after merging.
 
     Returns:
         The path to the merged urdf file.
@@ -374,40 +370,6 @@ def get_merged_urdf(
     if merged_urdf is None:
         raise ValueError("Failed to merge fixed joints.")
     logger.info("Finished processing fixed joints, ending joint count: %d", len(merged_urdf.findall(".//joint")))
-    # Cleanup the meshes directory by removing all meshes not referenced in urdf
-    deleted = 0
-    if cleanup_fused_meshes:
-        logger.info("Cleaning up obsolete meshes.")
-        mesh_dir = urdf_path.parent / "meshes"
-        all_links = merged_urdf.findall(".//link")
-        all_stl_names = []
-        for link in all_links:
-            visual = link.find("visual")
-            if visual is not None:
-                mesh = visual.find("geometry/mesh")
-                if mesh is not None:
-                    all_stl_names.append(mesh.attrib["filename"])
-
-        all_collision_names = []
-        for link in all_links:
-            collision = link.find("collision")
-            if collision is not None:
-                mesh = collision.find("geometry/mesh")
-                if mesh is not None:
-                    all_collision_names.append(mesh.attrib["filename"])
-
-        all_stls = all_stl_names + all_collision_names
-        all_stls = [
-            filepath[len("./meshes/") :] if filepath.startswith("./meshes/") else filepath for filepath in all_stls
-        ]
-
-        for mesh_file in mesh_dir.glob("*.stl"):
-            filename = mesh_file.name
-            link_filename = "link_" + filename
-            if filename not in all_stls and link_filename not in all_stls:
-                mesh_file.unlink()
-                deleted += 1
-        logger.info("Cleaned up %d meshes.", deleted)
 
     # Save the merged URDF
     merged_urdf_path = urdf_path.parent / f"{urdf_path.stem}_merged.urdf"
