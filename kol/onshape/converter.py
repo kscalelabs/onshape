@@ -117,6 +117,7 @@ class Converter:
         mesh_ext: MeshType = "stl",
         override_central_node: str | None = None,
         skip_small_parts: bool = False,
+        remove_inertia: bool = False,
     ) -> None:
         # Gets a default output directory.
         self.output_dir = (Path.cwd() / "robot" if output_dir is None else Path(output_dir)).resolve()
@@ -139,6 +140,7 @@ class Converter:
         self.mesh_ext = mesh_ext
         self.override_central_node = override_central_node
         self.skip_small_parts = skip_small_parts
+        self.remove_inertia = remove_inertia
 
         # Map containing all cached items.
         self.cache_map: dict[str, Any] = {}
@@ -675,26 +677,30 @@ class Converter:
                     color=[c / 255.0 for c in part_color],
                 ),
             ),
-            inertial=urdf.InertialLink(
-                origin=urdf.Origin(
-                    xyz=center_of_mass,
-                    rpy=principal_axes_rpy,
-                ),
-                mass=mass,
-                inertia=urdf.Inertia(
-                    ixx=float(inertia_transformed[0, 0]),
-                    ixy=float(inertia_transformed[0, 1]),
-                    ixz=float(inertia_transformed[0, 2]),
-                    iyy=float(inertia_transformed[1, 1]),
-                    iyz=float(inertia_transformed[1, 2]),
-                    izz=float(inertia_transformed[2, 2]),
-                ),
-            ),
             collision=urdf.CollisionLink(
                 origin=mesh_origin,
                 geometry=urdf.MeshGeometry(filename=urdf_file_path),
             ),
         )
+
+        inertial = urdf.InertialLink(
+            origin=urdf.Origin(
+                xyz=center_of_mass,
+                rpy=principal_axes_rpy,
+            ),
+            mass=mass,
+            inertia=urdf.Inertia(
+                ixx=float(inertia_transformed[0, 0]),
+                ixy=float(inertia_transformed[0, 1]),
+                ixz=float(inertia_transformed[0, 2]),
+                iyy=float(inertia_transformed[1, 1]),
+                iyz=float(inertia_transformed[1, 2]),
+                izz=float(inertia_transformed[2, 2]),
+            ),
+        )
+
+        if not self.remove_inertia:
+            urdf_part_link.inertial = inertial
 
         return urdf_part_link
 
