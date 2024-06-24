@@ -435,7 +435,6 @@ class Robot:
         robot_name: str,
         output_dir: str | Path,
         compiler: Compiler | None = None,
-        remove_inertia: bool = True,
     ) -> None:
         """Initialize the robot.
 
@@ -443,27 +442,20 @@ class Robot:
             robot_name (str): The name of the robot.
             output_dir (str | Path): The output directory.
             compiler (Compiler, optional): The compiler settings.
-            remove_inertia (bool, optional): Whether to remove inertia tags.
         """
         self.robot_name = robot_name
         self.output_dir = output_dir
         self.compiler = compiler
-        self._set_clean_up(remove_inertia)
+        self._set_clean_up()
         self.tree = ET.parse(self.output_dir / f"{self.robot_name}.xml")
 
-    def _set_clean_up(self, remove_inertia: bool = True) -> None:
+    def _set_clean_up(self) -> None:
         # HACK
         # mujoco has a hard time reading meshes
         _copy_stl_files(self.output_dir / "meshes", self.output_dir)
 
         urdf_tree = ET.parse(self.output_dir / f"{self.robot_name}.urdf")
         root = urdf_tree.getroot()
-        if remove_inertia:
-            # remove inertia tags
-            for link in root.findall(".//link"):
-                inertial = link.find("inertial")
-                if inertial is not None:
-                    link.remove(inertial)
 
         tree = ET.ElementTree(root)
         tree.write(self.output_dir / f"{self.robot_name}.urdf", encoding="utf-8", xml_declaration=True)

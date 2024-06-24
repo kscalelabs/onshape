@@ -30,6 +30,7 @@ def main(args: Sequence[str] | None = None) -> None:
     parser.add_argument("--mesh-ext", type=str, default="stl", choices=get_args(MeshType), help="The mesh file format")
     parser.add_argument("--override-central-node", type=str, default=None, help="Override central link")
     parser.add_argument("--skip-small-parts", action="store_true", help="Skip small parts")
+    parser.add_argument("--remove_inertia", action="store_true", help="Enable debug logging")
     parsed_args = parser.parse_args(args)
 
     configure_logging(level=logging.DEBUG if parsed_args.debug else logging.INFO)
@@ -67,6 +68,7 @@ def main(args: Sequence[str] | None = None) -> None:
         mesh_ext=parsed_args.mesh_ext,
         override_central_node=parsed_args.override_central_node,
         skip_small_parts=parsed_args.skip_small_parts,
+        remove_inertia=parsed_args.remove_inertia,
     ).save_urdf()
 
 
