@@ -8,6 +8,7 @@ import io
 import itertools
 import logging
 import re
+import traceback
 from collections import deque
 from dataclasses import dataclass
 from pathlib import Path
@@ -18,7 +19,7 @@ import numpy as np
 import stl
 from scipy.spatial.transform import Rotation as R
 
-from kol.formats import mjcf, urdf
+from kol.formats import mjcf, urdf  # noqa: F401
 from kol.geometry import apply_matrix_, inv_tf, transform_inertia_tensor
 from kol.mesh import MeshType, get_mesh_type, stl_to_fmt
 from kol.onshape.api import OnshapeApi
@@ -854,6 +855,15 @@ class Converter:
             case _:
                 raise ValueError(f"Unsupported mate type: {mate_type}")
 
+    def get_part_name_from_key(self, key: tuple) -> str:
+        try:
+            part_instance = self.key_to_part_instance[key]
+            part = self.euid_to_part[part_instance.euid]
+            part_name = self.part_name(part)
+            return part_name
+        except KeyError:
+            return "Unknown part"
+
     def save_urdf(self) -> None:
         """Saves a URDF file for the assembly to the output directory."""
         urdf_parts: list[urdf.Link | urdf.BaseJoint] = []
@@ -877,6 +887,7 @@ class Converter:
         # Creates a URDF joint for each feature connecting two parts.
         for joint in self.ordered_joint_list:
             urdf_joint, urdf_link = None, None
+            joint_name = self.key_name(joint.joint_key, "joint")  # Get the joint name here
             try:
                 urdf_joint = self.get_urdf_joint(joint)
                 urdf_link = self.get_urdf_part(joint.child, joint)
@@ -893,11 +904,20 @@ class Converter:
                     if "hex_nut" in urdf_link.name:
                         logging.warning("Skipping Hex Nut Link")
                         continue
+            except KeyError as e:
+                # Use the derived joint name in the logging statements
+                parent_part_name = self.get_part_name_from_key(joint.parent)
+                child_part_name = self.get_part_name_from_key(joint.child)
+                logging.error("KeyError creating joint: %s", joint_name)
+                logging.error("KeyError details: %s", e)
+                logging.error("Parent part: %s, Child part: %s", parent_part_name, child_part_name)
+                logging.error("Traceback: %s", traceback.format_exc())
             except Exception as e:
-                logging.warning("Exception creating joint")
-                logging.warning(e)
+                logging.error("Exception creating joint: %s", joint_name)
+                logging.error(e)
+                logging.error("Traceback: %s", traceback.format_exc())
                 if urdf_joint is not None:
-                    logging.warning("Joint %s", urdf_joint)
+                    logging.warning("Joint %/s", urdf_joint)
                 if urdf_link is not None:
                     logging.warning("Link %s", urdf_link)
             if (urdf_link is not None) and (urdf_joint is not None):
@@ -908,15 +928,3 @@ class Converter:
         robot_name = clean_name(str(self.assembly_metadata.property_map.get("Name", "robot")))
         urdf_robot = urdf.Robot(name=robot_name, parts=urdf_parts)
         urdf_robot.save(self.output_dir / f"{robot_name}.urdf")
-
-    def save_mjcf(self) -> None:
-        """Saves a MJCF file for the assembly to the output directory."""
-        if self.mesh_ext != "stl":
-            raise ValueError("MJCF only supports STL meshes")
-
-        self.save_urdf()
-        robot_name = clean_name(str(self.assembly_metadata.property_map.get("Name", "robot")))
-
-        mjcf_robot = mjcf.Robot(robot_name, self.output_dir, mjcf.Compiler(angle="radian", meshdir="meshes"))
-        mjcf_robot.adapt_world()
-        mjcf_robot.save(self.output_dir / f"{robot_name}.xml")
