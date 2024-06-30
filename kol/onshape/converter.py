@@ -885,7 +885,7 @@ class Converter:
         #     print(repr(j.child_entity.matedCS.part_to_mate_tf))
 
         # Creates a URDF joint for each feature connecting two parts.
-        small_parts = ["screw", "tapping_insert", "bearing", "hex_nut", "locknuts", "coupler", "gear"]
+        small_parts = ["screw", "tapping_insert", "bearing", "hex_nut", "locknuts", "gear"]
         for joint in self.ordered_joint_list:
             urdf_joint, urdf_link = None, None
             joint_name = self.key_name(joint.joint_key, "joint")  # Get the joint name here
