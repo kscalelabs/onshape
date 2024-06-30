@@ -885,6 +885,7 @@ class Converter:
         #     print(repr(j.child_entity.matedCS.part_to_mate_tf))
 
         # Creates a URDF joint for each feature connecting two parts.
+        small_parts = ["screw", "tapping_insert", "bearing", "hex_nut", "locknuts", "coupler", "gear"]
         for joint in self.ordered_joint_list:
             urdf_joint, urdf_link = None, None
             joint_name = self.key_name(joint.joint_key, "joint")  # Get the joint name here
@@ -892,17 +893,8 @@ class Converter:
                 urdf_joint = self.get_urdf_joint(joint)
                 urdf_link = self.get_urdf_part(joint.child, joint)
                 if self.skip_small_parts:
-                    if "screw" in urdf_link.name:
-                        logging.warning("Skipping Screw Link")
-                        continue
-                    if "tapping_insert" in urdf_link.name:
-                        logging.warning("Skipping Tapping Insert Link")
-                        continue
-                    if "bearing" in urdf_link.name:
-                        logging.warning("Skipping Bearing Link")
-                        continue
-                    if "hex_nut" in urdf_link.name:
-                        logging.warning("Skipping Hex Nut Link")
+                    if any(part in urdf_link.name for part in small_parts):
+                        logging.warning("Skipping Small Part: " + urdf_link.name)
                         continue
             except KeyError as e:
                 # Use the derived joint name in the logging statements
@@ -922,6 +914,10 @@ class Converter:
                     logging.warning("Link %s", urdf_link)
             if (urdf_link is not None) and (urdf_joint is not None):
                 urdf_parts.append(urdf_link)
+                if self.skip_small_parts:
+                    if any(part in self.get_part_name_from_key(joint.parent) for part in small_parts):
+                        logging.warning("Skipping Small Part" + urdf_link.name)
+                        continue
                 urdf_parts.append(urdf_joint)
 
         # Saves the final URDF.
