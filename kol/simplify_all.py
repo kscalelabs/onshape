@@ -20,9 +20,13 @@ def simplify_mesh(filepath: str, voxel_size: float) -> tuple[str, str, int, int]
     """Simplifies a single mesh by clustering vertices."""
     global total_starting_vertices, total_ending_vertices
 
-    # if file path doesn't include /meshes/, add it in after robot/
+    # if file path doesn't include /meshes/, add it in after the first /
     if "/meshes/" not in filepath:
-        filepath = filepath.replace("robot/", "robot/meshes/")
+        # find the index of the first /
+        first_slash_index = filepath.find("/", 1)
+        # insert /meshes/ after the first /
+        filepath = filepath[: first_slash_index + 1] + "meshes/" + filepath[first_slash_index + 1 :]
+
     print(filepath)
     mesh = o3d.io.read_triangle_mesh(filepath)
     starting_vertices = len(mesh.vertices)

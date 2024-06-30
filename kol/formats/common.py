@@ -14,8 +14,8 @@ def save_xml(path: str | Path, tree: ET.ElementTree) -> None:
                 elem.text = i + "  "
             if not elem.tail or not elem.tail.strip():
                 elem.tail = i
-            for elem in elem:
-                indent(elem, level + 1)
+            for e in elem:
+                indent(e, level + 1)
             if not elem.tail or not elem.tail.strip():
                 elem.tail = i
         else:  # noqa: PLR5501
