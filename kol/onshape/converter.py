@@ -21,6 +21,7 @@ from scipy.spatial.transform import Rotation as R
 
 from kol.formats import mjcf, urdf  # noqa: F401
 from kol.geometry import apply_matrix_, inv_tf, transform_inertia_tensor
+from kol.merge_fixed_joints import get_merged_urdf
 from kol.mesh import MeshType, get_mesh_type, stl_to_fmt
 from kol.onshape.api import OnshapeApi
 from kol.onshape.client import OnshapeClient
@@ -46,6 +47,7 @@ from kol.onshape.schema.common import ElementUid
 from kol.onshape.schema.features import Feature, Features, FeatureStatus
 from kol.onshape.schema.part import PartDynamics, PartMetadata
 from kol.resolvers import ExpressionResolver
+from kol.simplify_all import simplify_all
 
 logger = logging.getLogger(__name__)
 
@@ -119,6 +121,8 @@ class Converter:
         override_central_node: str | None = None,
         skip_small_parts: bool = False,
         remove_inertia: bool = False,
+        merge_fixed_joints: bool = False,
+        simplify_meshes: bool = True,
     ) -> None:
         # Gets a default output directory.
         self.output_dir = (Path.cwd() / "robot" if output_dir is None else Path(output_dir)).resolve()
@@ -142,6 +146,8 @@ class Converter:
         self.override_central_node = override_central_node
         self.skip_small_parts = skip_small_parts
         self.remove_inertia = remove_inertia
+        self.merge_fixed_joints = merge_fixed_joints
+        self.simplify_meshes = simplify_meshes
 
         # Map containing all cached items.
         self.cache_map: dict[str, Any] = {}
@@ -924,3 +930,28 @@ class Converter:
         robot_name = clean_name(str(self.assembly_metadata.property_map.get("Name", "robot")))
         urdf_robot = urdf.Robot(name=robot_name, parts=urdf_parts)
         urdf_robot.save(self.output_dir / f"{robot_name}.urdf")
+
+        if self.merge_fixed_joints:
+            get_merged_urdf(self.output_dir / f"{robot_name}.urdf", 1.0)
+            if self.simplify_meshes:
+                simplify_all(self.output_dir / f"{robot_name}_merged.urdf", 0.001)
+        elif self.simplify_meshes:
+            simplify_all(self.output_dir / f"{robot_name}.urdf", 0.001)
+
+    def save_mjcf(self) -> None:
+        """Saves a MJCF file for the assembly to the output directory."""
+        if self.mesh_ext != "stl":
+            raise ValueError("MJCF only supports STL meshes")
+        self.save_urdf()
+
+        robot_name = clean_name(str(self.assembly_metadata.property_map.get("Name", "robot")))
+        if self.merge_fixed_joints:
+            get_merged_urdf(self.output_dir / f"{robot_name}.urdf", 1.0)
+            if self.simplify_meshes:
+                simplify_all(self.output_dir / f"{robot_name}_merged.urdf", 0.001)
+        elif self.simplify_meshes:
+            simplify_all(self.output_dir / f"{robot_name}.urdf", 0.001)
+
+        mjcf_robot = mjcf.Robot(robot_name, self.output_dir, mjcf.Compiler(angle="radian", meshdir="meshes"))
+        mjcf_robot.adapt_world()
+        mjcf_robot.save(self.output_dir / f"{robot_name}.xml")
