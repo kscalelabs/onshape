@@ -945,12 +945,12 @@ class Converter:
         self.save_urdf()
 
         robot_name = clean_name(str(self.assembly_metadata.property_map.get("Name", "robot")))
+
+        # update robot_name if flags on
         if self.merge_fixed_joints:
-            get_merged_urdf(self.output_dir / f"{robot_name}.urdf", 1.0)
-            if self.simplify_meshes:
-                simplify_all(self.output_dir / f"{robot_name}_merged.urdf", 0.001)
-        elif self.simplify_meshes:
-            simplify_all(self.output_dir / f"{robot_name}.urdf", 0.001)
+            robot_name += "_merged"
+        if self.simplify_meshes:
+            robot_name += "_simplified"
 
         mjcf_robot = mjcf.Robot(robot_name, self.output_dir, mjcf.Compiler(angle="radian", meshdir="meshes"))
         mjcf_robot.adapt_world()
