@@ -19,15 +19,6 @@ total_ending_vertices = 0
 def simplify_mesh(filepath: str, voxel_size: float) -> tuple[str, str, int, int]:
     """Simplifies a single mesh by clustering vertices."""
     global total_starting_vertices, total_ending_vertices
-
-    # if file path doesn't include /meshes/, add it in after the first /
-    if "/meshes/" not in filepath:
-        # find the index of the first /
-        first_slash_index = filepath.find("/", 1)
-        # insert /meshes/ after the first /
-        filepath = filepath[: first_slash_index + 1] + "meshes/" + filepath[first_slash_index + 1 :]
-
-    print(filepath)
     mesh = o3d.io.read_triangle_mesh(filepath)
     starting_vertices = len(mesh.vertices)
     simple_mesh = mesh.simplify_vertex_clustering(
@@ -47,8 +38,6 @@ def simplify_mesh(filepath: str, voxel_size: float) -> tuple[str, str, int, int]
     filepath = Path(filepath)
     new_filepath = filepath.parent / f"{filepath.stem}_simple{filepath.suffix}"
     new_filepath = str(new_filepath)
-    if "/meshes/" not in new_filepath:
-        new_filepath = new_filepath.replace("robot/", "robot/meshes/")
 
     return new_filepath, simple_mesh, starting_vertices, ending_vertices
 
@@ -62,6 +51,8 @@ def simplify_all(
     if voxel_size <= 0:
         raise ValueError(f"Voxel size must be non-negative, got {voxel_size}")
     mesh_dir = urdf_path.parent
+    if "/meshes" not in str(mesh_dir):
+        mesh_dir = Path(str(urdf_path.parent) + "/meshes")
     # Load the URDF file
     logger.info("Getting element tree from mesh filepath.")
     tree = ET.parse(urdf_path)
@@ -78,7 +69,11 @@ def simplify_all(
             if element is not None:
                 geometry = element.find("geometry/mesh")
                 if geometry is not None and "filename" in geometry.attrib:
-                    filepaths.add(mesh_dir / geometry.attrib["filename"])
+                    # if ./meshes/ in filename, remove it
+                    name = geometry.attrib["filename"]
+                    if "./meshes/" in name:
+                        name = name.replace("./meshes/", "")
+                    filepaths.add(mesh_dir / name)
                 else:
                     logger.warning("No geometry found for %s tag in link %s", tag, link.attrib["name"])
 
