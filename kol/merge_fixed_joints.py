@@ -2,7 +2,6 @@
 
 import logging
 import xml.etree.ElementTree as ET
-from copy import deepcopy
 from pathlib import Path
 from typing import Any, Optional, Tuple, Union
 
@@ -10,7 +9,7 @@ import numpy as np
 from scipy.spatial.transform import Rotation as R
 
 from kol.formats.common import save_xml
-from kol.geometry import combine_meshes, scale_mesh
+from kol.geometry import combine_meshes
 
 # from kol.geometry import (
 #     # Dynamics,
