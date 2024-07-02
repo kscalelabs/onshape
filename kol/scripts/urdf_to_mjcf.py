@@ -14,7 +14,7 @@ def main(args: Sequence[str] | None = None) -> None:
     parser.add_argument("output_dir", type=str, help="The output directory")
     parsed_args = parser.parse_args(args)
 
-    urdf_to_mjcf(Path(parsed_args.urdf_path), parsed_args.robot_name, Path(parsed_args.output_dir))
+    urdf_to_mjcf(Path(parsed_args.urdf_path), parsed_args.robot_name)
 
 
 def urdf_to_mjcf(urdf_path: Path, robot_name: str) -> None:
