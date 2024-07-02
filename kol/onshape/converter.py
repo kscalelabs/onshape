@@ -19,6 +19,7 @@ import numpy as np
 import stl
 from scipy.spatial.transform import Rotation as R
 
+from kol.cleanup import cleanup_mesh_dir
 from kol.formats import mjcf, urdf  # noqa: F401
 from kol.geometry import apply_matrix_, inv_tf, transform_inertia_tensor
 from kol.merge_fixed_joints import get_merged_urdf
@@ -48,6 +49,7 @@ from kol.onshape.schema.features import Feature, Features, FeatureStatus
 from kol.onshape.schema.part import PartDynamics, PartMetadata
 from kol.resolvers import ExpressionResolver
 from kol.simplify_all import simplify_all
+from kol.update_joints import update_joints
 
 logger = logging.getLogger(__name__)
 
@@ -123,6 +125,8 @@ class Converter:
         remove_inertia: bool = False,
         merge_fixed_joints: bool = False,
         simplify_meshes: bool = True,
+        override_joint_names: dict[str, str] | None = None,
+        override_nonfixed: list[str] | None = None,
     ) -> None:
         # Gets a default output directory.
         self.output_dir = (Path.cwd() / "robot" if output_dir is None else Path(output_dir)).resolve()
@@ -148,6 +152,8 @@ class Converter:
         self.remove_inertia = remove_inertia
         self.merge_fixed_joints = merge_fixed_joints
         self.simplify_meshes = simplify_meshes
+        self.override_joint_names = override_joint_names
+        self.override_nonfixed = override_nonfixed
 
         # Map containing all cached items.
         self.cache_map: dict[str, Any] = {}
@@ -931,12 +937,27 @@ class Converter:
         urdf_robot = urdf.Robot(name=robot_name, parts=urdf_parts)
         urdf_robot.save(self.output_dir / f"{robot_name}.urdf")
 
+        # Rename joints if flags on
+        if self.override_joint_names is not None or self.override_nonfixed is not None:
+            update_joints(self.output_dir / f"{robot_name}.urdf", self.override_joint_names, self.override_nonfixed)
+
         if self.merge_fixed_joints:
             get_merged_urdf(self.output_dir / f"{robot_name}.urdf", 1.0)
+            robot_name += "_merged"
             if self.simplify_meshes:
-                simplify_all(self.output_dir / f"{robot_name}_merged.urdf", 0.001)
+                simplify_all(self.output_dir / f"{robot_name}.urdf", 0.001)
+                robot_name += "_simplified"
         elif self.simplify_meshes:
             simplify_all(self.output_dir / f"{robot_name}.urdf", 0.001)
+            robot_name += "_simplified"
+
+        # cleanup mesh dir, unlink other urdfs
+        if self.merge_fixed_joints or self.simplify_meshes:
+            cleanup_mesh_dir(self.output_dir / f"{robot_name}.urdf")
+        if self.merge_fixed_joints or self.simplify_meshes:
+            for f in self.output_dir.glob("*.urdf"):
+                if f.name != f"{robot_name}.urdf":
+                    f.unlink()
 
     def save_mjcf(self) -> None:
         """Saves a MJCF file for the assembly to the output directory."""

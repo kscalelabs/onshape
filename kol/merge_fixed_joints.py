@@ -2,7 +2,6 @@
 
 import logging
 import xml.etree.ElementTree as ET
-from copy import deepcopy
 from pathlib import Path
 from typing import Any, Optional, Tuple, Union
 
@@ -10,7 +9,7 @@ import numpy as np
 from scipy.spatial.transform import Rotation as R
 
 from kol.formats.common import save_xml
-from kol.geometry import combine_meshes, scale_mesh
+from kol.geometry import combine_meshes
 
 # from kol.geometry import (
 #     # Dynamics,
@@ -219,9 +218,10 @@ def combine_parts(
     combined_mesh = combine_meshes(parent_mesh, child_mesh, relative_transform)
     combined_mesh.save(mesh_dir / f"{new_part_name}.stl")
 
-    collision_mesh = deepcopy(combined_mesh)
-    collision_mesh = scale_mesh(collision_mesh, scaling)
-    collision_mesh.save(mesh_dir / f"{new_part_name}_collision.stl")
+    # We don't do anything with collision meshes for now
+    # collision_mesh = deepcopy(combined_mesh)
+    # collision_mesh = scale_mesh(collision_mesh, scaling)
+    # collision_mesh.save(mesh_dir / f"{new_part_name}_collision.stl")
 
     new_part = ET.Element("link", attrib={"name": new_part_name})
 
@@ -240,7 +240,7 @@ def combine_parts(
             )  # average of parent and child colors
 
     create_visual_and_collision_elements("visual", f"{new_part_name}.stl")
-    create_visual_and_collision_elements("collision", f"{new_part_name}_collision.stl")
+    create_visual_and_collision_elements("collision", f"{new_part_name}.stl")
 
     return new_part
 
