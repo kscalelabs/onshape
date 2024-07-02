@@ -2,7 +2,6 @@
 
 import argparse
 import logging
-import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Sequence
 

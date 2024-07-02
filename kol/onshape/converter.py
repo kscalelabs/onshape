@@ -19,6 +19,7 @@ import numpy as np
 import stl
 from scipy.spatial.transform import Rotation as R
 
+from kol.cleanup import cleanup_mesh_dir
 from kol.formats import mjcf, urdf  # noqa: F401
 from kol.geometry import apply_matrix_, inv_tf, transform_inertia_tensor
 from kol.merge_fixed_joints import get_merged_urdf
@@ -942,10 +943,21 @@ class Converter:
 
         if self.merge_fixed_joints:
             get_merged_urdf(self.output_dir / f"{robot_name}.urdf", 1.0)
+            robot_name += "_merged"
             if self.simplify_meshes:
-                simplify_all(self.output_dir / f"{robot_name}_merged.urdf", 0.001)
+                simplify_all(self.output_dir / f"{robot_name}.urdf", 0.001)
+                robot_name += "_simplified"
         elif self.simplify_meshes:
             simplify_all(self.output_dir / f"{robot_name}.urdf", 0.001)
+            robot_name += "_simplified"
+
+        # cleanup mesh dir, unlink other urdfs
+        if self.merge_fixed_joints or self.simplify_meshes:
+            cleanup_mesh_dir(self.output_dir / f"{robot_name}.urdf")
+        if self.merge_fixed_joints or self.simplify_meshes:
+            for f in self.output_dir.glob("*.urdf"):
+                if f.name != f"{robot_name}.urdf":
+                    f.unlink()
 
     def save_mjcf(self) -> None:
         """Saves a MJCF file for the assembly to the output directory."""
