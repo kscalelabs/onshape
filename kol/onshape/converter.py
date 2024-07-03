@@ -945,10 +945,10 @@ class Converter:
             get_merged_urdf(self.output_dir / f"{robot_name}.urdf", 1.0)
             robot_name += "_merged"
             if self.simplify_meshes:
-                simplify_all(self.output_dir / f"{robot_name}.urdf", 0.001)
+                simplify_all(self.output_dir / f"{robot_name}.urdf", 0.002)
                 robot_name += "_simplified"
         elif self.simplify_meshes:
-            simplify_all(self.output_dir / f"{robot_name}.urdf", 0.001)
+            simplify_all(self.output_dir / f"{robot_name}.urdf", 0.002)
             robot_name += "_simplified"
 
         # cleanup mesh dir, unlink other urdfs
