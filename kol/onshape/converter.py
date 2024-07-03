@@ -59,6 +59,7 @@ Color = tuple[int, int, int, int]
 
 DEFAULT_COLOR: Color = (0, 0, 255, 255)  # Blue
 DEFAULT_MASS: float = 0.001
+DEFAULT_VOXEL_SIZE: float = 0.002
 
 
 def clean_name(name: str) -> str:
@@ -945,10 +946,10 @@ class Converter:
             get_merged_urdf(self.output_dir / f"{robot_name}.urdf", 1.0)
             robot_name += "_merged"
             if self.simplify_meshes:
-                simplify_all(self.output_dir / f"{robot_name}.urdf", 0.001)
+                simplify_all(self.output_dir / f"{robot_name}.urdf", DEFAULT_VOXEL_SIZE)
                 robot_name += "_simplified"
         elif self.simplify_meshes:
-            simplify_all(self.output_dir / f"{robot_name}.urdf", 0.001)
+            simplify_all(self.output_dir / f"{robot_name}.urdf", DEFAULT_VOXEL_SIZE)
             robot_name += "_simplified"
 
         # cleanup mesh dir, unlink other urdfs
