@@ -2,7 +2,9 @@
 
 import logging
 import xml.etree.ElementTree as ET
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Self
 
 import open3d as o3d
 
@@ -11,14 +13,20 @@ from kol.formats.common import save_xml
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
-total_removed = 0
-total_starting_vertices = 0
-total_ending_vertices = 0
+
+@dataclass
+class Stats:
+    total_removed: int
+    total_starting_vertices: int
+    total_ending_vertices: int
+
+    @classmethod
+    def start(cls) -> Self:
+        return cls(0, 0, 0)
 
 
 def simplify_mesh(filepath: str, voxel_size: float) -> tuple[str, str, int, int]:
     """Simplifies a single mesh by clustering vertices."""
-    global total_starting_vertices, total_ending_vertices
     mesh = o3d.io.read_triangle_mesh(filepath)
     starting_vertices = len(mesh.vertices)
     simple_mesh = mesh.simplify_vertex_clustering(
@@ -26,9 +34,6 @@ def simplify_mesh(filepath: str, voxel_size: float) -> tuple[str, str, int, int]
         contraction=o3d.geometry.SimplificationContraction.Average,
     )
     ending_vertices = len(simple_mesh.vertices)
-    total_starting_vertices += starting_vertices
-    total_ending_vertices += ending_vertices
-
     logger.info("Simplified mesh from %d to %d vertices", starting_vertices, ending_vertices)
 
     # Remove old mesh and save the simplified one
@@ -42,12 +47,9 @@ def simplify_mesh(filepath: str, voxel_size: float) -> tuple[str, str, int, int]
     return new_filepath, simple_mesh, starting_vertices, ending_vertices
 
 
-def simplify_all(
-    urdf_path: Path,
-    voxel_size: float,
-) -> None:
-    global total_removed, total_starting_vertices, total_ending_vertices  # noqa: PLW0602
-
+def simplify_all(urdf_path: Path, voxel_size: float, stats: Stats | None = None) -> Stats:
+    if stats is None:
+        stats = Stats.start()
     if voxel_size <= 0:
         raise ValueError(f"Voxel size must be non-negative, got {voxel_size}")
     mesh_dir = urdf_path.parent
@@ -84,7 +86,9 @@ def simplify_all(
         new_filepath, new_mesh, starting_vertices, ending_vertices = simplify_mesh(str(filepath), voxel_size)
         new_filepaths[str(filepath)] = new_filepath
         new_meshes[new_filepath] = new_mesh
-        total_removed += starting_vertices - ending_vertices
+        stats.total_starting_vertices += starting_vertices
+        stats.total_ending_vertices += ending_vertices
+        stats.total_removed += starting_vertices - ending_vertices
 
     # Update the URDF file with new file paths
     logger.info("Updating URDF with new mesh file paths")
@@ -119,8 +123,11 @@ def simplify_all(
                 o3d.io.write_triangle_mesh(new_filepath, new_mesh)
 
     # Log the total vertex reduction and percentage
-    logger.info("Total starting vertices: %d", total_starting_vertices)
-    logger.info("Total ending vertices: %d", total_ending_vertices)
-    logger.info("Total vertices removed: %d", total_removed)
-    reduction_percentage = (total_removed / total_starting_vertices) * 100 if total_starting_vertices > 0 else 0
-    logger.info("Percentage reduction: %.4f%%", reduction_percentage)
+    logger.info("Total starting vertices: %d", stats.total_starting_vertices)
+    logger.info("Total ending vertices: %d", stats.total_ending_vertices)
+    logger.info("Total vertices removed: %d", stats.total_removed)
+    if stats.total_starting_vertices > 0:
+        reduction_percentage = (stats.total_removed / stats.total_starting_vertices) * 100
+        logger.info("Percentage reduction: %.4f%%", reduction_percentage)
+
+    return stats
