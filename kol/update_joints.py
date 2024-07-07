@@ -21,7 +21,8 @@ def update_joints(
     tree = ET.parse(urdf_path)
     root = tree.getroot()
     # sort keys so we match joints to longest first
-    sorted_keys = sorted(name_dict.keys(), key=len, reverse=True)
+    if name_dict:
+        sorted_keys = sorted(name_dict.keys(), key=len, reverse=True)
     # Collect all joints in urdf and get their meshes
     for joint in root.iter("joint"):
         joint_name = joint.attrib["name"]
@@ -56,9 +57,10 @@ def update_joints(
         if override_limits:
             for key in override_limits.keys():
                 if key in joint_name:
-                    joint.find("limit").attrib["lower"] = str(override_limits[key][0])
-                    joint.find("limit").attrib["upper"] = str(override_limits[key][1])
+                    limit = joint.find("limit")
+                    if limit:
+                        limit.attrib["lower"] = str(override_limits[key][0])
+                        limit.attrib["upper"] = str(override_limits[key][1])
                     break
-    print(override_limits.keys())
     # Save the updated URDF to the same file
     save_xml(urdf_path, tree)
