@@ -128,6 +128,7 @@ class Converter:
         simplify_meshes: bool = True,
         override_joint_names: dict[str, str] | None = None,
         override_nonfixed: list[str] | None = None,
+        override_limits: dict[str, str] | None = None,
     ) -> None:
         # Gets a default output directory.
         self.output_dir = (Path.cwd() / "robot" if output_dir is None else Path(output_dir)).resolve()
@@ -155,6 +156,7 @@ class Converter:
         self.simplify_meshes = simplify_meshes
         self.override_joint_names = override_joint_names
         self.override_nonfixed = override_nonfixed
+        self.override_limits = override_limits
 
         # Map containing all cached items.
         self.cache_map: dict[str, Any] = {}
@@ -940,7 +942,12 @@ class Converter:
 
         # Rename joints if flags on
         if self.override_joint_names is not None or self.override_nonfixed is not None:
-            update_joints(self.output_dir / f"{robot_name}.urdf", self.override_joint_names, self.override_nonfixed)
+            update_joints(
+                self.output_dir / f"{robot_name}.urdf",
+                self.override_joint_names,
+                self.override_nonfixed,
+                self.override_limits,
+            )
 
         if self.merge_fixed_joints:
             get_merged_urdf(self.output_dir / f"{robot_name}.urdf", 1.0)
