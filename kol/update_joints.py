@@ -13,12 +13,16 @@ logging.basicConfig(level=logging.INFO)
 def update_joints(
     urdf_path: Path,
     name_dict: dict[str, str] | None,
-    override: list[str] | None,
+    override_fixed: list[str] | None,
+    override_limits: dict[str, str] | None,
 ) -> None:
     # Load the URDF file
     logger.info("Updating joints.")
     tree = ET.parse(urdf_path)
     root = tree.getroot()
+    # sort keys so we match joints to longest first
+    if name_dict:
+        sorted_keys = sorted(name_dict.keys(), key=len, reverse=True)
     # Collect all joints in urdf and get their meshes
     for joint in root.iter("joint"):
         joint_name = joint.attrib["name"]
@@ -27,21 +31,36 @@ def update_joints(
             joint_name = joint_name[6:]
 
         # Check if name_dict is not None and if the joint_name is a substring of any key in name_dict
+
         if name_dict:
-            for key in name_dict:
+            for key in sorted_keys:
                 if key in joint_name:
                     joint.attrib["name"] = name_dict[key]
+                    break
             # If joint has a mimic that needs to be updated as well
             mimic = joint.find("mimic")
             if mimic is not None:
                 mimic_name = mimic.attrib["joint"]
-                for key in name_dict:
+                for key in sorted_keys:
                     if key in mimic_name:
                         mimic.attrib["joint"] = name_dict[key]
+                        break
 
         # Check if override_dict is not None and if the any element of override is substring of joint_name then fix
-        if override and any(ov in joint_name for ov in override):
+        if override_fixed and any(ov in joint_name for ov in override_fixed):
             joint.attrib["type"] = "fixed"
 
+    for joint in root.iter("joint"):
+        joint_name = joint.attrib["name"]
+        # Check if override_limits is not None and if any key in override_limits is a substring of joint_name
+        # Note: we do this with the new joint names
+        if override_limits:
+            for key in override_limits.keys():
+                if key in joint_name:
+                    limit = joint.find("limit")
+                    if limit:
+                        limit.attrib["lower"] = str(override_limits[key][0])
+                        limit.attrib["upper"] = str(override_limits[key][1])
+                    break
     # Save the updated URDF to the same file
     save_xml(urdf_path, tree)
