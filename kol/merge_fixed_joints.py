@@ -229,7 +229,7 @@ def combine_parts(
         element = ET.SubElement(new_part, tag, {})
         ET.SubElement(element, "origin", {"xyz": "0 0 0", "rpy": "0 0 0"})
         geometry = ET.SubElement(element, "geometry", {})
-        ET.SubElement(geometry, "mesh", {"filename": file_name})
+        ET.SubElement(geometry, "mesh", {"filename": "./meshes/" + file_name})
         if tag == "visual":
             parent_color = get_color(parent)
             child_color = get_color(child)
