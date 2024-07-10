@@ -25,7 +25,7 @@ class Stats:
         return cls(0, 0, 0)
 
 
-def simplify_mesh(filepath: str, voxel_size: float) -> tuple[str, str, int, int]:
+def simplify_mesh(filepath: str, voxel_size: float) -> tuple[str, o3d.geometry.TriangleMesh, int, int]:
     """Simplifies a single mesh by clustering vertices."""
     mesh = o3d.io.read_triangle_mesh(filepath)
     starting_vertices = len(mesh.vertices)
@@ -52,11 +52,10 @@ def simplify_all(urdf_path: Path, voxel_size: float, stats: Stats | None = None)
         stats = Stats.start()
     if voxel_size <= 0:
         raise ValueError(f"Voxel size must be non-negative, got {voxel_size}")
-    mesh_dir = urdf_path.parent
-    if "/meshes" not in str(mesh_dir):
-        mesh_dir = Path(str(urdf_path.parent) + "/meshes")
+    mesh_dir = urdf_path.parent / "meshes"
+
     # Load the URDF file
-    logger.info("Getting element tree from mesh filepath.")
+    logger.info("Getting element tree from URDF file.")
     tree = ET.parse(urdf_path)
     root = tree.getroot()
     # Collect all links in urdf and get their meshes
@@ -67,17 +66,13 @@ def simplify_all(urdf_path: Path, voxel_size: float, stats: Stats | None = None)
     filepaths = set()
     for link in links:
         for tag in ["visual", "collision"]:
-            element = link.find(tag)
-            if element is not None:
-                geometry = element.find("geometry/mesh")
-                if geometry is not None and "filename" in geometry.attrib:
-                    # if ./meshes/ in filename, remove it
-                    name = geometry.attrib["filename"]
-                    if "./meshes/" in name:
+            elements = link.findall(f"{tag}/geometry/mesh")
+            for element in elements:
+                if "filename" in element.attrib:
+                    name = element.attrib["filename"]
+                    if name.startswith("./meshes/"):
                         name = name.replace("./meshes/", "")
                     filepaths.add(mesh_dir / name)
-                else:
-                    logger.warning("No geometry found for %s tag in link %s", tag, link.attrib["name"])
 
     new_filepaths = {}
     new_meshes = {}
@@ -94,20 +89,15 @@ def simplify_all(urdf_path: Path, voxel_size: float, stats: Stats | None = None)
     logger.info("Updating URDF with new mesh file paths")
     for link in links:
         for tag in ["visual", "collision"]:
-            element = link.find(tag)
-            if element is not None:
-                geometry = element.find("geometry/mesh")
-                if geometry is not None and "filename" in geometry.attrib:
-                    old_filepath = geometry.attrib["filename"]
-                    new_filepath = new_filepaths.get(str(mesh_dir / old_filepath), "")
+            elements = link.findall(f"{tag}/geometry/mesh")
+            for element in elements:
+                if "filename" in element.attrib:
+                    old_filepath = str(mesh_dir / element.attrib["filename"].replace("./meshes/", ""))
+                    new_filepath = new_filepaths.get(old_filepath)
                     if new_filepath:
-                        geometry.attrib["filename"] = str(Path(new_filepath).relative_to(mesh_dir))
+                        element.attrib["filename"] = str(Path(new_filepath).relative_to(mesh_dir))
                     else:
                         logger.warning("No new filepath found for %s tag in link %s", tag, link.attrib["name"])
-                else:
-                    logger.warning("No geometry found for %s tag in link %s", tag, link.attrib["name"])
-            else:
-                logger.warning("No geometry found for %s tag in link %s", tag, link.attrib["name"])
 
     # Save the updated URDF file
     new_urdf_path = urdf_path.with_name(urdf_path.stem + "_simplified" + urdf_path.suffix)
