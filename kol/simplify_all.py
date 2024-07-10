@@ -93,7 +93,7 @@ def simplify_all(urdf_path: Path, voxel_size: float, stats: Stats | None = None)
             for element in elements:
                 if "filename" in element.attrib:
                     old_filepath = str(mesh_dir / element.attrib["filename"].replace("./meshes/", ""))
-                    new_filepath = new_filepaths.get(old_filepath)
+                    new_filepath = new_filepaths.get(old_filepath, "")
                     if new_filepath:
                         element.attrib["filename"] = str(Path(new_filepath).relative_to(mesh_dir))
                     else:
