@@ -19,6 +19,8 @@ build/
 dist/
 *.so
 out*/
+*.json
+.DS_STORE
 
 # Other artifacts
 robot/
