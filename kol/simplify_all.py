@@ -95,7 +95,8 @@ def simplify_all(urdf_path: Path, voxel_size: float, stats: Stats | None = None)
                     old_filepath = str(mesh_dir / element.attrib["filename"].replace("./meshes/", ""))
                     new_filepath = new_filepaths.get(old_filepath, "")
                     if new_filepath:
-                        element.attrib["filename"] = str(Path(new_filepath).relative_to(mesh_dir))
+                        relative_path = Path(new_filepath).relative_to(mesh_dir)
+                        element.attrib["filename"] = f"./meshes/{relative_path}"
                     else:
                         logger.warning("No new filepath found for %s tag in link %s", tag, link.attrib["name"])
 
