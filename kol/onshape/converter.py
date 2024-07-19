@@ -129,7 +129,7 @@ class Converter:
         override_joint_names: dict[str, str] | None = None,
         override_nonfixed: list[str] | None = None,
         override_limits: dict[str, str] | None = None,
-        override_torques: dict[str, float] | None = None,
+        override_torques: dict[str, int] | None = None,
     ) -> None:
         # Gets a default output directory.
         self.output_dir = (Path.cwd() / "robot" if output_dir is None else Path(output_dir)).resolve()
