@@ -15,7 +15,7 @@ def update_joints(
     name_dict: dict[str, str] | None,
     override_fixed: list[str] | None,
     override_limits: dict[str, str] | None,
-    override_torques: dict[str, str] | None,
+    override_torques: dict[str, int] | None,
 ) -> None:
     # Load the URDF file
     logger.info("Updating joints.")
