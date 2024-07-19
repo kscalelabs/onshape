@@ -129,6 +129,7 @@ class Converter:
         override_joint_names: dict[str, str] | None = None,
         override_nonfixed: list[str] | None = None,
         override_limits: dict[str, str] | None = None,
+        override_torques: dict[str, int] | None = None,
     ) -> None:
         # Gets a default output directory.
         self.output_dir = (Path.cwd() / "robot" if output_dir is None else Path(output_dir)).resolve()
@@ -157,6 +158,7 @@ class Converter:
         self.override_joint_names = override_joint_names
         self.override_nonfixed = override_nonfixed
         self.override_limits = override_limits
+        self.override_torques = override_torques
 
         # Map containing all cached items.
         self.cache_map: dict[str, Any] = {}
@@ -947,6 +949,7 @@ class Converter:
                 self.override_joint_names,
                 self.override_nonfixed,
                 self.override_limits,
+                self.override_torques,
             )
 
         if self.merge_fixed_joints:
