@@ -15,6 +15,7 @@ def update_joints(
     name_dict: dict[str, str] | None,
     override_fixed: list[str] | None,
     override_limits: dict[str, str] | None,
+    override_torques: dict[str, str] | None,
 ) -> None:
     # Load the URDF file
     logger.info("Updating joints.")
@@ -49,6 +50,14 @@ def update_joints(
         # Check if override_dict is not None and if the any element of override is substring of joint_name then fix
         if override_fixed and any(ov in joint_name for ov in override_fixed):
             joint.attrib["type"] = "fixed"
+
+        if override_torques:
+            for key in override_torques.keys():
+                if key in joint_name:
+                    limit = joint.find("limit")
+                    if limit is not None:
+                        limit.attrib["effort"] = str(override_torques[key])
+                    break
 
     for joint in root.iter("joint"):
         joint_name = joint.attrib["name"]
