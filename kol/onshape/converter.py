@@ -14,6 +14,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Deque, Iterator, Literal, TypeVar
 
+import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
 import stl
@@ -159,6 +160,8 @@ class Converter:
         self.override_nonfixed = override_nonfixed
         self.override_limits = override_limits
         self.override_torques = override_torques
+
+        self.sim_ignored_joints = []
 
         # Map containing all cached items.
         self.cache_map: dict[str, Any] = {}
@@ -379,16 +382,44 @@ class Converter:
             The graph of the assembly.
         """
         graph = nx.Graph()
+        graph_none_ignored = nx.Graph()
+
         for key, _ in self.key_to_part_instance.items():
-            graph.add_node(key)
+            graph_none_ignored.add_node(key)
+            if "sim_ignore" not in self.key_name(key, "joint"):
+                graph.add_node(key)
+            else:
+                print(f"Ignoring joint due to sim_ignore: {self.key_name(key, 'joint')}")
+                self.sim_ignored_joints.append(key)
 
         def add_edge_safe(node_a: Key, node_b: Key, name: str) -> None:
+            
+            # GRAPH KEEP ALL
             for node_lhs, node_rhs in ((node_a, node_b), (node_b, node_a)):
+
+                if node_lhs not in graph_none_ignored:
+                    raise ValueError(
+                        f"Node {self.key_name(node_lhs, 'link')} (from {self.key_name(node_rhs, 'link')}) not found "
+                        "in graph. Do you have a mate between a part and the origin?"
+                    )
+
+            graph_none_ignored.add_edge(node_a, node_b, name=name)
+
+            for node_lhs, node_rhs in ((node_a, node_b), (node_b, node_a)):
+
+                if "sim_ignore" in self.key_name(node_lhs, "link"):
+                    print(f"Ignoring link due to sim_ignore: {self.key_name(node_lhs, 'link')}")
+                    return
+                if "sim_ignore" in self.key_name(node_rhs, "link"):
+                    print(f"Ignoring link due to sim_ignore: {self.key_name(node_rhs, 'link')}")
+                    return
+
                 if node_lhs not in graph:
                     raise ValueError(
                         f"Node {self.key_name(node_lhs, 'link')} (from {self.key_name(node_rhs, 'link')}) not found "
                         "in graph. Do you have a mate between a part and the origin?"
                     )
+
             graph.add_edge(node_a, node_b, name=name)
 
         # Add edges between nodes that have a feature connecting them.
@@ -408,6 +439,45 @@ class Converter:
                 graph.edges[edge]["name"],
             )
 
+        # Debug for viewing original URDF graph with possible parallels
+
+        # G_renamed = nx.relabel_nodes(graph_none_ignored, node_relabel_mapping)
+        # nx.draw(G_renamed, with_labels=True, node_color='red', node_size=30, edge_color='k', font_size=4)
+        # plt.savefig('graph_none_ignored.png', dpi=300)
+        # plt.clf()
+
+        # Debug for viewing URDF graph with parallels removed (and possibly disconnected)
+
+        # node_relabel_mapping = {node: self.key_name(node, "joint") for node in graph.nodes()}
+        # G_renamed = nx.relabel_nodes(graph, node_relabel_mapping)
+        # nx.draw(G_renamed, with_labels=True, node_color='skyblue', node_size=30, edge_color='k', font_size=4)
+        # plt.savefig('graph.png', dpi=300)
+        # plt.clf()
+
+        # If there are any unconnected nodes in the graph, raise an error.
+        if not nx.is_connected(graph_none_ignored):
+            num_components = nx.number_connected_components(graph_none_ignored)
+
+            components: list[str] = []
+            for component in nx.connected_components(graph_none_ignored):
+                component_list = sorted([self.key_name(c, "link") for c in component])
+                components.append("\n      ".join(component_list))
+            components_string = "\n\n".join(f"  {i + 1: <3} {component}" for i, component in enumerate(components))
+
+            raise ValueError(
+                "The assembly is not fully connected! URDF export requires a single fully-connected robot, "
+                f"but the graph has {num_components} components. Components:\n{components_string}"
+            )
+
+        largest_component = max(nx.connected_components(graph), key=len)
+
+        # Remove smaller components
+        for component in list(nx.connected_components(graph)):
+            if component != largest_component:
+                self.sim_ignored_joints.extend(component)
+                graph.remove_nodes_from(component)
+
+        
         # If there are any unconnected nodes in the graph, raise an error.
         if not nx.is_connected(graph):
             num_components = nx.number_connected_components(graph)
@@ -419,9 +489,17 @@ class Converter:
             components_string = "\n\n".join(f"  {i + 1: <3} {component}" for i, component in enumerate(components))
 
             raise ValueError(
-                "The assembly is not fully connected! URDF export requires a single fully-connected robot, "
+                "The assembly constructed with sim_ignore is not fully connected! URDF export requires a single fully-connected robot, "
                 f"but the graph has {num_components} components. Components:\n{components_string}"
             )
+        
+        # Debug for viewing final simulated URDF graph
+
+        # node_relabel_mapping = {node: self.key_name(node, "joint") for node in graph.nodes()}
+        # G_renamed = nx.relabel_nodes(graph, node_relabel_mapping)
+        # nx.draw(G_renamed, with_labels=True, node_color='skyblue', node_size=30, edge_color='k', font_size=4)
+        # plt.savefig('graph_one.png', dpi=300)
+        # plt.clf()
 
         return graph
 
@@ -524,8 +602,13 @@ class Converter:
         for joint_key, mate_feature in self.key_to_mate_feature.items():
             if mate_feature.suppressed:
                 continue
+
             lhs_entity, rhs_entity = mate_feature.featureData.matedEntities
             lhs_key, rhs_key = joint_key[:-1] + lhs_entity.key, joint_key[:-1] + rhs_entity.key
+
+            if lhs_key in self.sim_ignored_joints or rhs_key in self.sim_ignored_joints:
+                continue
+
             lhs_is_first = node_level[lhs_key] < node_level[rhs_key]
             parent_key, child_key = (lhs_key, rhs_key) if lhs_is_first else (rhs_key, lhs_key)
             parent_entity, child_entity = (lhs_entity, rhs_entity) if lhs_is_first else (rhs_entity, lhs_entity)
@@ -744,6 +827,7 @@ class Converter:
         Returns:
             The URDF link and joint.
         """
+        
         parent_stl_origin_to_part_tf = self.stl_origin_to_part_tf[joint.parent]
         parent_part_to_mate_tf = joint.parent_entity.matedCS.part_to_mate_tf
         parent_stl_origin_to_mate_tf = parent_stl_origin_to_part_tf @ parent_part_to_mate_tf
@@ -921,6 +1005,7 @@ class Converter:
                 logging.error("KeyError details: %s", e)
                 logging.error("Parent part: %s, Child part: %s", parent_part_name, child_part_name)
                 logging.error("Traceback: %s", traceback.format_exc())
+                raise
             except Exception as e:
                 logging.error("Exception creating joint: %s", joint_name)
                 logging.error(e)
@@ -929,6 +1014,7 @@ class Converter:
                     logging.warning("Joint %/s", urdf_joint)
                 if urdf_link is not None:
                     logging.warning("Link %s", urdf_link)
+                raise
             if (urdf_link is not None) and (urdf_joint is not None):
                 urdf_parts.append(urdf_link)
                 if self.skip_small_parts:
