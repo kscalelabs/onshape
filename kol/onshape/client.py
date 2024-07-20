@@ -13,6 +13,9 @@ import string
 import urllib.parse
 from dataclasses import dataclass
 from typing import Any, Literal, cast
+from dotenv import load_dotenv
+
+load_dotenv()
 
 import requests
 
