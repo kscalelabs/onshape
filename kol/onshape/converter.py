@@ -6,6 +6,7 @@ import functools
 import hashlib
 import io
 import itertools
+import json
 import logging
 import re
 import traceback
@@ -131,6 +132,7 @@ class Converter:
         override_nonfixed: list[str] | None = None,
         override_limits: dict[str, str] | None = None,
         override_torques: dict[str, int] | None = None,
+        config_path: str | None = None,
     ) -> None:
         # Gets a default output directory.
         self.output_dir = (Path.cwd() / "robot" if output_dir is None else Path(output_dir)).resolve()
@@ -162,6 +164,7 @@ class Converter:
         self.override_torques = override_torques
 
         self.sim_ignored_joints = []
+        self.config_path = config_path
 
         # Map containing all cached items.
         self.cache_map: dict[str, Any] = {}
@@ -389,7 +392,7 @@ class Converter:
             if "sim_ignore" not in self.key_name(key, "joint"):
                 graph.add_node(key)
             else:
-                print(f"Ignoring joint due to sim_ignore: {self.key_name(key, 'joint')}")
+                logger.info(f"Ignoring joint due to sim_ignore: {self.key_name(key, 'joint')}")
                 self.sim_ignored_joints.append(key)
 
         def add_edge_safe(node_a: Key, node_b: Key, name: str) -> None:
@@ -408,10 +411,10 @@ class Converter:
             for node_lhs, node_rhs in ((node_a, node_b), (node_b, node_a)):
 
                 if "sim_ignore" in self.key_name(node_lhs, "link"):
-                    print(f"Ignoring link due to sim_ignore: {self.key_name(node_lhs, 'link')}")
+                    logger.info(f"Ignoring link due to sim_ignore: {self.key_name(node_lhs, 'link')}")
                     return
                 if "sim_ignore" in self.key_name(node_rhs, "link"):
-                    print(f"Ignoring link due to sim_ignore: {self.key_name(node_rhs, 'link')}")
+                    logger.info(f"Ignoring link due to sim_ignore: {self.key_name(node_rhs, 'link')}")
                     return
 
                 if node_lhs not in graph:
@@ -476,7 +479,6 @@ class Converter:
             if component != largest_component:
                 self.sim_ignored_joints.extend(component)
                 graph.remove_nodes_from(component)
-
         
         # If there are any unconnected nodes in the graph, raise an error.
         if not nx.is_connected(graph):
@@ -986,7 +988,7 @@ class Converter:
         #     print(repr(j.child_entity.matedCS.part_to_mate_tf))
 
         # Creates a URDF joint for each feature connecting two parts.
-        small_parts = ["screw", "tapping_insert", "bearing", "hex_nut", "locknuts", "gear"]
+        small_parts = ["screw", "tapping_insert", "bearing", "hex_nut", "locknuts", "gear", "stop"]
         for joint in self.ordered_joint_list:
             urdf_joint, urdf_link = None, None
             joint_name = self.key_name(joint.joint_key, "joint")  # Get the joint name here
@@ -1036,6 +1038,27 @@ class Converter:
                 self.override_nonfixed,
                 self.override_limits,
                 self.override_torques,
+            )
+
+        def read_config_from_json(file_path):
+            with open(file_path, 'r') as file:
+                data = json.load(file)
+            
+            update_dict = data.get("update_dict", {})
+            override = data.get("override", [])
+            joint_limits = data.get("joint_limits", {})
+            new_torques = data.get("new_torques", {})
+            
+            return update_dict, override, joint_limits, new_torques
+    
+        if self.config_path is not None:
+            update_dict, override, joint_limits, new_torques = read_config_from_json(self.config_path)
+            update_joints(
+                self.output_dir / f"{robot_name}.urdf",
+                name_dict=update_dict,
+                override_fixed=override,
+                override_limits=joint_limits,
+                override_torques=new_torques,
             )
 
         if self.merge_fixed_joints:

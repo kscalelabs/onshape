@@ -25,3 +25,5 @@ out*/
 # Other artifacts
 robot/
 adhoc/
+*.png
+!config_example.json

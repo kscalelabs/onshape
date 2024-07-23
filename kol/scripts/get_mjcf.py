@@ -33,6 +33,7 @@ def main(args: Sequence[str] | None = None) -> None:
     parser.add_argument("--remove-inertia", action="store_true", help="Enable debug logging")
     parser.add_argument("--merge-joints", action="store_true", help="Merge fixed joints in assembly")
     parser.add_argument("--simplify-meshes", action="store_true", help="Simplify meshes in the URDF")
+    parser.add_argument("--config_path", type=str, default=None, help="Path to configs for joint updates (renaming, overrides, limits, etc.)")
     parsed_args = parser.parse_args(args)
 
     configure_logging(level=logging.DEBUG if parsed_args.debug else logging.INFO)
@@ -73,6 +74,7 @@ def main(args: Sequence[str] | None = None) -> None:
         remove_inertia=parsed_args.remove_inertia,
         merge_fixed_joints=parsed_args.merge_joints,
         simplify_meshes=parsed_args.simplify_meshes,
+        config_path=parsed_args.config_path,
     ).save_mjcf()
 
 
