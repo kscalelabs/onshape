@@ -11,7 +11,6 @@ requests==2.32.3
 scipy==1.13.1
 tqdm==4.66.4
 trimesh==4.4.1
-python-dotenv==1.0.1
 
 # Types
 types-requests==2.32.0.20240602

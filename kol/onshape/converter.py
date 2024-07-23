@@ -396,10 +396,9 @@ class Converter:
                 self.sim_ignored_joints.append(key)
 
         def add_edge_safe(node_a: Key, node_b: Key, name: str) -> None:
-            
-            # GRAPH KEEP ALL
+            # Here, we are considering a graph with no ignored joints
+            # to make sure the original graph is connected.
             for node_lhs, node_rhs in ((node_a, node_b), (node_b, node_a)):
-
                 if node_lhs not in graph_none_ignored:
                     raise ValueError(
                         f"Node {self.key_name(node_lhs, 'link')} (from {self.key_name(node_rhs, 'link')}) not found "
@@ -409,7 +408,6 @@ class Converter:
             graph_none_ignored.add_edge(node_a, node_b, name=name)
 
             for node_lhs, node_rhs in ((node_a, node_b), (node_b, node_a)):
-
                 if "sim_ignore" in self.key_name(node_lhs, "link"):
                     logger.info(f"Ignoring link due to sim_ignore: {self.key_name(node_lhs, 'link')}")
                     return
@@ -479,7 +477,7 @@ class Converter:
             if component != largest_component:
                 self.sim_ignored_joints.extend(component)
                 graph.remove_nodes_from(component)
-        
+
         # If there are any unconnected nodes in the graph, raise an error.
         if not nx.is_connected(graph):
             num_components = nx.number_connected_components(graph)
@@ -494,7 +492,7 @@ class Converter:
                 "The assembly constructed with sim_ignore is not fully connected! URDF export requires a single fully-connected robot, "
                 f"but the graph has {num_components} components. Components:\n{components_string}"
             )
-        
+
         # Debug for viewing final simulated URDF graph
 
         # node_relabel_mapping = {node: self.key_name(node, "joint") for node in graph.nodes()}
@@ -829,7 +827,7 @@ class Converter:
         Returns:
             The URDF link and joint.
         """
-        
+
         parent_stl_origin_to_part_tf = self.stl_origin_to_part_tf[joint.parent]
         parent_part_to_mate_tf = joint.parent_entity.matedCS.part_to_mate_tf
         parent_stl_origin_to_mate_tf = parent_stl_origin_to_part_tf @ parent_part_to_mate_tf
@@ -1041,16 +1039,16 @@ class Converter:
             )
 
         def read_config_from_json(file_path):
-            with open(file_path, 'r') as file:
+            with open(file_path, "r") as file:
                 data = json.load(file)
-            
+
             update_dict = data.get("update_dict", {})
             override = data.get("override", [])
             joint_limits = data.get("joint_limits", {})
             new_torques = data.get("new_torques", {})
-            
+
             return update_dict, override, joint_limits, new_torques
-    
+
         if self.config_path is not None:
             update_dict, override, joint_limits, new_torques = read_config_from_json(self.config_path)
             update_joints(
