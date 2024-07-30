@@ -495,4 +495,4 @@ class Robot:
         self.tree = ET.ElementTree(root)
 
     def save(self, path: str | Path) -> None:
-        self.tree.write(path, encoding="utf-8", xml_declaration=True)
+        self.tree.write(path, encoding="utf-8")
