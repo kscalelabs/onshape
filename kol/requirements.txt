@@ -8,5 +8,4 @@ open3d
 pydantic
 requests
 scipy
-tqdm
 trimesh
