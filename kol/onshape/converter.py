@@ -12,7 +12,17 @@ import traceback
 from collections import deque
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Callable, Deque, Iterator, Literal, Self, Sequence, TypeVar, cast
+from typing import (
+    Any,
+    Callable,
+    Deque,
+    Iterator,
+    Literal,
+    Self,
+    Sequence,
+    TypeVar,
+    cast,
+)
 
 import networkx as nx
 import numpy as np
