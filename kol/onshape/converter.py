@@ -191,6 +191,10 @@ class ConverterConfig:
             else:
                 cli_args.append(arg)
         if cli_args:
+            # This is a patch to support some syntax sugar - we automatically
+            # treat the first argument as the document URL.
+            if "=" not in cli_args[0]:
+                cli_args[0] = f"document_url={cli_args[0]}"
             cfg = OmegaConf.merge(cfg, OmegaConf.from_cli(cli_args))
         return cfg
 
