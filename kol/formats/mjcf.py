@@ -17,8 +17,6 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal
 
-import mujoco
-
 
 @dataclass
 class Compiler:
@@ -156,7 +154,8 @@ class Body:
     quat: tuple[float, float, float, float] | None = field(default=None)
     geom: Geom | None = field(default=None)
     joint: Joint | None = field(default=None)
-    # TODO - fix inertia, until then rely on Mujoco's engine
+
+    # TODO - Fix inertia, until then rely on Mujoco's engine
     # inertial: Inertial = None
 
     def to_xml(self, root: ET.Element | None = None) -> ET.Element:
@@ -450,6 +449,14 @@ class Robot:
         self.tree = ET.parse(self.output_dir / f"{self.robot_name}.xml")
 
     def _set_clean_up(self) -> None:
+        try:
+            import mujoco
+        except ImportError as e:
+            raise ImportError(
+                "Please install the package with Mujoco as a dependency, using "
+                "`pip install kscale-onshape-library[mujoco]`"
+            ) from e
+
         # HACK
         # mujoco has a hard time reading meshes
         _copy_stl_files(self.output_dir / "meshes", self.output_dir)
@@ -458,10 +465,11 @@ class Robot:
         root = urdf_tree.getroot()
 
         tree = ET.ElementTree(root)
-        tree.write(self.output_dir / f"{self.robot_name}.urdf", encoding="utf-8", xml_declaration=True)
+        tree.write(self.output_dir / f"{self.robot_name}.urdf", encoding="utf-8")
         model = mujoco.MjModel.from_xml_path((self.output_dir / f"{self.robot_name}.urdf").as_posix())
         mujoco.mj_saveLastXML((self.output_dir / f"{self.robot_name}.xml").as_posix(), model)
-        # remove all the files
+
+        # Removes all the existing files.
         _remove_stl_files(self.output_dir)
 
     def adapt_world(self) -> None:
@@ -495,4 +503,4 @@ class Robot:
         self.tree = ET.ElementTree(root)
 
     def save(self, path: str | Path) -> None:
-        self.tree.write(path, encoding="utf-8", xml_declaration=True)
+        self.tree.write(path, encoding="utf-8")

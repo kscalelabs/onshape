@@ -6,26 +6,35 @@ import functools
 import hashlib
 import io
 import itertools
-import json
 import logging
 import re
 import traceback
 from collections import deque
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Callable, Deque, Iterator, Literal, TypeVar
+from typing import (
+    Any,
+    Callable,
+    Deque,
+    Iterator,
+    Literal,
+    Self,
+    Sequence,
+    TypeVar,
+    cast,
+)
 
-import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
 import stl
+from omegaconf import MISSING, OmegaConf
 from scipy.spatial.transform import Rotation as R
 
 from kol.cleanup import cleanup_mesh_dir
-from kol.formats import mjcf, urdf  # noqa: F401
+from kol.formats import mjcf, urdf
 from kol.geometry import apply_matrix_, inv_tf, transform_inertia_tensor
 from kol.merge_fixed_joints import get_merged_urdf
-from kol.mesh import MeshType, get_mesh_type, stl_to_fmt
+from kol.mesh import get_mesh_type, stl_to_fmt
 from kol.onshape.api import OnshapeApi
 from kol.onshape.client import OnshapeClient
 from kol.onshape.schema.assembly import (
@@ -59,10 +68,6 @@ T = TypeVar("T")
 
 Color = tuple[int, int, int, int]
 
-DEFAULT_COLOR: Color = (0, 0, 255, 255)  # Blue
-DEFAULT_MASS: float = 0.001
-DEFAULT_VOXEL_SIZE: float = 0.002
-
 
 def clean_name(name: str) -> str:
     return re.sub(r"\s+", "_", re.sub(r"[<>]", "", name)).lower()
@@ -93,49 +98,123 @@ class JointLimits:
     axial_z_max_expression: str | None = None
 
 
+@dataclass
+class ConverterConfig:
+    """Defines a configuration class for the converter."""
+
+    document_url: str = field(
+        default=MISSING,
+        metadata={"help": "The URL of the Onshape document to convert."},
+    )
+    output_dir: str | Path | None = field(
+        default=None,
+        metadata={"help": "The output directory for the URDF files."},
+    )
+    api: OnshapeApi | None = field(
+        default=None,
+        metadata={"help": "The Onshape API to use."},
+    )
+    default_prismatic_joint_limits: tuple[float, float, float, float] = field(
+        default=(80.0, 5.0, -1.0, 1.0),
+        metadata={"help": "The default prismatic joint limits, as (effort, velocity, min, max)."},
+    )
+    default_revolute_joint_limits: tuple[float, float, float, float] = field(
+        default=(80.0, 5.0, -np.pi, np.pi),
+        metadata={"help": "The default revolute joint limits, as (effort, velocity, min, max)."},
+    )
+    suffix_to_joint_effort: list[tuple[str, float]] = field(
+        default_factory=lambda: [],
+        metadata={"help": "The suffix to joint effort mapping."},
+    )
+    suffix_to_joint_velocity: list[tuple[str, float]] = field(
+        default_factory=lambda: [],
+        metadata={"help": "The suffix to joint velocity mapping."},
+    )
+    disable_mimics: bool = field(
+        default=False,
+        metadata={"help": "Disables the mimic joints."},
+    )
+    mesh_ext: str = field(
+        default="stl",
+        metadata={"help": "The mesh extension to use for the URDF files, e.g., 'stl' or 'obj'."},
+    )
+    override_central_node: str | None = field(
+        default=None,
+        metadata={"help": "The name of the central node to use."},
+    )
+    remove_inertia: bool = field(
+        default=False,
+        metadata={"help": "Removes inertia from the URDF."},
+    )
+    merge_fixed_joints: bool = field(
+        default=False,
+        metadata={"help": "Merges fixed joints in the URDF."},
+    )
+    simplify_meshes: bool = field(
+        default=True,
+        metadata={"help": "Simplifies the meshes when converting the URDF."},
+    )
+    override_joint_names: dict[str, str] | None = field(
+        default=None,
+        metadata={"help": "A mapping from an OnShape joint name to some canonical name."},
+    )
+    override_nonfixed: list[str] | None = field(
+        default=None,
+        metadata={"help": "The override non-fixed joints."},
+    )
+    override_limits: dict[str, str] | None = field(
+        default=None,
+        metadata={"help": "The override joint limits."},
+    )
+    override_torques: dict[str, int] | None = field(
+        default=None,
+        metadata={"help": "The override joint torques."},
+    )
+    sim_ignore_key: str = field(
+        default="sim_ignore",
+        metadata={"help": "If this key is in the joint name, ignore it."},
+    )
+    voxel_size: float = field(
+        default=0.002,
+        metadata={"help": "The voxel size to use for simplifying meshes."},
+    )
+    default_color: tuple[int, int, int, int] = field(
+        default=(0, 0, 255, 255),
+        metadata={"help": "The default color to use for parts."},
+    )
+    default_mass: float = field(
+        default=0.001,
+        metadata={"help": "The default mass to use for parts which have their masses missing."},
+    )
+    debug: bool = field(
+        default=False,
+        metadata={"help": "Enables debug mode."},
+    )
+
+    @classmethod
+    def from_cli_args(cls, args: Sequence[str]) -> Self:
+        cfg = OmegaConf.structured(cls)
+        cli_args: list[str] = []
+        for arg in args:
+            if Path(arg).is_file():
+                cfg = OmegaConf.merge(cfg, OmegaConf.load(arg))
+            else:
+                cli_args.append(arg)
+        if cli_args:
+            # This is a patch to support some syntax sugar - we automatically
+            # treat the first argument as the document URL.
+            if "=" not in cli_args[0]:
+                cli_args[0] = f"document_url={cli_args[0]}"
+            cfg = OmegaConf.merge(cfg, OmegaConf.from_cli(cli_args))
+        return cfg
+
+
 class Converter:
-    """Defines a utility class for getting document components efficiently.
+    """Defines a utility class for getting document components efficiently."""
 
-    Parameters:
-        document_url: The OnShape URL of the document to import.
-        output_dir: The directory to save the imported model.
-        api: The OnShape API to use for importing the model.
-        default_prismatic_joint_limits: The default limits for prismatic joints.
-        default_revolute_joint_limits: The default limits for revolute joints.
-        suffix_to_joint_effort: The mapping from joint suffix to effort. This
-            is used to override the default joint effort limits by matching
-            the suffix of the joint name.
-        suffix_to_joint_velocity: The mapping from joint suffix to velocity.
-            This is used to override the default joint velocity limits by
-            matching the suffix of the joint name.
-        disable_mimics: Whether to disable mimic joints.
-        mesh_ext: The extension of the mesh files to download.
-    """
-
-    def __init__(
-        self,
-        document_url: str,
-        output_dir: str | Path | None = None,
-        api: OnshapeApi | None = None,
-        default_prismatic_joint_limits: urdf.JointLimits = urdf.JointLimits(80.0, 5.0, -1.0, 1.0),
-        default_revolute_joint_limits: urdf.JointLimits = urdf.JointLimits(80.0, 5.0, -np.pi, np.pi),
-        suffix_to_joint_effort: list[tuple[str, float]] = [],
-        suffix_to_joint_velocity: list[tuple[str, float]] = [],
-        disable_mimics: bool = False,
-        mesh_ext: MeshType = "stl",
-        override_central_node: str | None = None,
-        skip_small_parts: bool = False,
-        remove_inertia: bool = False,
-        merge_fixed_joints: bool = False,
-        simplify_meshes: bool = True,
-        override_joint_names: dict[str, str] | None = None,
-        override_nonfixed: list[str] | None = None,
-        override_limits: dict[str, str] | None = None,
-        override_torques: dict[str, int] | None = None,
-        config_path: str | None = None,
-    ) -> None:
+    def __init__(self, config: ConverterConfig) -> None:
         # Gets a default output directory.
-        self.output_dir = (Path.cwd() / "robot" if output_dir is None else Path(output_dir)).resolve()
+        self.output_dir = (Path.cwd() / "robot" if config.output_dir is None else Path(config.output_dir)).resolve()
 
         # Creates a new directory for cached artifacts.
         self.cache_dir = self.output_dir / ".cache"
@@ -145,26 +224,26 @@ class Converter:
         self.mesh_dir = self.output_dir / "meshes"
         self.mesh_dir.mkdir(parents=True, exist_ok=True)
 
-        self.api = OnshapeApi(OnshapeClient()) if api is None else api
-        self.document = self.api.parse_url(document_url)
-        self.default_prismatic_joint_limits = default_prismatic_joint_limits
-        self.default_revolute_joint_limits = default_revolute_joint_limits
-        self.suffix_to_joint_effort = [(k.lower().strip(), v) for k, v in suffix_to_joint_effort]
-        self.suffix_to_joint_velocity = [(k.lower().strip(), v) for k, v in suffix_to_joint_velocity]
-        self.disable_mimics = disable_mimics
-        self.mesh_ext = mesh_ext
-        self.override_central_node = override_central_node
-        self.skip_small_parts = skip_small_parts
-        self.remove_inertia = remove_inertia
-        self.merge_fixed_joints = merge_fixed_joints
-        self.simplify_meshes = simplify_meshes
-        self.override_joint_names = override_joint_names
-        self.override_nonfixed = override_nonfixed
-        self.override_limits = override_limits
-        self.override_torques = override_torques
-
-        self.sim_ignored_joints = []
-        self.config_path = config_path
+        self.api = OnshapeApi(OnshapeClient()) if config.api is None else config.api
+        self.document = self.api.parse_url(config.document_url)
+        self.default_prismatic_joint_limits = urdf.JointLimits(*config.default_prismatic_joint_limits)
+        self.default_revolute_joint_limits = urdf.JointLimits(*config.default_revolute_joint_limits)
+        self.suffix_to_joint_effort = [(k.lower().strip(), v) for k, v in config.suffix_to_joint_effort]
+        self.suffix_to_joint_velocity = [(k.lower().strip(), v) for k, v in config.suffix_to_joint_velocity]
+        self.disable_mimics = config.disable_mimics
+        self.mesh_ext = get_mesh_type(config.mesh_ext)
+        self.override_central_node = config.override_central_node
+        self.remove_inertia = config.remove_inertia
+        self.merge_fixed_joints = config.merge_fixed_joints
+        self.simplify_meshes = config.simplify_meshes
+        self.override_joint_names = config.override_joint_names
+        self.override_nonfixed = config.override_nonfixed
+        self.override_limits = config.override_limits
+        self.override_torques = config.override_torques
+        self.sim_ignore_key = config.sim_ignore_key
+        self.voxel_size = config.voxel_size
+        self.default_color = tuple(config.default_color)
+        self.default_mass = config.default_mass
 
         # Map containing all cached items.
         self.cache_map: dict[str, Any] = {}
@@ -241,7 +320,7 @@ class Converter:
     def part_color(self, part: Part) -> Color:
         part_color = self.part_metadata(part).property_map.get("Appearance")
         if part_color is None:
-            return DEFAULT_COLOR
+            return cast(Color, tuple(self.default_color))
         return (
             part_color["color"]["red"],
             part_color["color"]["green"],
@@ -373,7 +452,7 @@ class Converter:
         return {self.key_name(key, None): key for key in self.key_to_name}
 
     @functools.cached_property
-    def graph(self) -> nx.Graph:
+    def graph_and_ignored_joints(self) -> tuple[nx.Graph, set[Key]]:
         """Converts the assembly to an undirected graph of joints and parts.
 
         This checks that the assembly is connected as a single piece (meaning
@@ -382,18 +461,19 @@ class Converter:
         arise when a part has two parents.
 
         Returns:
-            The graph of the assembly.
+            The graph of the assembly, along with a set of the ignored joints.
         """
         graph = nx.Graph()
         graph_none_ignored = nx.Graph()
+        sim_ignored_joints: set[Key] = set()
 
         for key, _ in self.key_to_part_instance.items():
             graph_none_ignored.add_node(key)
-            if "sim_ignore" not in self.key_name(key, "joint"):
+            if self.sim_ignore_key not in self.key_name(key, "joint").lower():
                 graph.add_node(key)
             else:
                 logger.info(f"Ignoring joint due to sim_ignore: {self.key_name(key, 'joint')}")
-                self.sim_ignored_joints.append(key)
+                sim_ignored_joints.add(key)
 
         def add_edge_safe(node_a: Key, node_b: Key, name: str) -> None:
             # Here, we are considering a graph with no ignored joints
@@ -455,11 +535,11 @@ class Converter:
         # plt.savefig('graph.png', dpi=300)
         # plt.clf()
 
+        components: list[str] = []
+
         # If there are any unconnected nodes in the graph, raise an error.
         if not nx.is_connected(graph_none_ignored):
             num_components = nx.number_connected_components(graph_none_ignored)
-
-            components: list[str] = []
             for component in nx.connected_components(graph_none_ignored):
                 component_list = sorted([self.key_name(c, "link") for c in component])
                 components.append("\n      ".join(component_list))
@@ -475,22 +555,22 @@ class Converter:
         # Remove smaller components
         for component in list(nx.connected_components(graph)):
             if component != largest_component:
-                self.sim_ignored_joints.extend(component)
+                sim_ignored_joints.add(component)
                 graph.remove_nodes_from(component)
 
         # If there are any unconnected nodes in the graph, raise an error.
         if not nx.is_connected(graph):
             num_components = nx.number_connected_components(graph)
-
-            components: list[str] = []
+            components.clear()
             for component in nx.connected_components(graph):
                 component_list = sorted([self.key_name(c, "link") for c in component])
                 components.append("\n      ".join(component_list))
             components_string = "\n\n".join(f"  {i + 1: <3} {component}" for i, component in enumerate(components))
 
             raise ValueError(
-                "The assembly constructed with sim_ignore is not fully connected! URDF export requires a single fully-connected robot, "
-                f"but the graph has {num_components} components. Components:\n{components_string}"
+                "The assembly constructed with sim_ignore is not fully connected! URDF export requires a single "
+                f"fully-connected robot, but the graph has {num_components} components. "
+                f"Components:\n{components_string}"
             )
 
         # Debug for viewing final simulated URDF graph
@@ -501,7 +581,15 @@ class Converter:
         # plt.savefig('graph_one.png', dpi=300)
         # plt.clf()
 
-        return graph
+        return graph, sim_ignored_joints
+
+    @property
+    def graph(self) -> nx.Graph:
+        return self.graph_and_ignored_joints[0]
+
+    @property
+    def sim_ignored_joints(self) -> set[Key]:
+        return self.graph_and_ignored_joints[1]
 
     @functools.cached_property
     def central_node(self) -> Key:
@@ -751,8 +839,8 @@ class Converter:
         mass = part_dynamic.mass[0]
         if mass <= 0.0:
             logger.warning("Part %s has a mass of %f, which is invalid", part_name, mass)
-            logger.warning("Part %s set to default mass %f", part_name, DEFAULT_MASS)
-            mass = DEFAULT_MASS
+            logger.warning("Part %s set to default mass %f", part_name, self.default_mass)
+            mass = self.default_mass
 
         # Move the mesh origin and dynamics from the part frame to the parent
         # joint frame (since URDF expects this by convention).
@@ -827,7 +915,6 @@ class Converter:
         Returns:
             The URDF link and joint.
         """
-
         parent_stl_origin_to_part_tf = self.stl_origin_to_part_tf[joint.parent]
         parent_part_to_mate_tf = joint.parent_entity.matedCS.part_to_mate_tf
         parent_stl_origin_to_mate_tf = parent_stl_origin_to_part_tf @ parent_part_to_mate_tf
@@ -985,20 +1072,15 @@ class Converter:
         #     print(f"T_{ab}_{names[j.child]} = np.", end="")
         #     print(repr(j.child_entity.matedCS.part_to_mate_tf))
 
-        # Creates a URDF joint for each feature connecting two parts.
-        small_parts = ["screw", "tapping_insert", "bearing", "hex_nut", "locknuts", "gear", "stop"]
         for joint in self.ordered_joint_list:
             urdf_joint, urdf_link = None, None
             joint_name = self.key_name(joint.joint_key, "joint")  # Get the joint name here
+
             try:
                 urdf_joint = self.get_urdf_joint(joint)
                 urdf_link = self.get_urdf_part(joint.child, joint)
-                if self.skip_small_parts:
-                    if any(part in urdf_link.name for part in small_parts):
-                        logging.warning("Skipping Small Part: " + urdf_link.name)
-                        continue
+
             except KeyError as e:
-                # Use the derived joint name in the logging statements
                 parent_part_name = self.get_part_name_from_key(joint.parent)
                 child_part_name = self.get_part_name_from_key(joint.child)
                 logging.error("KeyError creating joint: %s", joint_name)
@@ -1006,6 +1088,7 @@ class Converter:
                 logging.error("Parent part: %s, Child part: %s", parent_part_name, child_part_name)
                 logging.error("Traceback: %s", traceback.format_exc())
                 raise
+
             except Exception as e:
                 logging.error("Exception creating joint: %s", joint_name)
                 logging.error(e)
@@ -1015,12 +1098,9 @@ class Converter:
                 if urdf_link is not None:
                     logging.warning("Link %s", urdf_link)
                 raise
+
             if (urdf_link is not None) and (urdf_joint is not None):
                 urdf_parts.append(urdf_link)
-                if self.skip_small_parts:
-                    if any(part in self.get_part_name_from_key(joint.parent) for part in small_parts):
-                        logging.warning("Skipping Small Part" + urdf_link.name)
-                        continue
                 urdf_parts.append(urdf_joint)
 
         # Saves the final URDF.
@@ -1038,35 +1118,14 @@ class Converter:
                 self.override_torques,
             )
 
-        def read_config_from_json(file_path):
-            with open(file_path, "r") as file:
-                data = json.load(file)
-
-            update_dict = data.get("update_dict", {})
-            override = data.get("override", [])
-            joint_limits = data.get("joint_limits", {})
-            new_torques = data.get("new_torques", {})
-
-            return update_dict, override, joint_limits, new_torques
-
-        if self.config_path is not None:
-            update_dict, override, joint_limits, new_torques = read_config_from_json(self.config_path)
-            update_joints(
-                self.output_dir / f"{robot_name}.urdf",
-                name_dict=update_dict,
-                override_fixed=override,
-                override_limits=joint_limits,
-                override_torques=new_torques,
-            )
-
         if self.merge_fixed_joints:
             get_merged_urdf(self.output_dir / f"{robot_name}.urdf", 1.0)
             robot_name += "_merged"
             if self.simplify_meshes:
-                simplify_all(self.output_dir / f"{robot_name}.urdf", DEFAULT_VOXEL_SIZE)
+                simplify_all(self.output_dir / f"{robot_name}.urdf", self.voxel_size)
                 robot_name += "_simplified"
         elif self.simplify_meshes:
-            simplify_all(self.output_dir / f"{robot_name}.urdf", DEFAULT_VOXEL_SIZE)
+            simplify_all(self.output_dir / f"{robot_name}.urdf", self.voxel_size)
             robot_name += "_simplified"
 
         # cleanup mesh dir, unlink other urdfs

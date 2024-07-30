@@ -18,6 +18,10 @@ with open("kol/requirements-dev.txt", "r", encoding="utf-8") as f:
     requirements_dev: list[str] = f.read().splitlines()
 
 
+requirements_mujoco = ["mujoco"]
+requirements_all = requirements_dev + requirements_mujoco
+
+
 with open("kol/__init__.py", "r", encoding="utf-8") as fh:
     version_re = re.search(r"^__version__ = \"([^\"]*)\"", fh.read(), re.MULTILINE)
 assert version_re is not None, "Could not find version in kol/__init__.py"
@@ -35,7 +39,11 @@ setup(
     python_requires=">=3.11",
     install_requires=requirements,
     tests_require=requirements_dev,
-    extras_require={"dev": requirements_dev},
+    extras_require={
+        "dev": requirements_dev,
+        "mujoco": requirements_mujoco,
+        "all": requirements_all,
+    },
     package_data={
         "kol": [
             "py.typed",

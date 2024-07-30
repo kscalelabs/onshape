@@ -9,13 +9,20 @@ import argparse
 import time
 from typing import Sequence
 
-import mujoco
-import mujoco.viewer
-
 from kol.logging import configure_logging
 
 
 def main(args: Sequence[str] | None = None) -> None:
+    try:
+        import mujoco
+        import mujoco.viewer
+
+    except ImportError as e:
+        raise ImportError(
+            "Please install the package with Mujoco as a dependency, using "
+            "`pip install kscale-onshape-library[mujoco]`"
+        ) from e
+
     configure_logging()
     parser = argparse.ArgumentParser(description="Show a MJCF in Mujoco")
     parser.add_argument("path_mjcf", nargs="?", help="Path to the MJCF file")

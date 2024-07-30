@@ -46,14 +46,22 @@ conda create -y -n kol python=3.11 && conda activate kol
 pip install -e '.[dev]'
 ```
 
+Or, if you want to install all dependencies, do:
+
+```bash
+pip install 'kscale-onshape-library[all]'
+```
+
 In order to access the OnShape API, you need to define `ONSHAPE_ACCESS_KEY` and `ONSHAPE_SECRET_KEY` using a key generated [here](https://dev-portal.onshape.com/keys).
 
 ### Usage
+
 To convert an assembly to a URDF, use the following command:
 
 ```bash
 kol urdf https://cad.onshape.com/documents/DDDDDDDD/w/WWWWWWWW/e/EEEEEEEE
 ```
+
 You can visualize the resulting URDF using PyBullet:
 
 ```bash
@@ -62,9 +70,11 @@ kol pybullet robot/<urdf-name>.urdf
 ```
 
 To convert an assembly to a MJCF, use the following command:
+
 ```bash
 kol mjcf https://cad.onshape.com/documents/DDDDDDDD/w/WWWWWWWW/e/EEEEEEEE
 ```
+
 You can visualize the resulting MJCF using MuJoCO:
 
 ```bash
@@ -72,25 +82,29 @@ mjpython -m kol.scripts.cli mujoco robot/<mjcf-name>.xml
 ```
 
 ### Advanced Tools
-For improving simulation speed and reducing internal collisions, you can choose to merge a URDF at each of 
+
+For improving simulation speed and reducing internal collisions, you can choose to merge a URDF at each of
 its fixed joints.
 
-``` bash
+```bash
 kol merge-fixed-joints robot/URDF.urdf
 ```
 
 To simplify each of the meshes in a URDF using vertex clustering:
-``` bash
+
+```bash
 kol simplify-all robot/URDF.urdf
 ```
 
 To cleanup the meshes directory by removing all meshes not referenced in a urdf:
-``` bash
+
+```bash
 kol cleanup-mesh-dir robot/URDF.urdf
 ```
 
 For example, if you wanted to download the 5-DOF stompy arm, merge and simplify, then clean the directory.
-``` bash
+
+```bash
 kol urdf https://cad.onshape.com/documents/afaee604f6ca311526a6aec8/w/29af84cb974c2d825b71de39/e/4fef6bce7179a665e62b03ba
 && kol merge-fixed-joints robot/assembly_1.urdf
 && kol simplify-all robot/assembly_1_merged.urdf
