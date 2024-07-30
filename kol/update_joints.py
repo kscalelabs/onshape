@@ -17,27 +17,30 @@ def update_joints(
     override_limits: dict[str, str] | None,
     override_torques: dict[str, int] | None,
 ) -> None:
-    # Load the URDF file
+    # Load the URDF file.
     logger.info("Updating joints.")
     tree = ET.parse(urdf_path)
     root = tree.getroot()
-    # sort keys so we match joints to longest first
+
+    # Sort keys so we match joints to longest first.
     if name_dict:
         sorted_keys = sorted(name_dict.keys(), key=len, reverse=True)
-    # Collect all joints in urdf and get their meshes
+
+    # Collect all joints in urdf and get their meshes.
     for joint in root.iter("joint"):
         joint_name = joint.attrib["name"]
-        # Remove "joint_" from beginning of joint name
+
+        # Remove "joint_" from beginning of joint name.
         if joint_name.startswith("joint_"):
             joint_name = joint_name[6:]
 
-        # Check if name_dict is not None and if the joint_name is a substring of any key in name_dict
-
+        # Check if name_dict is not None and if the joint_name is a substring of any key in name_dict.
         if name_dict:
             for key in sorted_keys:
                 if key in joint_name:
                     joint.attrib["name"] = name_dict[key]
                     break
+
             # If joint has a mimic that needs to be updated as well
             mimic = joint.find("mimic")
             if mimic is not None:
@@ -47,7 +50,7 @@ def update_joints(
                         mimic.attrib["joint"] = name_dict[key]
                         break
 
-        # Check if override_dict is not None and if the any element of override is substring of joint_name then fix
+        # Check if override_dict is not None and if the any element of override is substring of joint_name then fix.
         if override_fixed and any(ov in joint_name for ov in override_fixed):
             joint.attrib["type"] = "fixed"
 
@@ -71,5 +74,6 @@ def update_joints(
                         limit.attrib["lower"] = str(override_limits[key][0])
                         limit.attrib["upper"] = str(override_limits[key][1])
                     break
+
     # Save the updated URDF to the same file
     save_xml(urdf_path, tree)
