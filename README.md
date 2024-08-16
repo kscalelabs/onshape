@@ -68,10 +68,10 @@ To convert an assembly to a MJCF, use the following command:
 kol mjcf https://cad.onshape.com/documents/DDDDDDDD/w/WWWWWWWW/e/EEEEEEEE
 ```
 
-You can visualize the resulting artifacts using MuJoCO Viewer:
+You can visualize the resulting artifacts using MuJoCo Viewer:
 
 ```bash
-python -m mujoco.viewer
+python -m MuJoCo.viewer
 ```
 
 For URDF files it's sometimes necessary to first drag the file into the meshes folder before viewing it. 
@@ -100,9 +100,9 @@ kol simplify-all robot/URDF.urdf
 
 The size of the voxels is quite important when using this function, and can be passed in as a flag. Essentially,
 the way this program works is by grabbing groups of vertices which fit into a single voxel and then combining
-them into a single vertex. This funciton is especially useful because mujoco cannot render bodies with more 
+them into a single vertex. This funciton is especially useful because MuJoCo cannot render bodies with more 
 than 20 coplanar faces. When choosing a voxel size, typically between `0.0001` and `0.0005` is suitable. Avoid
-setting a very large voxel size, as, although the visual and collision meshes themselves will not be too unaffected,
+setting a very large voxel size, as although the visual and collision meshes themselves will not be too unaffected,
 smaller parts can become 2d. 
 
 To cleanup the meshes directory by removing all meshes not referenced in a urdf:
@@ -143,8 +143,8 @@ to get a very simulation ready artifact.
 
 Multiple methods of overwriting various aspects of simulation artifacts exist as flags as well. By specifying
 a `config.json` file similar to the one in config_example.json with dictionaries, the following flags can be used.
-- `override_joint_names`: Override joint names for joints. When specifying this dictionary, it's recommended to 
-put the robot into mujoco viewer, and compare names of joints to those in onshape. Naming joints descriptively
+- `override_joint_names`: Override joint names for joints. When specifying this dictionary, it's reccomended to 
+put the robot into MuJoCo viewer, and compare names of joints to those in onshape. Naming joints descriptively
 things like `left hip pitch` will make adapting to simulation far easier.
 - `override_nonfixed`: Set nonfixed joints (`prismatic`, `revolute`, etc.) to be of the `fixed` type.
 - `override_limits`: Override the limits on specific joints. 
@@ -152,7 +152,7 @@ things like `left hip pitch` will make adapting to simulation far easier.
 
 You can also set default values for all joints using the following flags.
 - `default_color`: Set all links to a default RGBA color.
-- `default_mass`: Set all masses to a certain default value if they don't exist. It's very recommended to address
+- `default_mass`: Set all masses to a certain default value if they don't exist. It's very reccomended to address
 these in onshape however.
 - `suffix_to_joint_effort`: Override effort limits for joints. 
 - `suffix_to_joint_velocity`: Override velocity limits for joints. Very important for simulation stability. 
@@ -169,9 +169,9 @@ to contribute! Support for other file formats like USD files for IsaacLab will b
 ### Tips and Suggestions
 
 - To avoid mishaps from occuring due to cached files, if making big changes in a single export, or if the robot
-has undergone major changes since the last export, it's good to start freshw ith a new `/robot/` folder. 
+has undergone major changes since the last export, it's good to start fresh with a new `/robot/` folder. 
 - There's no guarantee that the robot's starting pose (when all joint positions are set to 0) will be good,
-or even matching what you see on onshape. It's reccomended to use Mujoco Viewer to find a good starting
+or even matching what you see on onshape. It's reccomended to use MuJoCo Viewer to find a good starting
 position for each joint.
 - Robots function much better in simulation when they have less parts. It's very good to make sure that link
 names are descriptive in onshape so small parts can be better removed using `--skip-small-parts`. This will also make export faster.
