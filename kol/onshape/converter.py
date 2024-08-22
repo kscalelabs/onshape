@@ -110,10 +110,6 @@ class ConverterConfig:
         default=None,
         metadata={"help": "The output directory for the URDF files."},
     )
-    api: OnshapeApi | None = field(
-        default=None,
-        metadata={"help": "The Onshape API to use."},
-    )
     default_prismatic_joint_limits: tuple[float, float, float, float] = field(
         default=(80.0, 5.0, -1.0, 1.0),
         metadata={"help": "The default prismatic joint limits, as (effort, velocity, min, max)."},
@@ -212,7 +208,12 @@ class ConverterConfig:
 class Converter:
     """Defines a utility class for getting document components efficiently."""
 
-    def __init__(self, config: ConverterConfig) -> None:
+    def __init__(
+        self,
+        config: ConverterConfig,
+        *,
+        api: OnshapeApi | None = None,
+    ) -> None:
         # Gets a default output directory.
         self.output_dir = (Path.cwd() / "robot" if config.output_dir is None else Path(config.output_dir)).resolve()
 
@@ -224,7 +225,7 @@ class Converter:
         self.mesh_dir = self.output_dir / "meshes"
         self.mesh_dir.mkdir(parents=True, exist_ok=True)
 
-        self.api = OnshapeApi(OnshapeClient()) if config.api is None else config.api
+        self.api = OnshapeApi(OnshapeClient()) if api is None else api
         self.document = self.api.parse_url(config.document_url)
         self.default_prismatic_joint_limits = urdf.JointLimits(*config.default_prismatic_joint_limits)
         self.default_revolute_joint_limits = urdf.JointLimits(*config.default_revolute_joint_limits)
