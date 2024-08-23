@@ -4,7 +4,6 @@ import base64
 import datetime
 import hashlib
 import hmac
-import json
 import logging
 import os
 import random
@@ -12,9 +11,9 @@ import re
 import string
 import urllib.parse
 from dataclasses import dataclass
-from typing import Any, Literal, cast
+from typing import Any, Literal, Mapping, cast
 
-import requests
+from httpx import AsyncClient, Response as HttpxResponse
 
 logger = logging.getLogger(__name__)
 
@@ -99,7 +98,7 @@ class OnshapeClient:
         date: str,
         nonce: str,
         path: str,
-        query: dict[str, Any] = {},
+        query: Mapping[str, Any] = {},
         ctype: str = "application/json",
     ) -> str:
         """Create the request signature to authenticate.
@@ -127,8 +126,8 @@ class OnshapeClient:
         self,
         method: str,
         path: str,
-        query: dict[str, Any] = {},
-        headers: dict[str, str] = {},
+        query: Mapping[str, Any] = {},
+        headers: Mapping[str, str] = {},
     ) -> dict[str, str]:
         """Creates a headers object to sign the request.
 
@@ -158,15 +157,15 @@ class OnshapeClient:
             req_headers[h] = headers[h]
         return req_headers
 
-    def request(
+    async def request(
         self,
         method: Method,
         path: str,
-        query: dict[str, Any] = {},
-        headers: dict[str, str] = {},
-        body: dict[str, str] | str = {},
+        query: Mapping[str, Any] = {},
+        headers: Mapping[str, str] = {},
+        body: Mapping[str, Any] = {},
         base_url: str | None = None,
-    ) -> requests.Response:
+    ) -> HttpxResponse:
         """Issues a request to Onshape.
 
         Args:
@@ -185,26 +184,36 @@ class OnshapeClient:
             base_url = self.base_url
         url = base_url + path + "?" + urllib.parse.urlencode(query)
 
-        body = json.dumps(body) if isinstance(body, dict) else body
-        response = requests.request(method, url, headers=req_headers, data=body, allow_redirects=False, stream=True)
+        async with AsyncClient() as client:
+            async with client.stream(
+                method,
+                url,
+                headers=req_headers,
+                data=body,
+            ) as response:
+                if response.status_code == 307:
+                    location = urllib.parse.urlparse(response.headers["Location"])
+                    querystring = urllib.parse.parse_qs(location.query)
+                    logger.debug("Request redirected to: %s", location.geturl())
+                    new_query = {}
+                    new_base_url = location.scheme + "://" + location.netloc
+                    for key in querystring:
+                        new_query[key] = querystring[key][0]  # won't work for repeated query params
+                    return await self.request(
+                        method,
+                        location.path,
+                        query=new_query,
+                        headers=headers,
+                        base_url=new_base_url,
+                    )
 
-        if response.status_code == 307:
-            location = urllib.parse.urlparse(response.headers["Location"])
-            querystring = urllib.parse.parse_qs(location.query)
-            logger.debug("Request redirected to: %s", location.geturl())
-            new_query = {}
-            new_base_url = location.scheme + "://" + location.netloc
-            for key in querystring:
-                new_query[key] = querystring[key][0]  # won't work for repeated query params
-            return self.request(method, location.path, query=new_query, headers=headers, base_url=new_base_url)
+                elif not 200 <= response.status_code <= 206:
+                    logger.error("Got response %d for %s, details: %s", response.status_code, path, response.text)
 
-        elif not 200 <= response.status_code <= 206:
-            logger.error("Got response %d for %s, details: %s", response.status_code, path, response.text)
+                    if response.status_code == 403:
+                        logger.warning("Check that your authentication information is correct")
 
-            if response.status_code == 403:
-                logger.warning("Check that your authentication information is correct")
+                else:
+                    logger.debug("Got response %d for %s", response.status_code, path)
 
-        else:
-            logger.debug("Got response %d for %s", response.status_code, path)
-
-        return response
+                return response

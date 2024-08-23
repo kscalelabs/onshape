@@ -1,5 +1,6 @@
 # requirements.txt
 
+httpx
 networkx
 numpy
 numpy-stl
