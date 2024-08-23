@@ -10,3 +10,4 @@ pydantic
 requests
 scipy
 trimesh
+asyncstdlib

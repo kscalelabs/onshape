@@ -1,7 +1,8 @@
 """Defines the top-level KOL CLI."""
 
 import argparse
-from typing import Sequence
+import asyncio
+from typing import Literal, Sequence, get_args
 
 from kol.scripts import (
     cleanup_mesh_dir,
@@ -15,31 +16,30 @@ from kol.scripts import (
     visualize_stl,
 )
 
+Subcommand = Literal[
+    "urdf",
+    "mjcf",
+    "pybullet",
+    "mujoco",
+    "stl",
+    "simplify",
+    "merge-fixed-joints",
+    "simplify-all",
+    "cleanup-mesh-dir",
+]
 
-def main(args: Sequence[str] | None = None) -> None:
+
+async def main(args: Sequence[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description="K-Scale OnShape Library", add_help=False)
-    parser.add_argument(
-        "subcommand",
-        choices=[
-            "urdf",
-            "mjcf",
-            "pybullet",
-            "mujoco",
-            "stl",
-            "simplify",
-            "merge-fixed-joints",
-            "simplify-all",
-            "cleanup-mesh-dir",
-        ],
-        help="The subcommand to run",
-    )
+    parser.add_argument("subcommand", choices=get_args(Subcommand), help="The subcommand to run")
     parsed_args, remaining_args = parser.parse_known_args(args)
+    subcommand: Subcommand = parsed_args.subcommand
 
-    match parsed_args.subcommand:
+    match subcommand:
         case "urdf":
-            get_urdf.main(remaining_args)
+            await get_urdf.main(remaining_args)
         case "mjcf":
-            get_mjcf.main(remaining_args)
+            await get_mjcf.main(remaining_args)
         case "pybullet":
             pybullet.main(remaining_args)
         case "mujoco":
@@ -58,6 +58,10 @@ def main(args: Sequence[str] | None = None) -> None:
             raise ValueError(f"Unknown subcommand: {parsed_args.subcommand}")
 
 
+def sync_main() -> None:
+    asyncio.run(main())
+
+
 if __name__ == "__main__":
     # python -m kol.scripts.cli
-    main()
+    sync_main()

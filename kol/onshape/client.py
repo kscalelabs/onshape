@@ -10,10 +10,11 @@ import random
 import re
 import string
 import urllib.parse
+from contextlib import asynccontextmanager
 from dataclasses import dataclass
-from typing import Any, Literal, Mapping, cast
+from typing import Any, AsyncIterator, Literal, Mapping, cast
 
-from httpx import AsyncClient, Response as HttpxResponse
+from httpx import AsyncClient, Response
 
 logger = logging.getLogger(__name__)
 
@@ -157,6 +158,7 @@ class OnshapeClient:
             req_headers[h] = headers[h]
         return req_headers
 
+    @asynccontextmanager
     async def request(
         self,
         method: Method,
@@ -165,7 +167,7 @@ class OnshapeClient:
         headers: Mapping[str, str] = {},
         body: Mapping[str, Any] = {},
         base_url: str | None = None,
-    ) -> HttpxResponse:
+    ) -> AsyncIterator[Response]:
         """Issues a request to Onshape.
 
         Args:
@@ -199,21 +201,24 @@ class OnshapeClient:
                     new_base_url = location.scheme + "://" + location.netloc
                     for key in querystring:
                         new_query[key] = querystring[key][0]  # won't work for repeated query params
-                    return await self.request(
+                    async with self.request(
                         method,
                         location.path,
                         query=new_query,
                         headers=headers,
                         base_url=new_base_url,
-                    )
-
-                elif not 200 <= response.status_code <= 206:
-                    logger.error("Got response %d for %s, details: %s", response.status_code, path, response.text)
-
-                    if response.status_code == 403:
-                        logger.warning("Check that your authentication information is correct")
+                    ) as new_response:
+                        yield new_response
 
                 else:
-                    logger.debug("Got response %d for %s", response.status_code, path)
+                    if not 200 <= response.status_code <= 206:
+                        await response.aread()
+                        logger.error("Got response %d for %s, details: %s", response.status_code, path, response.text)
 
-                return response
+                        if response.status_code == 403:
+                            logger.warning("Check that your authentication information is correct")
+
+                    else:
+                        logger.debug("Got response %d for %s", response.status_code, path)
+
+                    yield response
