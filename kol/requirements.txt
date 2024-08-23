@@ -1,5 +1,6 @@
 # requirements.txt
 
+asyncstdlib
 httpx
 networkx
 numpy
@@ -10,4 +11,3 @@ pydantic
 requests
 scipy
 trimesh
-asyncstdlib
