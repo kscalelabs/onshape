@@ -3,7 +3,6 @@
 
 import asyncio
 import datetime
-import functools
 import hashlib
 import io
 import itertools
