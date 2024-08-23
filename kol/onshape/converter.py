@@ -128,12 +128,12 @@ class ConverterConfig:
         default=(80.0, 5.0, -np.pi, np.pi),
         metadata={"help": "The default revolute joint limits, as (effort, velocity, min, max)."},
     )
-    suffix_to_joint_effort: list[tuple[str, float]] = field(
-        default_factory=lambda: [],
+    suffix_to_joint_effort: dict[str, float] = field(
+        default_factory=lambda: {},
         metadata={"help": "The suffix to joint effort mapping."},
     )
-    suffix_to_joint_velocity: list[tuple[str, float]] = field(
-        default_factory=lambda: [],
+    suffix_to_joint_velocity: dict[str, float] = field(
+        default_factory=lambda: {},
         metadata={"help": "The suffix to joint velocity mapping."},
     )
     disable_mimics: bool = field(
@@ -239,8 +239,8 @@ class Converter:
         self.document = self.api.parse_url(config.document_url)
         self.default_prismatic_joint_limits = urdf.JointLimits(*config.default_prismatic_joint_limits)
         self.default_revolute_joint_limits = urdf.JointLimits(*config.default_revolute_joint_limits)
-        self.suffix_to_joint_effort = [(k.lower().strip(), v) for k, v in config.suffix_to_joint_effort]
-        self.suffix_to_joint_velocity = [(k.lower().strip(), v) for k, v in config.suffix_to_joint_velocity]
+        self.suffix_to_joint_effort = [(k.lower().strip(), v) for k, v in config.suffix_to_joint_effort.items()]
+        self.suffix_to_joint_velocity = [(k.lower().strip(), v) for k, v in config.suffix_to_joint_velocity.items()]
         self.disable_mimics = config.disable_mimics
         self.mesh_ext = get_mesh_type(config.mesh_ext)
         self.override_central_node = config.override_central_node
@@ -1091,13 +1091,15 @@ class Converter:
         #     print(f"T_{ab}_{names[j.child]} = np.", end="")
         #     print(repr(j.child_entity.matedCS.part_to_mate_tf))
 
-        for joint in await self.ordered_joint_list:
+        async def process_joint(joint: Joint) -> tuple[urdf.Link | None, urdf.BaseJoint | None]:
             urdf_joint, urdf_link = None, None
             joint_name = await self.key_name(joint.joint_key, "joint")  # Get the joint name here
 
             try:
-                urdf_joint = await self.get_urdf_joint(joint)
-                urdf_link = await self.get_urdf_part(joint.child, joint)
+                urdf_joint, urdf_link = await asyncio.gather(
+                    self.get_urdf_joint(joint),
+                    self.get_urdf_part(joint.child, joint),
+                )
 
             except KeyError as e:
                 parent_part_name = self.get_part_name_from_key(joint.parent)
@@ -1113,14 +1115,15 @@ class Converter:
                 logging.error(e)
                 logging.error("Traceback: %s", traceback.format_exc())
                 if urdf_joint is not None:
-                    logging.warning("Joint %/s", urdf_joint)
+                    logging.warning("Joint %s", urdf_joint)
                 if urdf_link is not None:
                     logging.warning("Link %s", urdf_link)
                 raise
 
-            if (urdf_link is not None) and (urdf_joint is not None):
-                urdf_parts.append(urdf_link)
-                urdf_parts.append(urdf_joint)
+            return urdf_link, urdf_joint
+
+        all_joints = await asyncio.gather(*(process_joint(joint) for joint in await self.ordered_joint_list))
+        urdf_parts.extend(filter(None, (joint for joints in all_joints for joint in joints)))
 
         # Saves the final URDF.
         robot_name = clean_name(str((await self.assembly_metadata).property_map.get("Name", "robot")))

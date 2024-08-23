@@ -16,8 +16,7 @@ from kol.onshape.converter import Converter, ConverterConfig
 # )
 
 ONSHAPE_URL = (
-    "https://cad.onshape.com/documents/4b3eeb430e3d28511ab9cba8/w/"
-    "dc58c6e8cf7c1ee8bd864ee4/e/de14dfcca89a312f32f77d02"
+    "https://cad.onshape.com/documents/4b3eeb430e3d28511ab9cba8/w/dc58c6e8cf7c1ee8bd864ee4/e/de14dfcca89a312f32f77d02"
 )
 
 
