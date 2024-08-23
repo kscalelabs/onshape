@@ -56,6 +56,8 @@ def main(args: Sequence[str] | None = None) -> None:
             urdf_path = next(urdf_path.glob("*.urdf"))
         except StopIteration:
             raise FileNotFoundError(f"No URDF files found in {urdf_path}")
+    elif not urdf_path.is_file():
+        raise FileNotFoundError(urdf_path)
 
     # Load the robot URDF.
     start_position = [0.0, 0.0, 1.0]
@@ -63,12 +65,25 @@ def main(args: Sequence[str] | None = None) -> None:
     flags = p.URDF_USE_INERTIA_FROM_FILE
     if not parsed_args.no_merge:
         flags |= p.URDF_MERGE_FIXED_LINKS
-    robot = p.loadURDF(str(urdf_path), start_position, start_orientation, flags=flags, useFixedBase=0)
+
+    robot = p.loadURDF(
+        str(urdf_path.resolve().absolute()),
+        start_position,
+        start_orientation,
+        flags=flags,
+        useFixedBase=0,
+    )
 
     # Display collision meshes as separate object.
     if parsed_args.show_collision:
         collision_flags = p.URDF_USE_INERTIA_FROM_FILE | p.URDF_USE_SELF_COLLISION_EXCLUDE_ALL_PARENTS
-        collision = p.loadURDF(str(urdf_path), start_position, start_orientation, flags=collision_flags, useFixedBase=0)
+        collision = p.loadURDF(
+            str(urdf_path.resolve().absolute()),
+            start_position,
+            start_orientation,
+            flags=collision_flags,
+            useFixedBase=0,
+        )
 
         # Make collision shapes semi-transparent.
         joint_ids = [i for i in range(p.getNumJoints(collision))] + [-1]
