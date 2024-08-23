@@ -7,6 +7,3 @@ mypy
 pytest
 ruff
 isort
-
-# Types
-types-requests
