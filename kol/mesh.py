@@ -41,9 +41,11 @@ class Mesh:
 
 
 def get_mesh_type(file_path: Union[str, Path]) -> MeshType:
+    if (file_path_str := str(file_path).lower()) in get_args(MeshType):
+        return cast(MeshType, file_path_str)
     ext = Path(file_path).suffix[1:]
     if ext not in get_args(MeshType):
-        raise ValueError(f"Unsupported mesh format: {ext}")
+        raise ValueError(f"Unsupported mesh format: '{ext}'")
     return cast(MeshType, ext)
 
 

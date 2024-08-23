@@ -32,33 +32,45 @@ class OnshapeApi:
     def parse_url(self, document_url: str) -> DocumentInfo:
         return self.client.parse_url(document_url)
 
-    def get_document(self, did: str) -> Document:
-        data = self.client.request("get", f"/api/documents/{did}").json()
+    async def get_document(self, did: str) -> Document:
+        async with self.client.request("get", f"/api/documents/{did}") as response:
+            await response.aread()
+            data = response.json()
         return Document.model_validate(data)
 
-    def list_elements(
+    async def list_elements(
         self,
         document_id: str,
         workspace_id: str,
         workspace_type: WorkspaceType = "w",
     ) -> Elements:
-        data = self.client.request("get", f"/api/documents/d/{document_id}/{workspace_type}/{workspace_id}/elements")
-        return Elements.model_validate(data.json())
+        async with self.client.request(
+            "get",
+            f"/api/documents/d/{document_id}/{workspace_type}/{workspace_id}/elements",
+        ) as response:
+            await response.aread()
+            data = response.json()
+        return Elements.model_validate(data)
 
-    def get_first_assembly_id(self, document_id: str, workspace_id: str, workspace_type: WorkspaceType = "w") -> str:
-        elements = self.list_elements(document_id, workspace_id, workspace_type)
+    async def get_first_assembly_id(
+        self,
+        document_id: str,
+        workspace_id: str,
+        workspace_type: WorkspaceType = "w",
+    ) -> str:
+        elements = await self.list_elements(document_id, workspace_id, workspace_type)
         for element in elements.root:
             if element.elementType == ElementType.ASSEMBLY:
                 logger.info("Found assembly %s", element.name)
                 return element.id
         raise ValueError("Assembly not found")
 
-    def get_assembly(self, document: DocumentInfo, configuration: str = "default") -> Assembly:
+    async def get_assembly(self, document: DocumentInfo, configuration: str = "default") -> Assembly:
         path = (
             f"/api/assemblies/d/{document.document_id}/"
             f"{document.item_kind}/{document.item_id}/e/{document.element_id}"
         )
-        data = self.client.request(
+        async with self.client.request(
             "get",
             path,
             query={
@@ -67,48 +79,58 @@ class OnshapeApi:
                 "includeNonSolids": "true",
                 "configuration": configuration,
             },
-        ).json()
+        ) as response:
+            await response.aread()
+            data = response.json()
         return Assembly.model_validate(data)
 
-    def get_features(self, asm: RootAssembly | SubAssembly) -> Features:
+    async def get_features(self, asm: RootAssembly | SubAssembly) -> Features:
         path = f"/api/assemblies/d/{asm.documentId}/m/{asm.documentMicroversion}/e/{asm.elementId}/features"
-        data = self.client.request("get", path).json()
+        async with self.client.request("get", path) as response:
+            await response.aread()
+            data = response.json()
         return Features.model_validate(data)
 
-    def get_assembly_metadata(
+    async def get_assembly_metadata(
         self,
         assembly: RootAssembly | SubAssembly,
         configuration: str = "default",
     ) -> AssemblyMetadata:
         path = f"/api/metadata/d/{assembly.documentId}/m/{assembly.documentMicroversion}/e/{assembly.elementId}"
-        data = self.client.request("get", path, query={"configuration": configuration}).json()
+        async with self.client.request("get", path, query={"configuration": configuration}) as response:
+            await response.aread()
+            data = response.json()
         return AssemblyMetadata.model_validate(data)
 
-    def get_part_metadata(self, part: Part) -> PartMetadata:
+    async def get_part_metadata(self, part: Part) -> PartMetadata:
         path = (
             f"/api/metadata/d/{part.documentId}/m/{part.documentMicroversion}"
             f"/e/{part.elementId}/p/{escape_url(part.partId)}"
         )
-        data = self.client.request("get", path, query={"configuration": part.configuration}).json()
+        async with self.client.request("get", path, query={"configuration": part.configuration}) as response:
+            await response.aread()
+            data = response.json()
         return PartMetadata.model_validate(data)
 
-    def get_part_mass_properties(self, part: Part) -> PartDynamics:
-        data = self.client.request(
+    async def get_part_mass_properties(self, part: Part) -> PartDynamics:
+        async with self.client.request(
             "get",
             (
                 f"/api/parts/d/{part.documentId}/m/{part.documentMicroversion}"
                 f"/e/{part.elementId}/partid/{escape_url(part.partId)}/massproperties"
             ),
             query={"configuration": part.configuration, "useMassPropertyOverrides": True},
-        ).json()
+        ) as response:
+            await response.aread()
+            data = response.json()
         return PartDynamics.model_validate(data)
 
-    def download_stl(self, part: Part, fp: BinaryIO) -> None:
+    async def download_stl(self, part: Part, fp: BinaryIO) -> None:
         path = (
             f"/api/parts/d/{part.documentId}/m/{part.documentMicroversion}"
             f"/e/{part.elementId}/partid/{escape_url(part.partId)}/stl"
         )
-        response = self.client.request(
+        async with self.client.request(
             "get",
             path,
             query={
@@ -118,6 +140,7 @@ class OnshapeApi:
                 "configuration": part.configuration,
             },
             headers={"Accept": "*/*"},
-        )
-        response.raise_for_status()
-        fp.write(response.content)
+        ) as response:
+            response.raise_for_status()
+            data = await response.aread()
+            fp.write(data)

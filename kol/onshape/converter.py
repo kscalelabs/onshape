@@ -1,8 +1,8 @@
 # mypy: disable-error-code="attr-defined"
 """Defines shared functions."""
 
+import asyncio
 import datetime
-import functools
 import hashlib
 import io
 import itertools
@@ -14,9 +14,10 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import (
     Any,
+    AsyncIterator,
     Callable,
+    Coroutine,
     Deque,
-    Iterator,
     Literal,
     Self,
     Sequence,
@@ -24,6 +25,7 @@ from typing import (
     cast,
 )
 
+import asyncstdlib
 import networkx as nx
 import numpy as np
 import stl
@@ -65,12 +67,20 @@ from kol.update_joints import update_joints
 logger = logging.getLogger(__name__)
 
 T = TypeVar("T")
+Tk = TypeVar("Tk")
+Tv = TypeVar("Tv")
 
 Color = tuple[int, int, int, int]
 
 
 def clean_name(name: str) -> str:
     return re.sub(r"\s+", "_", re.sub(r"[<>]", "", name)).lower()
+
+
+async def gather_dict(d: dict[Tk, Coroutine[Any, Any, Tv]]) -> dict[Tk, Tv]:
+    dict_items = [(k, v) for k, v in d.items()]
+    values = await asyncio.gather(*(v for _, v in dict_items))
+    return {k: v for (k, _), v in zip(dict_items, values)}
 
 
 @dataclass
@@ -252,10 +262,10 @@ class Converter:
         # Map containing the transformations from the STL origin to the part frame.
         self.stl_origin_to_part_tf: dict[Key, np.ndarray] = {}
 
-    def get_or_use_cached(
+    async def get_or_use_cached(
         self,
         cache_key: str,
-        get_fn: Callable[[], T],
+        get_fn: Callable[[], Coroutine[Any, Any, T]],
         from_json_fn: Callable[[str], T],
         to_json_fn: Callable[[T], str],
         invalidate_after_n_minutes: int | None = None,
@@ -285,15 +295,15 @@ class Converter:
             else:
                 with open(cache_path) as f:
                     return from_json_fn(f.read())
-        item = get_fn()
+        item = await get_fn()
         with open(cache_path, "w") as f:
             f.write(to_json_fn(item))
         self.cache_map[cache_key] = item
         return item
 
     @property
-    def assembly(self) -> Assembly:
-        return self.get_or_use_cached(
+    async def assembly(self) -> Assembly:
+        return await self.get_or_use_cached(
             "assembly",
             lambda: self.api.get_assembly(self.document),
             lambda asm_str: Assembly.model_validate_json(asm_str),
@@ -302,24 +312,25 @@ class Converter:
         )
 
     @property
-    def assembly_metadata(self) -> AssemblyMetadata:
-        return self.get_or_use_cached(
+    async def assembly_metadata(self) -> AssemblyMetadata:
+        assembly = await self.assembly
+        return await self.get_or_use_cached(
             "assembly_metadata",
-            lambda: self.api.get_assembly_metadata(self.assembly.rootAssembly),
+            lambda: self.api.get_assembly_metadata(assembly.rootAssembly),
             lambda asm_str: AssemblyMetadata.model_validate_json(asm_str),
             lambda asm: asm.model_dump_json(indent=2),
         )
 
-    def part_metadata(self, part: Part) -> PartMetadata:
-        return self.get_or_use_cached(
+    async def part_metadata(self, part: Part) -> PartMetadata:
+        return await self.get_or_use_cached(
             f"part_{part.key.unique_id}_metadata",
             lambda: self.api.get_part_metadata(part),
             lambda part_str: PartMetadata.model_validate_json(part_str),
             lambda part: part.model_dump_json(indent=2),
         )
 
-    def part_color(self, part: Part) -> Color:
-        part_color = self.part_metadata(part).property_map.get("Appearance")
+    async def part_color(self, part: Part) -> Color:
+        part_color = (await self.part_metadata(part)).property_map.get("Appearance")
         if part_color is None:
             return cast(Color, tuple(self.default_color))
         return (
@@ -329,43 +340,44 @@ class Converter:
             part_color["opacity"],
         )
 
-    def part_dynamics(self, part: Part) -> PartDynamics:
-        return self.get_or_use_cached(
+    async def part_dynamics(self, part: Part) -> PartDynamics:
+        return await self.get_or_use_cached(
             f"part_{part.key.unique_id}_mass_properties",
             lambda: self.api.get_part_mass_properties(part),
             lambda props_str: PartDynamics.model_validate_json(props_str),
             lambda props: props.model_dump_json(indent=2),
         )
 
-    def part_name(self, part: Part) -> str:
-        part_prop_name = self.part_metadata(part).property_map.get("Name")
+    async def part_name(self, part: Part) -> str:
+        part_prop_name = (await self.part_metadata(part)).property_map.get("Name")
         return clean_name(part_prop_name if isinstance(part_prop_name, str) else part.key.unique_id)
 
-    @functools.cached_property
-    def euid_to_assembly(self) -> dict[ElementUid, RootAssembly | SubAssembly]:
-        assemblies: list[RootAssembly | SubAssembly] = [self.assembly.rootAssembly, *self.assembly.subAssemblies]
+    @asyncstdlib.cached_property
+    async def euid_to_assembly(self) -> dict[ElementUid, RootAssembly | SubAssembly]:
+        assembly = await self.assembly
+        assemblies: list[RootAssembly | SubAssembly] = [assembly.rootAssembly, *assembly.subAssemblies]
         return {assembly.key: assembly for assembly in assemblies}
 
-    @functools.cached_property
-    def euid_to_subassembly(self) -> dict[ElementUid, SubAssembly]:
-        return {sub.key: sub for sub in self.assembly.subAssemblies}
+    @asyncstdlib.cached_property
+    async def euid_to_subassembly(self) -> dict[ElementUid, SubAssembly]:
+        return {sub.key: sub for sub in (await self.assembly).subAssemblies}
 
-    @functools.cached_property
-    def euid_to_part(self) -> dict[ElementUid, Part]:
-        return {part.key: part for part in self.assembly.parts}
+    @asyncstdlib.cached_property
+    async def euid_to_part(self) -> dict[ElementUid, Part]:
+        return {part.key: part for part in (await self.assembly).parts}
 
-    def traverse_assemblies(self) -> Iterator[tuple[Key, AssemblyInstance, SubAssembly]]:
+    async def traverse_assemblies(self) -> AsyncIterator[tuple[Key, AssemblyInstance, SubAssembly]]:
         subassembly_deque: Deque[tuple[Key, SubAssembly]] = deque()
         visited: set[Key] = set()
 
         # Adds the root assembly to the traversal.
-        for instance in self.assembly.rootAssembly.instances:
+        for instance in (await self.assembly).rootAssembly.instances:
             if isinstance(instance, AssemblyInstance):
                 instance_path: Key = (instance.id,)
                 if instance_path in visited:
                     continue
                 visited.add(instance_path)
-                subassembly = self.euid_to_subassembly[instance.euid]
+                subassembly = (await self.euid_to_subassembly)[instance.euid]
                 yield instance_path, instance, subassembly
                 subassembly_deque.append((instance_path, subassembly))
 
@@ -378,66 +390,66 @@ class Converter:
                     if instance_path in visited:
                         continue
                     visited.add(instance_path)
-                    subassembly = self.euid_to_subassembly[instance.euid]
+                    subassembly = (await self.euid_to_subassembly)[instance.euid]
                     yield instance_path, instance, subassembly
                     subassembly_deque.append((instance_path, subassembly))
 
-    @functools.cached_property
-    def assembly_key_to_id(self) -> dict[Key, ElementUid]:
-        key_map = {key: assembly.key for key, _, assembly in self.traverse_assemblies()}
-        key_map[()] = self.assembly.rootAssembly.key
+    @asyncstdlib.cached_property
+    async def assembly_key_to_id(self) -> dict[Key, ElementUid]:
+        key_map = {key: assembly.key async for key, _, assembly in self.traverse_assemblies()}
+        key_map[()] = (await self.assembly).rootAssembly.key
         return key_map
 
-    @functools.cached_property
-    def key_to_occurrence(self) -> dict[Key, Occurrence]:
-        return {occurrence.key: occurrence for occurrence in self.assembly.rootAssembly.occurrences}
+    @asyncstdlib.cached_property
+    async def key_to_occurrence(self) -> dict[Key, Occurrence]:
+        return {occurrence.key: occurrence for occurrence in (await self.assembly).rootAssembly.occurrences}
 
-    @functools.cached_property
-    def key_to_instance(self) -> dict[Key, Instance]:
+    @asyncstdlib.cached_property
+    async def key_to_instance(self) -> dict[Key, Instance]:
         instance_mapping: dict[Key, Instance] = {}
-        for instance in self.assembly.rootAssembly.instances:
+        for instance in (await self.assembly).rootAssembly.instances:
             instance_mapping[(instance.id,)] = instance
-        for path, assembly_instance, sub_assembly in self.traverse_assemblies():
+        async for path, assembly_instance, sub_assembly in self.traverse_assemblies():
             instance_mapping[path] = assembly_instance
             for instance in sub_assembly.instances:
                 instance_mapping[path + (instance.id,)] = instance
         return instance_mapping
 
     @property
-    def key_to_part_instance(self) -> dict[Key, PartInstance]:
-        return {p: i for p, i in self.key_to_instance.items() if isinstance(i, PartInstance)}
+    async def key_to_part_instance(self) -> dict[Key, PartInstance]:
+        return {p: i for p, i in (await self.key_to_instance).items() if isinstance(i, PartInstance)}
 
     @property
-    def key_to_assembly_instance(self) -> dict[Key, AssemblyInstance]:
-        return {p: i for p, i in self.key_to_instance.items() if isinstance(i, AssemblyInstance)}
+    async def key_to_assembly_instance(self) -> dict[Key, AssemblyInstance]:
+        return {p: i for p, i in (await self.key_to_instance).items() if isinstance(i, AssemblyInstance)}
 
-    @functools.cached_property
-    def key_to_feature(self) -> dict[Key, MateRelationFeature | MateFeature | MateGroupFeature]:
+    @asyncstdlib.cached_property
+    async def key_to_feature(self) -> dict[Key, MateRelationFeature | MateFeature | MateGroupFeature]:
         feature_mapping: dict[Key, MateRelationFeature | MateFeature | MateGroupFeature] = {}
-        for feature in self.assembly.rootAssembly.features:
+        for feature in (await self.assembly).rootAssembly.features:
             feature_mapping[(feature.id,)] = feature
-        for key, _, sub_assembly in self.traverse_assemblies():
+        async for key, _, sub_assembly in self.traverse_assemblies():
             for feature in sub_assembly.features:
                 feature_mapping[key + (feature.id,)] = feature
         return feature_mapping
 
-    @functools.cached_property
-    def key_to_mate_feature(self) -> dict[Key, MateFeature]:
-        return {p: f for p, f in self.key_to_feature.items() if isinstance(f, MateFeature)}
+    @asyncstdlib.cached_property
+    async def key_to_mate_feature(self) -> dict[Key, MateFeature]:
+        return {p: f for p, f in (await self.key_to_feature).items() if isinstance(f, MateFeature)}
 
-    @functools.cached_property
-    def key_to_mate_relation_feature(self) -> dict[Key, MateRelationFeature]:
-        return {p: f for p, f in self.key_to_feature.items() if isinstance(f, MateRelationFeature)}
+    @asyncstdlib.cached_property
+    async def key_to_mate_relation_feature(self) -> dict[Key, MateRelationFeature]:
+        return {p: f for p, f in (await self.key_to_feature).items() if isinstance(f, MateRelationFeature)}
 
-    @functools.cached_property
-    def key_to_name(self) -> dict[Key, list[str]]:
+    @asyncstdlib.cached_property
+    async def key_to_name(self) -> dict[Key, list[str]]:
         key_name_mapping: dict[Key, list[str]] = {}
         key_name_mapping[()] = []
-        for instance in self.assembly.rootAssembly.instances:
+        for instance in (await self.assembly).rootAssembly.instances:
             key_name_mapping[(instance.id,)] = [instance.name]
-        for feature in self.assembly.rootAssembly.features:
+        for feature in (await self.assembly).rootAssembly.features:
             key_name_mapping[(feature.id,)] = [feature.featureData.name]
-        for key, assembly_instance, sub_assembly in self.traverse_assemblies():
+        async for key, assembly_instance, sub_assembly in self.traverse_assemblies():
             key_name_mapping[key] = key_name_mapping[key[:-1]] + [assembly_instance.name]
             for instance in sub_assembly.instances:
                 key_name_mapping[key + (instance.id,)] = key_name_mapping[key] + [instance.name]
@@ -445,15 +457,15 @@ class Converter:
                 key_name_mapping[key + (feature.id,)] = key_name_mapping[key] + [feature.featureData.name]
         return key_name_mapping
 
-    def key_name(self, key: Key, prefix: Literal["link", "joint", None]) -> str:
-        return ("" if prefix is None else f"{prefix}_") + clean_name("_".join(self.key_to_name.get(key, key)))
+    async def key_name(self, key: Key, prefix: Literal["link", "joint", None]) -> str:
+        return ("" if prefix is None else f"{prefix}_") + clean_name("_".join((await self.key_to_name).get(key, key)))
 
-    @functools.cached_property
-    def name_to_key(self) -> dict[str, Key]:
-        return {self.key_name(key, None): key for key in self.key_to_name}
+    @asyncstdlib.cached_property
+    async def name_to_key(self) -> dict[str, Key]:
+        return {await self.key_name(key, None): key for key in await self.key_to_name}
 
-    @functools.cached_property
-    def graph_and_ignored_joints(self) -> tuple[nx.Graph, set[Key]]:
+    @asyncstdlib.cached_property
+    async def graph_and_ignored_joints(self) -> tuple[nx.Graph, set[Key]]:
         """Converts the assembly to an undirected graph of joints and parts.
 
         This checks that the assembly is connected as a single piece (meaning
@@ -468,15 +480,15 @@ class Converter:
         graph_none_ignored = nx.Graph()
         sim_ignored_joints: set[Key] = set()
 
-        for key, _ in self.key_to_part_instance.items():
+        for key, _ in (await self.key_to_part_instance).items():
             graph_none_ignored.add_node(key)
-            if self.sim_ignore_key not in self.key_name(key, "joint").lower():
+            if self.sim_ignore_key not in (await self.key_name(key, "joint")).lower():
                 graph.add_node(key)
             else:
                 logger.info(f"Ignoring joint due to sim_ignore: {self.key_name(key, 'joint')}")
                 sim_ignored_joints.add(key)
 
-        def add_edge_safe(node_a: Key, node_b: Key, name: str) -> None:
+        async def add_edge_safe(node_a: Key, node_b: Key, name: str) -> None:
             # Here, we are considering a graph with no ignored joints
             # to make sure the original graph is connected.
             for node_lhs, node_rhs in ((node_a, node_b), (node_b, node_a)):
@@ -489,35 +501,35 @@ class Converter:
             graph_none_ignored.add_edge(node_a, node_b, name=name)
 
             for node_lhs, node_rhs in ((node_a, node_b), (node_b, node_a)):
-                if "sim_ignore" in self.key_name(node_lhs, "link"):
-                    logger.info(f"Ignoring link due to sim_ignore: {self.key_name(node_lhs, 'link')}")
+                if "sim_ignore" in await self.key_name(node_lhs, "link"):
+                    logger.info(f"Ignoring link due to sim_ignore: {await self.key_name(node_lhs, 'link')}")
                     return
-                if "sim_ignore" in self.key_name(node_rhs, "link"):
-                    logger.info(f"Ignoring link due to sim_ignore: {self.key_name(node_rhs, 'link')}")
+                if "sim_ignore" in await self.key_name(node_rhs, "link"):
+                    logger.info(f"Ignoring link due to sim_ignore: {await self.key_name(node_rhs, 'link')}")
                     return
 
                 if node_lhs not in graph:
                     raise ValueError(
-                        f"Node {self.key_name(node_lhs, 'link')} (from {self.key_name(node_rhs, 'link')}) not found "
-                        "in graph. Do you have a mate between a part and the origin?"
+                        f"Node {await self.key_name(node_lhs, 'link')} (from {await self.key_name(node_rhs, 'link')}) "
+                        "not found in graph. Do you have a mate between a part and the origin?"
                     )
 
             graph.add_edge(node_a, node_b, name=name)
 
         # Add edges between nodes that have a feature connecting them.
-        for key, mate_feature in self.key_to_mate_feature.items():
+        for key, mate_feature in (await self.key_to_mate_feature).items():
             if mate_feature.suppressed:
                 continue
             for mate_pair in itertools.combinations(mate_feature.featureData.matedEntities, 2):
-                name = self.key_name(key, "joint")
-                add_edge_safe(key[:-1] + mate_pair[0].key, key[:-1] + mate_pair[1].key, name)
+                name = await self.key_name(key, "joint")
+                await add_edge_safe(key[:-1] + mate_pair[0].key, key[:-1] + mate_pair[1].key, name)
 
         # Logs all of the nodes and edges in the graph.
         for edge in graph.edges:
             logger.debug(
                 'Edge: Part "%s" -> Path "%s" (Feature "%s")',
-                self.key_name(edge[0], "link"),
-                self.key_name(edge[1], "link"),
+                await self.key_name(edge[0], "link"),
+                await self.key_name(edge[1], "link"),
                 graph.edges[edge]["name"],
             )
 
@@ -542,7 +554,7 @@ class Converter:
         if not nx.is_connected(graph_none_ignored):
             num_components = nx.number_connected_components(graph_none_ignored)
             for component in nx.connected_components(graph_none_ignored):
-                component_list = sorted([self.key_name(c, "link") for c in component])
+                component_list = sorted(await asyncio.gather(*(self.key_name(c, "link") for c in component)))
                 components.append("\n      ".join(component_list))
             components_string = "\n\n".join(f"  {i + 1: <3} {component}" for i, component in enumerate(components))
 
@@ -564,7 +576,7 @@ class Converter:
             num_components = nx.number_connected_components(graph)
             components.clear()
             for component in nx.connected_components(graph):
-                component_list = sorted([self.key_name(c, "link") for c in component])
+                component_list = sorted([await self.key_name(c, "link") for c in component])
                 components.append("\n      ".join(component_list))
             components_string = "\n\n".join(f"  {i + 1: <3} {component}" for i, component in enumerate(components))
 
@@ -585,15 +597,15 @@ class Converter:
         return graph, sim_ignored_joints
 
     @property
-    def graph(self) -> nx.Graph:
-        return self.graph_and_ignored_joints[0]
+    async def graph(self) -> nx.Graph:
+        return (await self.graph_and_ignored_joints)[0]
 
     @property
-    def sim_ignored_joints(self) -> set[Key]:
-        return self.graph_and_ignored_joints[1]
+    async def sim_ignored_joints(self) -> set[Key]:
+        return (await self.graph_and_ignored_joints)[1]
 
-    @functools.cached_property
-    def central_node(self) -> Key:
+    @asyncstdlib.cached_property
+    async def central_node(self) -> Key:
         """Identifies the most central node of the assembly.
 
         Since the assembly is undirected by default, we need to choose a node
@@ -604,19 +616,20 @@ class Converter:
             The key of the central node.
         """
         if self.override_central_node is not None:
-            if self.override_central_node not in self.name_to_key:
-                first_five = list(self.name_to_key.keys())[:5]
+            if self.override_central_node not in await self.name_to_key:
+                first_five = list((await self.name_to_key).keys())[:5]
                 raise ValueError(
                     f"Central node {self.override_central_node} not found in the assembly. "
                     f"First five keys: {first_five}"
                 )
-            return self.name_to_key[self.override_central_node]
-        closeness_centrality = nx.closeness_centrality(self.graph)
+            return (await self.name_to_key)[self.override_central_node]
+        graph = await self.graph
+        closeness_centrality = nx.closeness_centrality(graph)
         central_node: Key = max(closeness_centrality, key=closeness_centrality.get)
         return central_node
 
-    @functools.cached_property
-    def digraph(self) -> tuple[Key, nx.DiGraph]:
+    @asyncstdlib.cached_property
+    async def digraph(self) -> tuple[Key, nx.DiGraph]:
         """Converts the undirected graph to a directed graph.
 
         In order to convert the undirected graph to a directed graph, we need
@@ -629,29 +642,30 @@ class Converter:
         Returns:
             The central node key and the directed graph.
         """
-        if not nx.is_tree(self.graph):
+        graph = await self.graph
+        if not nx.is_tree(graph):
             # Detects the parallel connections in the graph.
-            for cycle in nx.cycle_basis(self.graph):
+            for cycle in nx.cycle_basis(graph):
                 for i, _ in enumerate(cycle):
                     if i == len(cycle) - 1:
                         break
                     logger.error(
                         "Parallel connection: %s -> %s",
-                        self.key_name(cycle[i], "link"),
-                        self.key_name(cycle[i + 1], "link"),
+                        await self.key_name(cycle[i], "link"),
+                        await self.key_name(cycle[i + 1], "link"),
                     )
             raise ValueError("The assembly has parallel connections! URDF export requires no parallel connections.")
 
-        central_node = self.central_node
-        logger.debug("Central node: %s", self.key_name(central_node, "link"))
-        return nx.bfs_tree(self.graph, central_node)
+        central_node = await self.central_node
+        logger.debug("Central node: %s", await self.key_name(central_node, "link"))
+        return nx.bfs_tree(graph, central_node)
 
-    @functools.cached_property
-    def relations(self) -> dict[Key, MimicRelation]:
+    @asyncstdlib.cached_property
+    async def relations(self) -> dict[Key, MimicRelation]:
         relations: dict[Key, MimicRelation] = {}
         if self.disable_mimics:
             return relations
-        for path, mate_relation_feature in self.key_to_mate_relation_feature.items():
+        for path, mate_relation_feature in (await self.key_to_mate_relation_feature).items():
             if mate_relation_feature.suppressed:
                 continue
 
@@ -680,22 +694,23 @@ class Converter:
 
         return relations
 
-    @functools.cached_property
-    def ordered_joint_list(self) -> list[Joint]:
-        digraph = self.digraph
+    @asyncstdlib.cached_property
+    async def ordered_joint_list(self) -> list[Joint]:
+        digraph = await self.digraph
         bfs_node_ordering = list(nx.topological_sort(digraph))
         node_level = {node: i for i, node in enumerate(bfs_node_ordering)}
 
         # Creates a topologically-sorted list of joints.
         joint_list: list[Joint] = []
-        for joint_key, mate_feature in self.key_to_mate_feature.items():
+        for joint_key, mate_feature in (await self.key_to_mate_feature).items():
             if mate_feature.suppressed:
                 continue
 
             lhs_entity, rhs_entity = mate_feature.featureData.matedEntities
             lhs_key, rhs_key = joint_key[:-1] + lhs_entity.key, joint_key[:-1] + rhs_entity.key
 
-            if lhs_key in self.sim_ignored_joints or rhs_key in self.sim_ignored_joints:
+            sim_ignored_joints = await self.sim_ignored_joints
+            if lhs_key in sim_ignored_joints or rhs_key in sim_ignored_joints:
                 continue
 
             lhs_is_first = node_level[lhs_key] < node_level[rhs_key]
@@ -716,8 +731,8 @@ class Converter:
 
         return joint_list
 
-    @functools.cached_property
-    def joint_limits(self) -> dict[ElementUid, JointLimits]:
+    @asyncstdlib.cached_property
+    async def joint_limits(self) -> dict[ElementUid, JointLimits]:
         """Gets the feature information for each assembly.
 
         Features are the properties of each part in an assembly. In our case,
@@ -728,8 +743,8 @@ class Converter:
             A dictionary mapping each assembly key to its features.
         """
 
-        def download_or_get_cached_features(assembly: RootAssembly | SubAssembly) -> Features:
-            return self.get_or_use_cached(
+        async def download_or_get_cached_features(assembly: RootAssembly | SubAssembly) -> Features:
+            return await self.get_or_use_cached(
                 f"assembly_{assembly.key.unique_id}",
                 lambda: self.api.get_features(assembly),
                 lambda feats_str: Features.model_validate_json(feats_str),
@@ -737,13 +752,16 @@ class Converter:
             )
 
         # Gets the features for the assembly and all subassemblies.
-        assembly_features = {
-            self.assembly.rootAssembly.key: download_or_get_cached_features(self.assembly.rootAssembly),
-            **{
-                sub_assembly.key: download_or_get_cached_features(sub_assembly)
-                for sub_assembly in self.assembly.subAssemblies
-            },
-        }
+        assembly = await self.assembly
+        assembly_features = await gather_dict(
+            {
+                assembly.rootAssembly.key: download_or_get_cached_features(assembly.rootAssembly),
+                **{
+                    sub_assembly.key: download_or_get_cached_features(sub_assembly)
+                    for sub_assembly in assembly.subAssemblies
+                },
+            }
+        )
 
         def get_feature_value(key: str, feature: Feature) -> str | None:
             if (attrib := feature.message.parameter_dict.get(key)) is None:
@@ -788,10 +806,10 @@ class Converter:
 
         return joint_limits
 
-    def get_urdf_part(self, key: Key, joint: Joint | None = None) -> urdf.Link:
-        part_name = self.key_name(key, None)
-        part_instance = self.key_to_part_instance[key]
-        part = self.euid_to_part[part_instance.euid]
+    async def get_urdf_part(self, key: Key, joint: Joint | None = None) -> urdf.Link:
+        part_name = await self.key_name(key, None)
+        part_instance = (await self.key_to_part_instance)[key]
+        part = (await self.euid_to_part)[part_instance.euid]
 
         # Gets the configuration string suffix.
         if part.configuration == "default":
@@ -801,8 +819,8 @@ class Converter:
         else:
             configuration_str = part.configuration
 
-        part_color = self.part_color(part)
-        part_dynamic = self.part_dynamics(part).bodies[part_instance.partId]
+        part_color = await self.part_color(part)
+        part_dynamic = (await self.part_dynamics(part)).bodies[part_instance.partId]
 
         # If the part is the root part, move the STL to be relative to the
         # center of mass and principle inertia axes, otherwise move it to
@@ -826,7 +844,7 @@ class Converter:
             if not part_file_path_stl.exists():
                 logger.info("Downloading file %s", part_file_path_stl)
                 buffer = io.BytesIO()
-                self.api.download_stl(part, buffer)
+                await self.api.download_stl(part, buffer)
                 buffer.seek(0)
                 mesh_obj = stl.mesh.Mesh.from_file(None, fh=buffer)
                 mesh_obj = apply_matrix_(mesh_obj, stl_origin_to_part_tf)
@@ -855,7 +873,7 @@ class Converter:
         principal_axes_rpy = R.from_matrix(principal_axes).as_euler("xyz", degrees=False)
 
         urdf_file_path = f"./meshes/{part_file_name}"
-        urdf_link_name = self.key_name(key, "link")
+        urdf_link_name = await self.key_name(key, "link")
 
         urdf_part_link = urdf.Link(
             name=urdf_link_name,
@@ -907,7 +925,7 @@ class Converter:
                 break
         return effort, velocity
 
-    def get_urdf_joint(self, joint: Joint) -> urdf.BaseJoint:
+    async def get_urdf_joint(self, joint: Joint) -> urdf.BaseJoint:
         """Returns the URDF joint.
 
         Args:
@@ -921,26 +939,26 @@ class Converter:
         parent_stl_origin_to_mate_tf = parent_stl_origin_to_part_tf @ parent_part_to_mate_tf
 
         # Gets the joint limits.
-        joint_assembly_id, feature_id = self.assembly_key_to_id[joint.joint_key[:-1]], joint.joint_key[-1]
+        joint_assembly_id, feature_id = (await self.assembly_key_to_id)[joint.joint_key[:-1]], joint.joint_key[-1]
         joint_info_key = ElementUid(
             document_id=joint_assembly_id.document_id,
             document_microversion=joint_assembly_id.document_microversion,
             element_id=joint_assembly_id.element_id,
             part_id=feature_id,
         )
-        joint_limits = self.joint_limits[joint_info_key]
+        joint_limits = (await self.joint_limits)[joint_info_key]
         expression_resolver = ExpressionResolver(joint_assembly_id.configuration)
 
         def resolve(expression: str | None) -> float | None:
             return None if expression is None else expression_resolver.read_expression(expression)
 
-        name = self.key_name(joint.joint_key, "joint")
+        name = await self.key_name(joint.joint_key, "joint")
         origin = urdf.Origin.from_matrix(parent_stl_origin_to_mate_tf)
         mate_type = joint.mate_type
 
         match mate_type:
             case MateType.FASTENED:
-                parent, child = self.key_name(joint.parent, "link"), self.key_name(joint.child, "link")
+                parent, child = await self.key_name(joint.parent, "link"), await self.key_name(joint.child, "link")
                 return urdf.FixedJoint(
                     name=name,
                     parent=parent,
@@ -949,8 +967,8 @@ class Converter:
                 )
 
             case MateType.REVOLUTE:
-                parent, child = self.key_name(joint.parent, "link"), self.key_name(joint.child, "link")
-                mimic_joint = self.relations.get(joint.joint_key)
+                parent, child = await self.key_name(joint.parent, "link"), await self.key_name(joint.child, "link")
+                mimic_joint = (await self.relations).get(joint.joint_key)
 
                 min_value = resolve(joint_limits.axial_z_min_expression)
                 max_value = resolve(joint_limits.axial_z_max_expression)
@@ -980,7 +998,7 @@ class Converter:
                         None
                         if mimic_joint is None
                         else urdf.JointMimic(
-                            joint=self.key_name(mimic_joint.parent, "joint"),
+                            joint=await self.key_name(mimic_joint.parent, "joint"),
                             multiplier=mimic_joint.multiplier,
                             offset=0.0,
                         )
@@ -988,8 +1006,8 @@ class Converter:
                 )
 
             case MateType.SLIDER:
-                parent, child = self.key_name(joint.parent, "link"), self.key_name(joint.child, "link")
-                mimic_joint = self.relations.get(joint.joint_key)
+                parent, child = await self.key_name(joint.parent, "link"), await self.key_name(joint.child, "link")
+                mimic_joint = (await self.relations).get(joint.joint_key)
 
                 min_value = resolve(joint_limits.z_min_expression)
                 max_value = resolve(joint_limits.z_max_expression)
@@ -1019,7 +1037,7 @@ class Converter:
                         None
                         if mimic_joint is None
                         else urdf.JointMimic(
-                            joint=self.key_name(mimic_joint.parent, "joint"),
+                            joint=await self.key_name(mimic_joint.parent, "joint"),
                             multiplier=mimic_joint.multiplier,
                             offset=0.0,
                         )
@@ -1044,21 +1062,21 @@ class Converter:
             case _:
                 raise ValueError(f"Unsupported mate type: {mate_type}")
 
-    def get_part_name_from_key(self, key: tuple) -> str:
+    async def get_part_name_from_key(self, key: tuple) -> str:
         try:
-            part_instance = self.key_to_part_instance[key]
-            part = self.euid_to_part[part_instance.euid]
-            part_name = self.part_name(part)
+            part_instance = (await self.key_to_part_instance)[key]
+            part = (await self.euid_to_part)[part_instance.euid]
+            part_name = await self.part_name(part)
             return part_name
         except KeyError:
             return "Unknown part"
 
-    def save_urdf(self) -> None:
+    async def save_urdf(self) -> None:
         """Saves a URDF file for the assembly to the output directory."""
         urdf_parts: list[urdf.Link | urdf.BaseJoint] = []
 
         # Add the first link, since it has no incoming joint.
-        part_link = self.get_urdf_part(self.central_node)
+        part_link = await self.get_urdf_part(await self.central_node)
         urdf_parts.append(part_link)
 
         # For debugging.
@@ -1073,13 +1091,13 @@ class Converter:
         #     print(f"T_{ab}_{names[j.child]} = np.", end="")
         #     print(repr(j.child_entity.matedCS.part_to_mate_tf))
 
-        for joint in self.ordered_joint_list:
+        for joint in await self.ordered_joint_list:
             urdf_joint, urdf_link = None, None
-            joint_name = self.key_name(joint.joint_key, "joint")  # Get the joint name here
+            joint_name = await self.key_name(joint.joint_key, "joint")  # Get the joint name here
 
             try:
-                urdf_joint = self.get_urdf_joint(joint)
-                urdf_link = self.get_urdf_part(joint.child, joint)
+                urdf_joint = await self.get_urdf_joint(joint)
+                urdf_link = await self.get_urdf_part(joint.child, joint)
 
             except KeyError as e:
                 parent_part_name = self.get_part_name_from_key(joint.parent)
@@ -1105,7 +1123,7 @@ class Converter:
                 urdf_parts.append(urdf_joint)
 
         # Saves the final URDF.
-        robot_name = clean_name(str(self.assembly_metadata.property_map.get("Name", "robot")))
+        robot_name = clean_name(str((await self.assembly_metadata).property_map.get("Name", "robot")))
         urdf_robot = urdf.Robot(name=robot_name, parts=urdf_parts)
         urdf_robot.save(self.output_dir / f"{robot_name}.urdf")
 
@@ -1137,13 +1155,13 @@ class Converter:
                 if f.name != f"{robot_name}.urdf":
                     f.unlink()
 
-    def save_mjcf(self) -> None:
+    async def save_mjcf(self) -> None:
         """Saves a MJCF file for the assembly to the output directory."""
         if self.mesh_ext != "stl":
             raise ValueError("MJCF only supports STL meshes")
-        self.save_urdf()
+        await self.save_urdf()
 
-        robot_name = clean_name(str(self.assembly_metadata.property_map.get("Name", "robot")))
+        robot_name = clean_name(str((await self.assembly_metadata).property_map.get("Name", "robot")))
 
         # update robot_name if flags on
         if self.merge_fixed_joints:
