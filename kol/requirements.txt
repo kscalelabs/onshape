@@ -6,7 +6,6 @@ networkx
 numpy
 numpy-stl
 omegaconf
-open3d
 pydantic
 scipy
 trimesh

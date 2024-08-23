@@ -19,7 +19,8 @@ with open("kol/requirements-dev.txt", "r", encoding="utf-8") as f:
 
 
 requirements_mujoco = ["mujoco"]
-requirements_all = requirements_dev + requirements_mujoco
+requirements_open3d = ["open3d"]
+requirements_all = requirements_dev + requirements_mujoco + requirements_open3d
 
 
 with open("kol/__init__.py", "r", encoding="utf-8") as fh:
@@ -42,6 +43,7 @@ setup(
     extras_require={
         "dev": requirements_dev,
         "mujoco": requirements_mujoco,
+        "open3d": requirements_open3d,
         "all": requirements_all,
     },
     package_data={

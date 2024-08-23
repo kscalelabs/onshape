@@ -5,13 +5,20 @@ import logging
 from pathlib import Path
 from typing import Sequence
 
-import open3d as o3d
-
 logger = logging.getLogger(__name__)
 
 
 def main(args: Sequence[str] | None = None) -> None:
     logging.basicConfig(level=logging.INFO)
+
+    try:
+        import open3d as o3d
+    except ImportError:
+        logger.error(
+            "Open3D is required to run this script. Install it with `pip install "
+            "'kscale-onshape-library[open3d]'` to install the required dependencies."
+        )
+        raise
 
     parser = argparse.ArgumentParser(description="Simplify a mesh")
     parser.add_argument("filepath", type=str, help="The path to the mesh file")
