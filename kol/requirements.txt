@@ -8,6 +8,5 @@ numpy-stl
 omegaconf
 open3d
 pydantic
-requests
 scipy
 trimesh
