@@ -242,15 +242,7 @@ def convert_urdf_to_mjcf(urdf_file, mjcf_file, show_collision_geoms=False):
                 motor.set("gear", "100")  # You may want to adjust this value
 
                 # Add control limits to the motor
-                limit = joint.find("limit")
-                if limit is not None:
-                    effort = limit.get("effort")
-                    if effort is not None:
-                        motor.set("ctrlrange", f"-{effort} {effort}")
-                    else:
-                        motor.set("ctrlrange", "-1 1")  # Default range if effort is not specified
-                else:
-                    motor.set("ctrlrange", "-1 1")  # Default range if limit is not specified
+                motor.set("ctrlrange", "-1 1")  # Default range if limit is not specified
 
                 # Add sensors for the joint
                 joint_name = joint.get("name")
