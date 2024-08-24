@@ -1,63 +1,68 @@
-from xml.dom import minidom
-import xml.etree.ElementTree as ET
-import argparse
-import os
-import logging
+"""Convert URDF to MJCF"""
 
-def convert_joint_type(urdf_type):
+import argparse
+import logging
+import os
+import xml.etree.ElementTree as ET
+from xml.dom import minidom
+
+
+def convert_joint_type(urdf_type: str) -> str:
     type_map = {
         "revolute": "hinge",
         "prismatic": "slide",
         "continuous": "hinge",
         "fixed": "fixed",
         "floating": "free",
-        "planar": "slide"
+        "planar": "slide",
     }
     return type_map.get(urdf_type, "hinge")
 
-def parse_xyz(xyz_str):
+
+def parse_xyz(xyz_str: str) -> str:
     return " ".join([str(float(x)) for x in xyz_str.split()])
 
+
 # NOTE: Feel free to alter constants
-def convert_urdf_to_mjcf(urdf_file, mjcf_file, show_collision_geoms=False):
+def convert_urdf_to_mjcf(urdf_file: str, mjcf_file: str, show_collision_geoms: bool = False) -> None:
     urdf_tree = ET.parse(urdf_file)
     urdf_root = urdf_tree.getroot()
 
     mjcf_root = ET.Element("mujoco")
-    mjcf_root.set("model", "urdf_model") 
-    
+    mjcf_root.set("model", "urdf_model")
+
     # Add default settings
     default = ET.SubElement(mjcf_root, "default")
-    
+
     default_joint = ET.SubElement(default, "joint")
     default_joint.set("limited", "true")
-    
+
     default_motor = ET.SubElement(default, "motor")
     default_motor.set("ctrllimited", "true")
-    
+
     default_geom = ET.SubElement(default, "geom")
     default_geom.set("condim", "4")
     default_geom.set("contype", "1")
     default_geom.set("conaffinity", "15")
     default_geom.set("solref", "0.001 2")
     default_geom.set("friction", "0.9 0.2 0.2")
-    
+
     default_equality = ET.SubElement(default, "equality")
     default_equality.set("solref", "0.001 2")
 
     compiler = ET.SubElement(mjcf_root, "compiler")
     compiler.set("angle", "radian")
     compiler.set("coordinate", "local")
-    
+
     option = ET.SubElement(mjcf_root, "option")
     option.set("gravity", "0 0 -9.81")
     option.set("timestep", "0.002")
     option.set("iterations", "50")
     option.set("solver", "Newton")
     option.set("tolerance", "1e-10")
-    
+
     asset = ET.SubElement(mjcf_root, "asset")
-    
+
     # Add textures
     skybox = ET.SubElement(asset, "texture")
     skybox.set("type", "skybox")
@@ -85,9 +90,9 @@ def convert_urdf_to_mjcf(urdf_file, mjcf_file, show_collision_geoms=False):
     matplane.set("texture", "texplane")
     matplane.set("texrepeat", "1 1")
     matplane.set("texuniform", "true")
-    
+
     worldbody = ET.SubElement(mjcf_root, "worldbody")
-    
+
     # Add a floor plane
     floor = ET.SubElement(worldbody, "geom")
     floor.set("name", "floor")
@@ -95,7 +100,7 @@ def convert_urdf_to_mjcf(urdf_file, mjcf_file, show_collision_geoms=False):
     floor.set("pos", "0.01 0 0")
     floor.set("size", "10 10 0.1")
     floor.set("material", "matplane")
-    
+
     # Add lights
     light1 = ET.SubElement(worldbody, "light")
     light1.set("directional", "true")
@@ -114,16 +119,16 @@ def convert_urdf_to_mjcf(urdf_file, mjcf_file, show_collision_geoms=False):
 
     # Add actuators
     actuator = ET.SubElement(mjcf_root, "actuator")
-    
+
     # Add sensors
     sensor = ET.SubElement(mjcf_root, "sensor")
-    
+
     bodies = {}
 
     for link in urdf_root.findall("link"):
         body = ET.SubElement(worldbody, "body")
-        body.set("name", link.get("name"))
-        bodies[link.get("name")] = body
+        body.set("name", link.get("name") or "")
+        bodies[link.get("name") or ""] = body
 
         # Add IMU site and freejoint for gravity to the base link (assuming the first link is the base)
         if link == urdf_root.find("link"):
@@ -141,15 +146,17 @@ def convert_urdf_to_mjcf(urdf_file, mjcf_file, show_collision_geoms=False):
         inertial = link.find("inertial")
         if inertial is not None:
             inertial_mjcf = ET.SubElement(body, "inertial")
-            
+
             mass = inertial.find("mass")
             if mass is not None:
                 inertial_mjcf.set("mass", mass.get("value", "1"))
-            
+
             inertia = inertial.find("inertia")
             if inertia is not None:
-                inertial_mjcf.set("diaginertia", f"{inertia.get('ixx', '1')} {inertia.get('iyy', '1')} {inertia.get('izz', '1')}")
-            
+                inertial_mjcf.set(
+                    "diaginertia", f"{inertia.get('ixx', '1')} {inertia.get('iyy', '1')} {inertia.get('izz', '1')}"
+                )
+
             origin = inertial.find("origin")
             if origin is not None:
                 pos = origin.get("xyz")
@@ -157,17 +164,20 @@ def convert_urdf_to_mjcf(urdf_file, mjcf_file, show_collision_geoms=False):
                     inertial_mjcf.set("pos", parse_xyz(pos))
                 rpy = origin.get("rpy")
                 if rpy:
-                    inertial_mjcf.set("quat", f"0 0 0 1")  # Default orientation, you may need to convert rpy to quaternion
-        
+                    inertial_mjcf.set(
+                        "quat", "0 0 0 1"
+                    )  # Default orientation, you may need to convert rpy to quaternion
+
         for visual in link.findall("visual"):
             geom = ET.SubElement(body, "geom")
             geom.set("name", f"{link.get('name')}_visual")
+
             
             geometry = visual.find("geometry")
             if geometry is not None:
                 if geometry.find("mesh") is not None:
                     mesh = geometry.find("mesh")
-                    filename = mesh.get("filename")
+                    filename = mesh.get("filename") if mesh is not None else None
                     if filename:
                         mesh_name = os.path.basename(filename)
                         mesh_asset = ET.SubElement(asset, "mesh")
@@ -175,29 +185,29 @@ def convert_urdf_to_mjcf(urdf_file, mjcf_file, show_collision_geoms=False):
                         mesh_asset.set("file", filename)
                         geom.set("type", "mesh")
                         geom.set("mesh", mesh_name)
-                        scale = mesh.get("scale")
+                        scale = mesh.get("scale") if mesh is not None else None
                         if scale:
                             geom.set("scale", parse_xyz(scale))
                 elif geometry.find("box") is not None:
                     box = geometry.find("box")
                     geom.set("type", "box")
-                    size = box.get("size", "0.1 0.1 0.1")
+                    size = box.get("size", "0.1 0.1 0.1") if box is not None else "0.1 0.1 0.1"
                     geom.set("size", parse_xyz(size))
                 elif geometry.find("cylinder") is not None:
                     cylinder = geometry.find("cylinder")
                     geom.set("type", "cylinder")
-                    radius = cylinder.get("radius", "0.1")
-                    length = cylinder.get("length", "0.1")
+                    radius = cylinder.get("radius", "0.1") if cylinder is not None else "0.1"
+                    length = cylinder.get("length", "0.1") if cylinder is not None else "0.1"
                     geom.set("size", f"{radius} {length}")
                 elif geometry.find("sphere") is not None:
                     sphere = geometry.find("sphere")
                     geom.set("type", "sphere")
-                    radius = sphere.get("radius", "0.1")
+                    radius = sphere.get("radius", "0.1") if sphere is not None else "0.1"
                     geom.set("size", radius)
                 else:
                     geom.set("type", "sphere")
                     geom.set("size", "0.01")
-            
+
             material = visual.find("material")
             if material is not None:
                 color = material.find("color")
@@ -208,45 +218,48 @@ def convert_urdf_to_mjcf(urdf_file, mjcf_file, show_collision_geoms=False):
                 geom.set("rgba", "0.8 0.8 0.8 1")
 
     for joint in urdf_root.findall("joint"):
-        parent = joint.find("parent").get("link")
-        child = joint.find("child").get("link")
-        
+        parent_elem = joint.find("parent")
+        child_elem = joint.find("child")
+        parent = parent_elem.get("link") if parent_elem is not None else None
+        child = child_elem.get("link") if child_elem is not None else None
+
         if child in bodies:
             urdf_joint_type = joint.get("type")
-            mjcf_joint_type = convert_joint_type(urdf_joint_type)
-            
-            if mjcf_joint_type != "fixed":
-                mjcf_joint = ET.SubElement(bodies[child], "joint")
-                mjcf_joint.set("name", joint.get("name"))
-                mjcf_joint.set("type", mjcf_joint_type)
-                
+            if urdf_joint_type is not None:
+                mjcf_joint_type = convert_joint_type(urdf_joint_type)
+
+                if mjcf_joint_type != "fixed":
+                    mjcf_joint = ET.SubElement(bodies[child], "joint")
+                    mjcf_joint.set("name", joint.get("name") or "") 
+                    mjcf_joint.set("type", mjcf_joint_type)
+
                 axis = joint.find("axis")
                 if axis is not None:
                     mjcf_joint.set("axis", parse_xyz(axis.get("xyz", "0 0 1")))
-                
+
                 limit = joint.find("limit")
                 if limit is not None:
                     lower = limit.get("lower")
                     upper = limit.get("upper")
                     if lower is not None and upper is not None:
                         mjcf_joint.set("range", f"{lower} {upper}")
-                    
+
                     # Add damping and friction to joints
                     mjcf_joint.set("damping", "1")
                     mjcf_joint.set("frictionloss", "0.1")
-            
+
                 # Add motor actuator for the joint
-                motor = ET.SubElement(actuator, "motor")
-                motor.set("name", f"motor_{joint.get('name')}")
-                motor.set("joint", joint.get("name"))
-                motor.set("gear", "100")  # You may want to adjust this value
+                    motor = ET.SubElement(actuator, "motor")
+                    motor.set("name", f"motor_{joint.get('name') or ''}") 
+                    motor.set("joint", joint.get("name") or "") 
+                    motor.set("gear", "100")  # You may want to adjust this value
 
                 # Add control limits to the motor
                 motor.set("ctrlrange", "-1 1")  # Default range if limit is not specified
 
                 # Add sensors for the joint
                 joint_name = joint.get("name")
-                
+
                 actuatorpos = ET.SubElement(sensor, "actuatorpos")
                 actuatorpos.set("name", f"{joint_name}_pos")
                 actuatorpos.set("actuator", f"motor_{joint_name}")
@@ -272,7 +285,7 @@ def convert_urdf_to_mjcf(urdf_file, mjcf_file, show_collision_geoms=False):
             bodies[parent].append(bodies[child])
             worldbody.remove(bodies[child])
 
-     # Add IMU sensors
+    # Add IMU sensors
     framequat = ET.SubElement(sensor, "framequat")
     framequat.set("name", "orientation")
     framequat.set("objtype", "site")
@@ -298,18 +311,18 @@ def convert_urdf_to_mjcf(urdf_file, mjcf_file, show_collision_geoms=False):
     magnetometer = ET.SubElement(sensor, "magnetometer")
     magnetometer.set("name", "magnetometer")
     magnetometer.set("site", "imu_site")
-    
+
     # Use a more robust XML writing method
     # tree = ET.ElementTree(mjcf_root)
     # tree.write(mjcf_file, encoding="utf-8", xml_declaration=True)
-
 
     xmlstr = minidom.parseString(ET.tostring(mjcf_root)).toprettyxml(indent="  ")
     with open(mjcf_file, "w") as f:
         f.write(xmlstr)
 
-def main():
-    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+def main() -> None:
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
     logger = logging.getLogger(__name__)
 
     parser = argparse.ArgumentParser(description="Convert URDF to MJCF")
@@ -322,6 +335,7 @@ def main():
         logger.info(f"Conversion complete. MJCF file saved as {args.mjcf_file}")
     except Exception as e:
         logger.error(f"An error occurred during conversion: {str(e)}")
-    
+
+
 if __name__ == "__main__":
     main()
