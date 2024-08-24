@@ -1,4 +1,4 @@
-"""Convert URDF to MJCF"""
+"""Convert URDF to MJCF with physics properties and collision geoms."""
 
 import argparse
 import logging
@@ -172,7 +172,6 @@ def convert_urdf_to_mjcf(urdf_file: str, mjcf_file: str, show_collision_geoms: b
             geom = ET.SubElement(body, "geom")
             geom.set("name", f"{link.get('name')}_visual")
 
-            
             geometry = visual.find("geometry")
             if geometry is not None:
                 if geometry.find("mesh") is not None:
@@ -230,7 +229,7 @@ def convert_urdf_to_mjcf(urdf_file: str, mjcf_file: str, show_collision_geoms: b
 
                 if mjcf_joint_type != "fixed":
                     mjcf_joint = ET.SubElement(bodies[child], "joint")
-                    mjcf_joint.set("name", joint.get("name") or "") 
+                    mjcf_joint.set("name", joint.get("name") or "")
                     mjcf_joint.set("type", mjcf_joint_type)
 
                 axis = joint.find("axis")
@@ -248,10 +247,10 @@ def convert_urdf_to_mjcf(urdf_file: str, mjcf_file: str, show_collision_geoms: b
                     mjcf_joint.set("damping", "1")
                     mjcf_joint.set("frictionloss", "0.1")
 
-                # Add motor actuator for the joint
+                    # Add motor actuator for the joint
                     motor = ET.SubElement(actuator, "motor")
-                    motor.set("name", f"motor_{joint.get('name') or ''}") 
-                    motor.set("joint", joint.get("name") or "") 
+                    motor.set("name", f"motor_{joint.get('name') or ''}")
+                    motor.set("joint", joint.get("name") or "")
                     motor.set("gear", "100")  # You may want to adjust this value
 
                 # Add control limits to the motor
