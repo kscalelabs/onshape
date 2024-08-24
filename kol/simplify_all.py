@@ -6,8 +6,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Self
 
-import open3d as o3d
-
 from kol.formats.common import save_xml
 
 logger = logging.getLogger(__name__)
@@ -25,29 +23,37 @@ class Stats:
         return cls(0, 0, 0)
 
 
-def simplify_mesh(filepath: str, voxel_size: float) -> tuple[str, o3d.geometry.TriangleMesh, int, int]:
-    """Simplifies a single mesh by clustering vertices."""
-    mesh = o3d.io.read_triangle_mesh(filepath)
-    starting_vertices = len(mesh.vertices)
-    simple_mesh = mesh.simplify_vertex_clustering(
-        voxel_size=voxel_size,
-        contraction=o3d.geometry.SimplificationContraction.Average,
-    )
-    ending_vertices = len(simple_mesh.vertices)
-    logger.info("Simplified mesh from %d to %d vertices", starting_vertices, ending_vertices)
-
-    # Remove old mesh and save the simplified one
-    ext = Path(filepath).suffix
-    if ext.lower() == ".stl":
-        simple_mesh.compute_vertex_normals()
-    filepath = Path(filepath)
-    new_filepath = filepath.parent / f"{filepath.stem}_simple{filepath.suffix}"
-    new_filepath = str(new_filepath)
-
-    return new_filepath, simple_mesh, starting_vertices, ending_vertices
-
-
 def simplify_all(urdf_path: Path, voxel_size: float, stats: Stats | None = None) -> Stats:
+    try:
+        import open3d as o3d
+    except ImportError:
+        logger.error(
+            "Open3D is required to run this script. Install it with `pip install "
+            "'kscale-onshape-library[open3d]'` to install the required dependencies."
+        )
+        raise
+
+    def simplify_mesh(filepath: str, voxel_size: float) -> tuple[str, o3d.geometry.TriangleMesh, int, int]:
+        """Simplifies a single mesh by clustering vertices."""
+        mesh = o3d.io.read_triangle_mesh(filepath)
+        starting_vertices = len(mesh.vertices)
+        simple_mesh = mesh.simplify_vertex_clustering(
+            voxel_size=voxel_size,
+            contraction=o3d.geometry.SimplificationContraction.Average,
+        )
+        ending_vertices = len(simple_mesh.vertices)
+        logger.info("Simplified mesh from %d to %d vertices", starting_vertices, ending_vertices)
+
+        # Remove old mesh and save the simplified one
+        ext = Path(filepath).suffix
+        if ext.lower() == ".stl":
+            simple_mesh.compute_vertex_normals()
+        filepath = Path(filepath)
+        new_filepath = filepath.parent / f"{filepath.stem}_simple{filepath.suffix}"
+        new_filepath = str(new_filepath)
+
+        return new_filepath, simple_mesh, starting_vertices, ending_vertices
+
     if stats is None:
         stats = Stats.start()
     if voxel_size <= 0:
