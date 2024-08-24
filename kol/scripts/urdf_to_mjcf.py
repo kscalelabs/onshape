@@ -311,10 +311,6 @@ def convert_urdf_to_mjcf(urdf_file: str, mjcf_file: str, show_collision_geoms: b
     magnetometer.set("name", "magnetometer")
     magnetometer.set("site", "imu_site")
 
-    # Use a more robust XML writing method
-    # tree = ET.ElementTree(mjcf_root)
-    # tree.write(mjcf_file, encoding="utf-8", xml_declaration=True)
-
     xmlstr = minidom.parseString(ET.tostring(mjcf_root)).toprettyxml(indent="  ")
     with open(mjcf_file, "w") as f:
         f.write(xmlstr)
