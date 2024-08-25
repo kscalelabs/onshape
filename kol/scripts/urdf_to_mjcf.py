@@ -23,8 +23,7 @@ def parse_xyz(xyz_str: str) -> str:
     return " ".join([str(float(x)) for x in xyz_str.split()])
 
 
-# NOTE: Feel free to alter constants
-def convert_urdf_to_mjcf(urdf_file: str, mjcf_file: str, show_collision_geoms: bool = False) -> None:
+def convert_urdf_to_mjcf(urdf_file: str, mjcf_file: str) -> None:
     urdf_tree = ET.parse(urdf_file)
     urdf_root = urdf_tree.getroot()
 
@@ -327,9 +326,9 @@ def main() -> None:
 
     try:
         convert_urdf_to_mjcf(args.urdf_file, args.mjcf_file)
-        logger.info(f"Conversion complete. MJCF file saved as {args.mjcf_file}")
-    except Exception as e:
-        logger.error(f"An error occurred during conversion: {str(e)}")
+        logger.info("Conversion complete. MJCF file saved as %s", args.mjcf_file)
+    except Exception:
+        logger.exception("An error occurred during conversion")
 
 
 if __name__ == "__main__":
