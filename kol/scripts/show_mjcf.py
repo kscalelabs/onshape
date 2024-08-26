@@ -9,7 +9,7 @@ import argparse
 import time
 from typing import Sequence
 
-from kol.logging import configure_logging
+from kol.utils.logging import configure_logging
 
 
 def main(args: Sequence[str] | None = None) -> None:

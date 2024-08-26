@@ -8,7 +8,7 @@ import time
 from pathlib import Path
 from typing import Sequence
 
-from kol.logging import configure_logging
+from kol.utils.logging import configure_logging
 
 logger = logging.getLogger(__name__)
 

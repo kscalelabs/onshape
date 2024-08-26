@@ -4,7 +4,7 @@ import argparse
 from pathlib import Path
 from typing import Sequence
 
-from kol.simplify_all import simplify_all
+from kol.utils.simplify_all import simplify_all
 
 
 def main(args: Sequence[str] | None = None) -> None:

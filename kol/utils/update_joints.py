@@ -1,4 +1,4 @@
-"""Defines functions for updating joints in a urdf."""
+"""Defines functions for updating joint properties in a URDF."""
 
 import logging
 import xml.etree.ElementTree as ET

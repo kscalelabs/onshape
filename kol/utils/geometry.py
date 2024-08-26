@@ -9,7 +9,7 @@ import stl.mesh
 # import trimesh
 from scipy.spatial import ConvexHull
 
-from kol.mesh import Mesh
+from kol.utils.mesh import Mesh
 
 
 def rotation_matrix_to_euler_angles(rotation_matrix: np.matrix) -> tuple[float, float, float]:

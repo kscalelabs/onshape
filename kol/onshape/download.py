@@ -1,5 +1,11 @@
 # mypy: disable-error-code="attr-defined"
-"""Defines functions for converting Onshape links to URDFs."""
+"""Defines functions for download Onshape links as URDFs.
+
+Note that this module is intended to be used as a stand-alone script which
+outputs a URDF file. We can additionally post-process the URDF files using
+various downstream scripts, but we should avoid adding any unnecessary behavior
+here.
+"""
 
 import asyncio
 import hashlib
@@ -19,8 +25,6 @@ import stl
 from scipy.spatial.transform import Rotation as R
 
 from kol.formats import urdf
-from kol.geometry import apply_matrix_, inv_tf, transform_inertia_tensor
-from kol.logging import configure_logging
 from kol.onshape.api import OnshapeApi
 from kol.onshape.cached_api import CachedOnshapeApi
 from kol.onshape.cacher import Cacher
@@ -45,8 +49,10 @@ from kol.onshape.schema.common import ElementUid
 from kol.onshape.schema.document import Document
 from kol.onshape.schema.features import Feature, FeatureStatus
 from kol.onshape.schema.part import PartDynamics, PartMetadata
-from kol.resolvers import ExpressionResolver
-from kol.utils import catch_error
+from kol.utils.errors import catch_error
+from kol.utils.geometry import apply_matrix_, inv_tf, transform_inertia_tensor
+from kol.utils.logging import configure_logging
+from kol.utils.resolvers import ExpressionResolver
 
 logger = logging.getLogger(__name__)
 
@@ -965,7 +971,7 @@ async def save_urdf(
     api: OnshapeApi,
     *,
     config: ConverterConfig | None = None,
-) -> None:
+) -> Path:
     """Saves the URDF files for the document.
 
     Args:
@@ -973,6 +979,9 @@ async def save_urdf(
         output_dir: The output directory.
         api: The Onshape API to use.
         config: The converter configuration.
+
+    Returns:
+        The path to the saved URDF file.
     """
     if config is None:
         config = ConverterConfig()
@@ -993,8 +1002,9 @@ async def save_urdf(
         urdf_parts.extend([urdf_joint, urdf_link])
 
     robot_name = clean_name(str(doc.assembly_metadata.property_map.get("Name", "robot"))).lower()
+    urdf_path = output_dir / f"{robot_name}.urdf"
     urdf_robot = urdf.Robot(name=robot_name, parts=urdf_parts)
-    urdf_robot.save(output_dir / f"{robot_name}.urdf")
+    urdf_robot.save(urdf_path)
 
     # Finally, downloads the STL files.
     (mesh_dir := output_dir / mesh_dir_name).mkdir(parents=True, exist_ok=True)
@@ -1005,14 +1015,16 @@ async def save_urdf(
         )
     )
 
+    return urdf_path
 
-async def convert(
+
+async def download(
     document_url: str,
     output_dir: str | Path,
     *,
     config: ConverterConfig | None = None,
     api: OnshapeApi | None = None,
-) -> None:
+) -> Path:
     """Converts an Onshape document to a URDF.
 
     Args:
@@ -1020,6 +1032,9 @@ async def convert(
         output_dir: The output directory.
         config: The converter configuration.
         api: The Onshape API to use.
+
+    Returns:
+        The path to the saved URDF file.
     """
     output_dir = Path(output_dir).expanduser().resolve()
     if config is None:
@@ -1042,7 +1057,9 @@ async def convert(
     checked_document = await check_document(document, api, config=config)
 
     # Converts the checked document to a URDF.
-    await save_urdf(checked_document, output_dir, api, config=config)
+    urdf_path = await save_urdf(checked_document, output_dir, api, config=config)
+
+    return urdf_path
 
 
 async def main(args: Sequence[str] | None = None) -> None:
@@ -1050,7 +1067,7 @@ async def main(args: Sequence[str] | None = None) -> None:
         args = sys.argv[1:]
     document_url, output_dir, config = ConverterConfig.from_cli_args(args)
     configure_logging(level=logging.DEBUG if config.debug else logging.INFO)
-    await convert(
+    await download(
         document_url=document_url,
         output_dir=output_dir,
         config=config,

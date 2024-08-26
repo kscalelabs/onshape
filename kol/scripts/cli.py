@@ -4,21 +4,11 @@ import argparse
 import asyncio
 from typing import Literal, Sequence, get_args
 
-from kol.scripts import (
-    cleanup_mesh_dir,
-    get_mjcf,
-    get_urdf,
-    merge_fixed_joints,
-    pybullet,
-    show_mjcf,
-    simplify,
-    simplify_meshes,
-    visualize_stl,
-)
+from kol.onshape.download import main as download_main
+from kol.scripts import pybullet, show_mjcf, visualize_stl
 
 Subcommand = Literal[
-    "urdf",
-    "mjcf",
+    "download",
     "pybullet",
     "mujoco",
     "stl",
@@ -36,24 +26,14 @@ async def main(args: Sequence[str] | None = None) -> None:
     subcommand: Subcommand = parsed_args.subcommand
 
     match subcommand:
-        case "urdf":
-            await get_urdf.main(remaining_args)
-        case "mjcf":
-            await get_mjcf.main(remaining_args)
+        case "download":
+            await download_main(remaining_args)
         case "pybullet":
             pybullet.main(remaining_args)
         case "mujoco":
             show_mjcf.main(remaining_args)
         case "stl":
             visualize_stl.main(remaining_args)
-        case "simplify":
-            simplify.main(remaining_args)
-        case "merge-fixed-joints":
-            merge_fixed_joints.main(remaining_args)
-        case "simplify-all":
-            simplify_meshes.main(remaining_args)
-        case "cleanup-mesh-dir":
-            cleanup_mesh_dir.main(remaining_args)
         case _:
             raise ValueError(f"Unknown subcommand: {parsed_args.subcommand}")
 

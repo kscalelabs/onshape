@@ -6,8 +6,8 @@ from typing import get_args
 
 import pytest
 
-from kol.logging import configure_logging
-from kol.mesh import MeshType
+from kol.utils.logging import configure_logging
+from kol.utils.mesh import MeshType
 from kol.onshape.converter import Converter, ConverterConfig
 
 # STOMPY_ONSHAPE_URL = (

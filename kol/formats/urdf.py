@@ -1,5 +1,6 @@
 """Defines common types and functions for exporting URDFs."""
 
+import io
 import xml.etree.ElementTree as ET
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
@@ -10,7 +11,7 @@ from xml.sax.saxutils import escape
 import numpy as np
 
 from kol.formats.common import save_xml
-from kol.geometry import rotation_matrix_to_euler_angles
+from kol.utils.geometry import rotation_matrix_to_euler_angles
 
 
 def xml_escape(unescaped: str) -> str:
@@ -393,6 +394,6 @@ class Robot:
             part.to_xml(robot)
         return robot
 
-    def save(self, path: str | Path) -> None:
+    def save(self, path: str | Path | io.StringIO | io.BytesIO) -> None:
         tree = ET.ElementTree(self.to_xml())
         save_xml(path, tree)

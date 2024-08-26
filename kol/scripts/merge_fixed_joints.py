@@ -4,7 +4,7 @@ import argparse
 from pathlib import Path
 from typing import Sequence
 
-from kol.merge_fixed_joints import get_merged_urdf
+from kol.utils.merge_fixed_joints import get_merged_urdf
 
 
 def main(args: Sequence[str] | None = None) -> None:

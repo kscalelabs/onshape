@@ -4,7 +4,9 @@ import argparse
 import logging
 import os
 import xml.etree.ElementTree as ET
-from xml.dom import minidom
+from pathlib import Path
+
+from kol.formats.common import save_xml
 
 
 def convert_joint_type(urdf_type: str) -> str:
@@ -23,14 +25,14 @@ def parse_xyz(xyz_str: str) -> str:
     return " ".join([str(float(x)) for x in xyz_str.split()])
 
 
-def convert_urdf_to_mjcf(urdf_file: str, mjcf_file: str) -> None:
+def convert_urdf_to_mjcf(urdf_file: str | Path, mjcf_file: str | Path) -> None:
     urdf_tree = ET.parse(urdf_file)
     urdf_root = urdf_tree.getroot()
 
     mjcf_root = ET.Element("mujoco")
     mjcf_root.set("model", "urdf_model")
 
-    # Add default settings
+    # Add default settings.
     default = ET.SubElement(mjcf_root, "default")
 
     default_joint = ET.SubElement(default, "joint")
@@ -62,7 +64,7 @@ def convert_urdf_to_mjcf(urdf_file: str, mjcf_file: str) -> None:
 
     asset = ET.SubElement(mjcf_root, "asset")
 
-    # Add textures
+    # Add textures.
     skybox = ET.SubElement(asset, "texture")
     skybox.set("type", "skybox")
     skybox.set("builtin", "gradient")
@@ -82,7 +84,7 @@ def convert_urdf_to_mjcf(urdf_file: str, mjcf_file: str) -> None:
     texplane.set("mark", "cross")
     texplane.set("markrgb", ".8 .8 .8")
 
-    # Add materials
+    # Add materials.
     matplane = ET.SubElement(asset, "material")
     matplane.set("name", "matplane")
     matplane.set("reflectance", "0.")
@@ -92,7 +94,7 @@ def convert_urdf_to_mjcf(urdf_file: str, mjcf_file: str) -> None:
 
     worldbody = ET.SubElement(mjcf_root, "worldbody")
 
-    # Add a floor plane
+    # Add a floor plane.
     floor = ET.SubElement(worldbody, "geom")
     floor.set("name", "floor")
     floor.set("type", "plane")
@@ -100,7 +102,7 @@ def convert_urdf_to_mjcf(urdf_file: str, mjcf_file: str) -> None:
     floor.set("size", "10 10 0.1")
     floor.set("material", "matplane")
 
-    # Add lights
+    # Add lights.
     light1 = ET.SubElement(worldbody, "light")
     light1.set("directional", "true")
     light1.set("diffuse", ".4 .4 .4")
@@ -116,10 +118,10 @@ def convert_urdf_to_mjcf(urdf_file: str, mjcf_file: str) -> None:
     light2.set("pos", "0 0 4")
     light2.set("dir", "0 0 -1")
 
-    # Add actuators
+    # Add actuators.
     actuator = ET.SubElement(mjcf_root, "actuator")
 
-    # Add sensors
+    # Add sensors.
     sensor = ET.SubElement(mjcf_root, "sensor")
 
     bodies = {}
@@ -129,11 +131,11 @@ def convert_urdf_to_mjcf(urdf_file: str, mjcf_file: str) -> None:
         body.set("name", link.get("name") or "")
         bodies[link.get("name") or ""] = body
 
-        # Add IMU site and freejoint for gravity to the base link (assuming the first link is the base)
+        # Add IMU site and freejoint for gravity to the base link (assuming the first link is the base).
         if link == urdf_root.find("link"):
             imu_site = ET.SubElement(body, "site")
             imu_site.set("name", "imu_site")
-            imu_site.set("pos", "0 0 0")  # Adjust as needed
+            imu_site.set("pos", "0 0 0")
             imu_site.set("size", "0.01")
 
             freejoint = ET.SubElement(body, "freejoint")
@@ -141,7 +143,7 @@ def convert_urdf_to_mjcf(urdf_file: str, mjcf_file: str) -> None:
 
             body.set("pos", "0 0 1")
 
-        # Handle inertial properties
+        # Handle inertial properties.
         inertial = link.find("inertial")
         if inertial is not None:
             inertial_mjcf = ET.SubElement(body, "inertial")
@@ -163,9 +165,8 @@ def convert_urdf_to_mjcf(urdf_file: str, mjcf_file: str) -> None:
                     inertial_mjcf.set("pos", parse_xyz(pos))
                 rpy = origin.get("rpy")
                 if rpy:
-                    inertial_mjcf.set(
-                        "quat", "0 0 0 1"
-                    )  # Default orientation, you may need to convert rpy to quaternion
+                    # Default orientation, you may need to convert rpy to quaternion
+                    inertial_mjcf.set("quat", "0 0 0 1")
 
         for visual in link.findall("visual"):
             geom = ET.SubElement(body, "geom")
@@ -186,22 +187,26 @@ def convert_urdf_to_mjcf(urdf_file: str, mjcf_file: str) -> None:
                         scale = mesh.get("scale") if mesh is not None else None
                         if scale:
                             geom.set("scale", parse_xyz(scale))
+
                 elif geometry.find("box") is not None:
                     box = geometry.find("box")
                     geom.set("type", "box")
                     size = box.get("size", "0.1 0.1 0.1") if box is not None else "0.1 0.1 0.1"
                     geom.set("size", parse_xyz(size))
+
                 elif geometry.find("cylinder") is not None:
                     cylinder = geometry.find("cylinder")
                     geom.set("type", "cylinder")
                     radius = cylinder.get("radius", "0.1") if cylinder is not None else "0.1"
                     length = cylinder.get("length", "0.1") if cylinder is not None else "0.1"
                     geom.set("size", f"{radius} {length}")
+
                 elif geometry.find("sphere") is not None:
                     sphere = geometry.find("sphere")
                     geom.set("type", "sphere")
                     radius = sphere.get("radius", "0.1") if sphere is not None else "0.1"
                     geom.set("size", radius)
+
                 else:
                     geom.set("type", "sphere")
                     geom.set("size", "0.01")
@@ -212,6 +217,7 @@ def convert_urdf_to_mjcf(urdf_file: str, mjcf_file: str) -> None:
                 if color is not None:
                     rgba = color.get("rgba", "0.8 0.8 0.8 1")
                     geom.set("rgba", rgba)
+
             else:
                 geom.set("rgba", "0.8 0.8 0.8 1")
 
@@ -310,9 +316,7 @@ def convert_urdf_to_mjcf(urdf_file: str, mjcf_file: str) -> None:
     magnetometer.set("name", "magnetometer")
     magnetometer.set("site", "imu_site")
 
-    xmlstr = minidom.parseString(ET.tostring(mjcf_root)).toprettyxml(indent="  ")
-    with open(mjcf_file, "w") as f:
-        f.write(xmlstr)
+    save_xml(mjcf_file, ET.ElementTree(mjcf_root))
 
 
 def main() -> None:
@@ -332,4 +336,5 @@ def main() -> None:
 
 
 if __name__ == "__main__":
+    # python -m kol.formats.urdf_to_mjcf
     main()
