@@ -63,7 +63,7 @@ async def postprocess(
     )
 
 
-async def download_and_postprocess(args: Sequence[str] | None = None) -> PostprocessedDocument:
+async def download_and_postprocess_main(args: Sequence[str] | None = None) -> PostprocessedDocument:
     if args is None:
         args = sys.argv[1:]
     config = ConverterConfig.from_cli_args(args)
@@ -80,7 +80,7 @@ async def download_and_postprocess(args: Sequence[str] | None = None) -> Postpro
     )
 
 
-async def main(args: Sequence[str] | None = None) -> PostprocessedDocument:
+async def postprocess_main(args: Sequence[str] | None = None) -> PostprocessedDocument:
     if args is None:
         args = sys.argv[1:]
     config = PostprocessConfig.from_cli_args(args)
@@ -92,7 +92,7 @@ async def main(args: Sequence[str] | None = None) -> PostprocessedDocument:
 
 
 def sync_main(args: Sequence[str] | None = None) -> None:
-    asyncio.run(main(args))
+    asyncio.run(postprocess_main(args))
 
 
 if __name__ == "__main__":
