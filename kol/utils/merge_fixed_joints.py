@@ -10,7 +10,15 @@ import numpy as np
 from scipy.spatial.transform import Rotation as R
 
 from kol.formats.common import save_xml
-from kol.utils.geometry import combine_meshes
+from kol.utils.geometry import (
+    Dynamics,
+    apply_transform,
+    combine_dynamics,
+    combine_meshes,
+    matrix_to_moments,
+    moments_to_matrix,
+    transform_inertia_tensor,
+)
 from kol.utils.mesh import load_file, save_file
 
 logger = logging.getLogger(__name__)
@@ -30,6 +38,13 @@ def mesh_kinds() -> list[MeshKind]:
     return list(get_args(MeshKind))
 
 
+def find_not_null(element: ET.Element, key: str) -> ET.Element:
+    value = element.find(key)
+    if value is None:
+        raise ValueError(f"{key} not found in {element.tag}")
+    return value
+
+
 def get_part_mesh_path(element: ET.Element, urdf_dir: Path, kind: MeshKind | None = None) -> Path:
     if kind is None:
         mesh_paths = [get_part_mesh_path(element, urdf_dir, mesh_kind) for mesh_kind in mesh_kinds()]
@@ -37,75 +52,11 @@ def get_part_mesh_path(element: ET.Element, urdf_dir: Path, kind: MeshKind | Non
             raise ValueError(f"Mesh paths for {element.tag} link do not match")
         return mesh_paths[0]
 
-    mesh_elem = element.find(kind)
-    if mesh_elem is None:
-        raise ValueError(f"{element.tag} link does not have a {kind} element")
-    geometry_elem = mesh_elem.find("geometry")
-    if geometry_elem is None:
-        raise ValueError(f"{element.tag} link does not have a geometry element in {kind}")
-    mesh_elem = geometry_elem.find("mesh")
-    if mesh_elem is None:
-        raise ValueError(f"{element.tag} link does not have a mesh element in {kind}")
-    filename = mesh_elem.attrib.get("filename")
-    if filename is None:
-        raise ValueError(f"{element.tag} link does not have a filename in {kind}")
+    mesh_elem = find_not_null(element, kind)
+    geometry_elem = find_not_null(mesh_elem, "geometry")
+    mesh_elem = find_not_null(geometry_elem, "mesh")
+    filename = mesh_elem.attrib["filename"]
     return (urdf_dir / filename).resolve()
-
-
-def origin_and_rpy_to_transform(relative_origin: np.ndarray, relative_rpy: np.ndarray) -> np.ndarray:
-    """Converts an origin and rpy to a transformation matrix.
-
-    Args:
-        relative_origin: A 3-element numpy array representing the relative origin.
-        relative_rpy: A 3-element numpy array representing the relative rpy.
-
-    Returns:
-        A (4, 4) transformation matrix.
-    """
-    if relative_origin.shape != (3,):
-        raise ValueError("relative_origin must be a 3-element numpy array")
-    if relative_rpy.shape != (3,):
-        raise ValueError("relative_rpy must be a 3-element numpy array")
-
-    x, y, z = relative_origin
-    roll, pitch, yaw = relative_rpy
-
-    translation = np.array(
-        [
-            [1, 0, 0, x],
-            [0, 1, 0, y],
-            [0, 0, 1, z],
-            [0, 0, 0, 1],
-        ]
-    )
-    roll_mat = np.array(
-        [
-            [1, 0, 0, 0],
-            [0, np.cos(roll), -np.sin(roll), 0],
-            [0, np.sin(roll), np.cos(roll), 0],
-            [0, 0, 0, 1],
-        ]
-    )
-    pitch_mat = np.array(
-        [
-            [np.cos(pitch), 0, np.sin(pitch), 0],
-            [0, 1, 0, 0],
-            [-np.sin(pitch), 0, np.cos(pitch), 0],
-            [0, 0, 0, 1],
-        ]
-    )
-    yaw_mat = np.array(
-        [
-            [np.cos(yaw), -np.sin(yaw), 0, 0],
-            [np.sin(yaw), np.cos(yaw), 0, 0],
-            [0, 0, 1, 0],
-            [0, 0, 0, 1],
-        ]
-    )
-
-    rpy = np.dot(yaw_mat, np.dot(pitch_mat, roll_mat))
-    transform = np.dot(translation, rpy)
-    return transform
 
 
 def string_to_nparray(string: str | bytes | Any) -> np.ndarray:  # noqa: ANN401
@@ -149,32 +100,25 @@ def get_new_rpy(
 
 
 def get_color(element: ET.Element) -> np.ndarray:
-    visual_elem = element.find("visual")
-    if visual_elem is not None:
-        material_elem = visual_elem.find("material")
-        if material_elem is not None:
-            color_elem = material_elem.find("color")
-            if color_elem is not None:
-                rgba = color_elem.attrib["rgba"].split()
-                return np.array([float(x) for x in rgba])
-    return np.array([0.5, 0.5, 0.5, 1.0])  # Default color if not found
+    visual_elem = find_not_null(element, "visual")
+    material_elem = find_not_null(visual_elem, "material")
+    color_elem = find_not_null(material_elem, "color")
+    rgba = color_elem.attrib["rgba"].split()
+    return np.array([float(x) for x in rgba])
 
 
 def get_child_to_grandchild_joints(root: ET.Element, link: ET.Element) -> list[ET.Element]:
     link_name = link.attrib["name"]
     grandchild_links = []
     for joint in root.findall(".//joint"):
-        if (parent := joint.find("parent")) is None:
-            raise ValueError("Parent not found in joint")
+        parent = find_not_null(joint, "parent")
         if parent.attrib["link"] == link_name:
             grandchild_links.append(joint)
     return grandchild_links
 
 
 def get_link(root: ET.Element, joint: ET.Element, key: str) -> ET.Element:
-    link = joint.find(key)
-    if link is None:
-        raise ValueError(f"Link not found in joint: {key}")
+    link = find_not_null(joint, key)
     link_name = link.attrib["link"]
     link = root.find(f".//link[@name='{link_name}']")
     if link is None:
@@ -182,19 +126,79 @@ def get_link(root: ET.Element, joint: ET.Element, key: str) -> ET.Element:
     return link
 
 
-def get_origin(joint: ET.Element) -> JointOrigin:
+def get_dynamics(inertial_link: ET.Element) -> Dynamics:
+    mass_elem = find_not_null(inertial_link, "mass")
+    origin_elem = find_not_null(inertial_link, "origin")
+    inertia_elem = find_not_null(inertial_link, "inertia")
+
+    # Gets the mass from the link.
+    mass = float(mass_elem.attrib["value"])
+
+    # Gets the center of mass from the link.
+    xyz = string_to_nparray(origin_elem.attrib["xyz"])
+    rpy = string_to_nparray(origin_elem.attrib["rpy"])
+
+    # Gets the inertia matrix from the link.
+    ixx = float(inertia_elem.attrib["ixx"])
+    iyy = float(inertia_elem.attrib["iyy"])
+    izz = float(inertia_elem.attrib["izz"])
+    ixy = float(inertia_elem.attrib.get("ixy", "0"))
+    ixz = float(inertia_elem.attrib.get("ixz", "0"))
+    iyz = float(inertia_elem.attrib.get("iyz", "0"))
+    inertia = moments_to_matrix(np.array([ixx, iyy, izz, ixy, ixz, iyz]))
+
+    # Converts to the expected dynamics format.
+    com = np.array(xyz)
+    rotation_matrix = R.from_euler("xyz", rpy).as_matrix()
+    inertia = transform_inertia_tensor(inertia, rotation_matrix)
+
+    return Dynamics(mass, com, inertia)
+
+
+def update_dynamics(dynamics: Dynamics, relative_transform: np.matrix) -> Dynamics:
+    com = apply_transform(dynamics.com[None, :], relative_transform)[0]
+    inertia = transform_inertia_tensor(dynamics.inertia, relative_transform[:3, :3])
+    return Dynamics(dynamics.mass, com, inertia)
+
+
+def set_dynamics(inertial_link: ET.Element, dynamics: Dynamics) -> None:
+    mass_elem = find_not_null(inertial_link, "mass")
+    origin_elem = find_not_null(inertial_link, "origin")
+    inertia_elem = find_not_null(inertial_link, "inertia")
+
+    mass_elem.attrib["value"] = str(dynamics.mass)
+    origin_elem.attrib["xyz"] = " ".join(str(x) for x in dynamics.com)
+    inertia_elem.attrib.update(matrix_to_moments(dynamics.inertia))
+
+
+def get_origin(joint: ET.Element) -> tuple[ET.Element, JointOrigin]:
     origin_element = joint.find("origin")
     if origin_element is None:
         raise ValueError("Origin element not found in joint")
     xyz = string_to_nparray(origin_element.attrib.get("xyz", "0 0 0"))
     rpy = string_to_nparray(origin_element.attrib.get("rpy", "0 0 0"))
-    return JointOrigin(xyz, rpy)
+    return origin_element, JointOrigin(xyz, rpy)
+
+
+def set_origin(origin_element: ET.Element, origin: JointOrigin) -> None:
+    origin_element.attrib["xyz"] = " ".join(str(x) for x in origin.xyz)
+    origin_element.attrib["rpy"] = " ".join(str(x) for x in origin.rpy)
+
+
+def origin_and_rpy_to_transform(xyz: np.ndarray, rpy: np.ndarray) -> np.matrix:
+    relative_rotation_inner = R.from_euler("xyz", rpy).as_matrix()
+    relative_rotation = np.eye(4)
+    relative_rotation[:3, :3] = relative_rotation_inner
+    relative_translation = np.eye(4)
+    relative_translation[:3, 3] = xyz
+    relative_transform = np.dot(relative_translation, relative_rotation)
+    return relative_transform
 
 
 def fuse_child_into_parent(root: ET.Element, joint: ET.Element, urdf_dir: Path) -> None:
     parent_link = get_link(root, joint, "parent")
     child_link = get_link(root, joint, "child")
-    origin = get_origin(joint)
+    _, origin = get_origin(joint)
 
     # Gets the mesh paths for the parent and child.
     parent_mesh_path = get_part_mesh_path(parent_link, urdf_dir)
@@ -203,8 +207,20 @@ def fuse_child_into_parent(root: ET.Element, joint: ET.Element, urdf_dir: Path) 
     parent_mesh = load_file(parent_mesh_path)
     child_mesh = load_file(child_mesh_path)
 
+    # Gets the transformation matrix.
     relative_transform = origin_and_rpy_to_transform(origin.xyz, origin.rpy)
+
+    # Combines the two meshes into a single mesh.
     combined_mesh = combine_meshes(parent_mesh, child_mesh, relative_transform)
+
+    # Combines the inertia of the parent and child links.
+    parent_inertial = find_not_null(parent_link, "inertial")
+    child_inertial = find_not_null(child_link, "inertial")
+    parent_dynamics = get_dynamics(parent_inertial)
+    child_dynamics = get_dynamics(child_inertial)
+    child_dynamics = update_dynamics(child_dynamics, relative_transform)
+    combined_dynamics = combine_dynamics(parent_dynamics, child_dynamics)
+    set_dynamics(parent_inertial, combined_dynamics)
 
     # Delete the parent and chlid meshes and save the new mesh to the parent
     # mesh location.
@@ -222,7 +238,7 @@ def fuse_child_into_parent(root: ET.Element, joint: ET.Element, urdf_dir: Path) 
     for grandchild_joint in grandchild_joints:
         if (grandchild_parent := grandchild_joint.find("parent")) is None:
             raise ValueError("Parent not found in grandchild link")
-        grandchild_origin = get_origin(grandchild_joint)
+        grandchild_origin_element, grandchild_origin = get_origin(grandchild_joint)
 
         grandchild_relative_transform = origin_and_rpy_to_transform(grandchild_origin.xyz, grandchild_origin.rpy)
         new_relative_transform = np.dot(relative_transform, grandchild_relative_transform)
@@ -230,6 +246,7 @@ def fuse_child_into_parent(root: ET.Element, joint: ET.Element, urdf_dir: Path) 
         grandchild_parent.attrib["link"] = parent_link.attrib["name"]
         grandchild_origin.xyz = new_relative_transform[:3, 3]
         grandchild_origin.rpy = R.from_matrix(new_relative_transform[:3, :3]).as_euler("xyz")
+        set_origin(grandchild_origin_element, grandchild_origin)
 
 
 def process_fixed_joints(urdf_etree: ET.ElementTree, urdf_path: Path) -> ET.ElementTree:
@@ -252,9 +269,6 @@ def process_fixed_joints(urdf_etree: ET.ElementTree, urdf_path: Path) -> ET.Elem
         if joint is None:
             break
         fuse_child_into_parent(root, joint, urdf_path.parent)
-
-        # TODO: Just testing.
-        break
 
     return urdf_etree
 

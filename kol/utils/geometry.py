@@ -1,33 +1,12 @@
 """Defines geometric utility functions."""
 
-import math
 from dataclasses import dataclass
 
 import numpy as np
 import stl.mesh
-
-# import trimesh
 from scipy.spatial import ConvexHull
 
 from kol.utils.mesh import Mesh
-
-
-def rotation_matrix_to_euler_angles(rotation_matrix: np.matrix) -> tuple[float, float, float]:
-    sy = math.sqrt(rotation_matrix[0, 0] * rotation_matrix[0, 0] + rotation_matrix[1, 0] * rotation_matrix[1, 0])
-
-    singular = sy < 1e-6
-
-    if singular:
-        x = math.atan2(-rotation_matrix[1, 2], rotation_matrix[1, 1])
-        y = math.atan2(-rotation_matrix[2, 0], sy)
-        z = 0.0
-
-    else:
-        x = math.atan2(rotation_matrix[2, 1], rotation_matrix[2, 2])
-        y = math.atan2(-rotation_matrix[2, 0], sy)
-        z = math.atan2(rotation_matrix[1, 0], rotation_matrix[0, 0])
-
-    return x, y, z
 
 
 def apply_matrix_(mesh: stl.mesh.Mesh, matrix: np.ndarray) -> stl.mesh.Mesh:
@@ -48,18 +27,17 @@ def inv_tf(a_to_b_tf: np.matrix) -> np.matrix:
     return np.matrix(np.linalg.inv(a_to_b_tf))
 
 
-def transform_inertia_tensor(inertia: list[float] | np.matrix, rotation: np.ndarray) -> np.ndarray:
+def transform_inertia_tensor(inertia: np.matrix, rotation: np.matrix) -> np.matrix:
     """Transforms the inertia tensor to a new frame.
 
     Args:
-        inertia: The inertia tensor in the original frame.
+        inertia: The inertia tensor in the original frame, a (3, 3) matrix.
         rotation: The rotation matrix from the original frame to the new frame.
 
     Returns:
         The inertia tensor in the new frame.
     """
-    inertia_matrix = np.array(inertia).reshape(3, 3)
-    return rotation.T @ inertia_matrix @ rotation
+    return rotation @ inertia @ rotation.T
 
 
 @dataclass
@@ -69,7 +47,7 @@ class Dynamics:
     inertia: np.matrix
 
 
-def combine_dynamics(dynamics: list[Dynamics]) -> Dynamics:
+def combine_dynamics(*dynamics: Dynamics) -> Dynamics:
     mass: float = 0.0
     com = np.array([0.0] * 3)
     inertia = np.matrix(np.zeros((3, 3)))
@@ -101,7 +79,7 @@ def matrix_to_moments(matrix: np.matrix) -> dict[str, str]:
     }
 
 
-def moments_to_matrix(inertia_moments: np.ndarray) -> np.ndarray:
+def moments_to_matrix(inertia_moments: np.ndarray) -> np.matrix:
     """Convert a 6-element array of inertia moments into a 3x3 inertia matrix.
 
     Args::
@@ -127,7 +105,7 @@ def moments_to_matrix(inertia_moments: np.ndarray) -> np.ndarray:
         ]
     )
 
-    return inertia_matrix
+    return np.matrix(inertia_matrix)
 
 
 def get_mesh_convex_hull(mesh: Mesh) -> Mesh:
