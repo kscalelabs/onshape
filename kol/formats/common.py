@@ -1,10 +1,11 @@
 """Utility functions common to different formats."""
 
+import io
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
 
-def save_xml(path: str | Path, tree: ET.ElementTree) -> None:
+def save_xml(path: str | Path | io.StringIO | io.BytesIO, tree: ET.ElementTree) -> None:
     root = tree.getroot()
 
     def indent(elem: ET.Element, level: int = 0) -> ET.Element:

@@ -1,5 +1,8 @@
 """Defines a cached version of the Onshape API."""
 
+import asyncio
+from typing import BinaryIO
+
 from kol.onshape.api import OnshapeApi
 from kol.onshape.cacher import Cacher
 from kol.onshape.client import DocumentInfo, OnshapeClient, WorkspaceType
@@ -21,6 +24,10 @@ class CachedOnshapeApi(OnshapeApi):
         super().__init__(client)
 
         self.cacher = cacher
+
+        # Async locks.
+        self.master_lock = asyncio.Lock()
+        self.stl_locks: dict[str, asyncio.Lock] = {}
 
     async def get_document(self, did: str) -> Document:
         return await self.cacher(
@@ -99,3 +106,35 @@ class CachedOnshapeApi(OnshapeApi):
             lambda props_str: PartDynamics.model_validate_json(props_str),
             lambda props: props.model_dump_json(indent=2),
         )
+
+    async def download_stl(
+        self,
+        part: Part,
+        fp: BinaryIO,
+        *,
+        units: str = "meter",
+        min_facet_width: float | None = None,
+        max_facet_width: float | None = None,
+    ) -> None:
+        # Each part needs its own lock. We use a master lock to avoid double
+        # inserting the same lock.
+        async with self.master_lock:
+            if part.key.unique_id not in self.stl_locks:
+                self.stl_locks[part.key.unique_id] = asyncio.Lock()
+
+        # We need to lock the STL download for the part to avoid downloading
+        # the same STL file multiple times.
+        async with self.stl_locks[part.key.unique_id]:
+            cache_path = self.cacher.cache_dir / f"stl_{part.key.unique_id}.stl"
+            if not cache_path.exists():
+                with open(cache_path, "wb") as f:
+                    await super(CachedOnshapeApi, self).download_stl(
+                        part,
+                        f,
+                        units=units,
+                        min_facet_width=min_facet_width,
+                        max_facet_width=max_facet_width,
+                    )
+
+        with open(cache_path, "rb") as f:
+            fp.write(f.read())

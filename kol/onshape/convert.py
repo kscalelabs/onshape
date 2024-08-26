@@ -25,7 +25,7 @@ from kol.onshape.api import OnshapeApi
 from kol.onshape.cached_api import CachedOnshapeApi
 from kol.onshape.cacher import Cacher
 from kol.onshape.client import DocumentInfo, OnshapeClient
-from kol.onshape.config import ConverterConfig, Joint, JointLimits
+from kol.onshape.config import ConverterConfig, Joint, JointLimits, MimicRelation
 from kol.onshape.schema.assembly import (
     Assembly,
     AssemblyInstance,
@@ -37,6 +37,8 @@ from kol.onshape.schema.assembly import (
     MateRelationFeature,
     MateType,
     Part,
+    PartInstance,
+    RelationType,
     SubAssembly,
 )
 from kol.onshape.schema.common import ElementUid
@@ -56,7 +58,10 @@ Color = tuple[int, int, int, int]
 
 
 def clean_name(name: str) -> str:
-    return re.sub(r"\s+", "_", re.sub(r"[<>]", "", name)).lower()
+    name = name.replace("<", "(").replace(">", ")")
+    # name = re.sub(r"[<>]", "", name)
+    name = re.sub(r"\s+", "_", name)
+    return name
 
 
 async def gather_dict(d: dict[Tk, Coroutine[Any, Any, Tv]]) -> dict[Tk, Tv]:
@@ -67,7 +72,7 @@ async def gather_dict(d: dict[Tk, Coroutine[Any, Any, Tv]]) -> dict[Tk, Tv]:
 
 class FailedCheckError(ValueError):
     def __init__(self, msg: str, *suggestions: str) -> None:
-        full_msg = f"{msg}\n\n" + "\n".join(f" * {s}" for s in suggestions)
+        full_msg = f"{msg}" + "".join(f"\n * {s}" for s in suggestions)
         super().__init__(full_msg)
 
 
@@ -103,7 +108,7 @@ def traverse_assemblies(assembly: Assembly) -> Iterator[tuple[Key, AssemblyInsta
                 subassembly_deque.append((instance_path, subassembly))
 
 
-def get_key_to_part_instance_mapping(assembly: Assembly) -> dict[Key, Instance]:
+def get_key_to_instance_mapping(assembly: Assembly) -> dict[Key, Instance]:
     key_to_part_instance: dict[Key, Instance] = {}
     for instance in assembly.rootAssembly.instances:
         key_to_part_instance[(instance.id,)] = instance
@@ -112,6 +117,14 @@ def get_key_to_part_instance_mapping(assembly: Assembly) -> dict[Key, Instance]:
         for instance in sub_assembly.instances:
             key_to_part_instance[path + (instance.id,)] = instance
     return key_to_part_instance
+
+
+def get_key_to_part_instance_mapping(key_to_instance_mapping: dict[Key, Instance]) -> dict[Key, PartInstance]:
+    return {k: v for k, v in key_to_instance_mapping.items() if isinstance(v, PartInstance)}
+
+
+def get_key_to_assembly_instance_mapping(key_to_instance_mapping: dict[Key, Instance]) -> dict[Key, AssemblyInstance]:
+    return {k: v for k, v in key_to_instance_mapping.items() if isinstance(v, AssemblyInstance)}
 
 
 def get_key_to_feature(assembly: Assembly) -> dict[Key, MateRelationFeature | MateFeature | MateGroupFeature]:
@@ -153,7 +166,7 @@ def get_key_to_name(assembly: Assembly) -> dict[Key, list[str]]:
 
 
 class KeyNamer:
-    def __init__(self, assembly: Assembly, joiner: str = " > ", clean: bool = False) -> None:
+    def __init__(self, assembly: Assembly, joiner: str = ":", clean: bool = True) -> None:
         self.key_to_name = get_key_to_name(assembly)
         self.joiner = joiner
         self.clean = clean
@@ -201,7 +214,7 @@ def log_graph(graph: nx.Graph, key_namer: KeyNamer) -> None:
 def get_graph(
     assembly: Assembly,
     key_namer: KeyNamer | None = None,
-    key_to_part_instance: dict[Key, Instance] | None = None,
+    key_to_part_instance: dict[Key, PartInstance] | None = None,
     key_to_mate_feature: dict[Key, MateFeature] | None = None,
 ) -> tuple[nx.Graph, set[Key]]:
     """Converts the assembly to an undirected graph of joints and parts.
@@ -225,7 +238,7 @@ def get_graph(
     if key_namer is None:
         key_namer = KeyNamer(assembly)
     if key_to_part_instance is None:
-        key_to_part_instance = get_key_to_part_instance_mapping(assembly)
+        key_to_part_instance = get_key_to_part_instance_mapping(get_key_to_instance_mapping(assembly))
     if key_to_mate_feature is None:
         key_to_feature = get_key_to_feature(assembly)
         key_to_mate_feature = get_key_to_mate_feature(key_to_feature)
@@ -239,9 +252,9 @@ def get_graph(
         # to make sure the original graph is connected.
         for node_lhs, node_rhs in ((node_a, node_b), (node_b, node_a)):
             if node_lhs not in graph:
-                lhs_name = key_namer(node_lhs, None, " > ", False)
-                rhs_name = key_namer(node_rhs, None, " > ", False)
-                joint_name = key_namer(joint, None, " > ", False)
+                lhs_name = key_namer(node_lhs, None, " : ", False)
+                rhs_name = key_namer(node_rhs, None, " : ", False)
+                joint_name = key_namer(joint, None, " : ", False)
                 raise ValueError(
                     f'Node "{lhs_name}" (which is connected to "{rhs_name}" via "{joint_name}") '
                     "not found in graph. Do you have a mate between a part and the origin?"
@@ -262,7 +275,7 @@ def get_graph(
         num_components = nx.number_connected_components(graph)
         components: list[str] = []
         for component in nx.connected_components(graph):
-            component_list = sorted([key_namer(c, None, " > ", False) for c in component])
+            component_list = sorted([key_namer(c, None, " : ", False) for c in component])
             components.append("\n      ".join(component_list))
         components_string = "\n\n".join(f"  {i + 1: <3} {component}" for i, component in enumerate(components))
         raise FailedCheckError(
@@ -280,8 +293,8 @@ def get_graph(
                     break
                 first_n_bad.append(
                     (
-                        key_namer(cycle[i], None, " > ", False),
-                        key_namer(cycle[i + 1], None, " > ", False),
+                        key_namer(cycle[i], None, " : ", False),
+                        key_namer(cycle[i + 1], None, " : ", False),
                     )
                 )
         first_n_bad_str = "\n".join(f" * {a} -> {b}" for a, b in first_n_bad[:5])
@@ -450,16 +463,45 @@ async def check_part(part: Part, api: OnshapeApi) -> tuple[PartMetadata, PartDyn
     return part_metadata, part_mass_properties
 
 
-async def check_joint(joint: Joint, api: OnshapeApi) -> None:
-    """Checks the metadata of a single joint.
+async def get_mate_relations(key_to_mate_relation_feature: dict[Key, MateRelationFeature]) -> dict[Key, MimicRelation]:
+    """Gets the mimic relations from the mate relations.
 
     Args:
-        joint: The joint to check.
-        api: The Onshape API to use.
+        key_to_mate_relation_feature: The key to mate relation feature mapping.
 
-    Raises:
-        FailedCheckError: If the joint is invalid.
+    Returns:
+        The mimic relations.
     """
+    relations: dict[Key, MimicRelation] = {}
+
+    for path, mate_relation_feature in key_to_mate_relation_feature.items():
+        if mate_relation_feature.suppressed:
+            continue
+
+        relation_type = mate_relation_feature.featureData.relationType
+        match relation_type:
+            case RelationType.GEAR:
+                parent_key, child_key = mate_relation_feature.keys(path[:-1])
+                ratio = mate_relation_feature.featureData.relationRatio
+                reverse = mate_relation_feature.featureData.reverseDirection
+                relations[child_key] = MimicRelation(
+                    parent=parent_key,
+                    multiplier=-ratio if reverse else ratio,
+                )
+
+            case RelationType.LINEAR:
+                parent_key, child_key = mate_relation_feature.keys(path[:-1])
+                ratio = mate_relation_feature.featureData.relationRatio
+                reverse = mate_relation_feature.featureData.reverseDirection
+                relations[child_key] = MimicRelation(
+                    parent=parent_key,
+                    multiplier=-ratio if reverse else ratio,
+                )
+
+            case _:
+                raise ValueError(f"Unsupported relation type: {relation_type}")
+
+    return relations
 
 
 @dataclass
@@ -467,9 +509,11 @@ class CheckedDocument:
     document: Document
     assembly: Assembly
     assembly_metadata: AssemblyMetadata
-    key_to_part_instance: dict[Key, Instance]
+    key_to_part_instance: dict[Key, PartInstance]
+    key_to_assembly_instance: dict[Key, AssemblyInstance]
     key_to_feature: dict[Key, MateRelationFeature | MateFeature | MateGroupFeature]
     key_to_mate_feature: dict[Key, MateFeature]
+    key_to_euid: dict[Key, ElementUid]
     euid_to_part: dict[ElementUid, Part]
     key_namer: KeyNamer
     part_metadata: dict[ElementUid, PartMetadata]
@@ -478,6 +522,7 @@ class CheckedDocument:
     digraph: nx.DiGraph
     joints: list[Joint]
     joint_limits: dict[ElementUid, JointLimits]
+    mate_relations: dict[Key, MimicRelation]
 
 
 async def check_document(
@@ -534,9 +579,14 @@ async def check_document(
         ) from e
 
     # Gets some mappings from the assembly to make subsequent lookups easier.
-    key_to_part_instance = get_key_to_part_instance_mapping(assembly)
+    key_to_instance = get_key_to_instance_mapping(assembly)
+    key_to_part_instance = get_key_to_part_instance_mapping(key_to_instance)
+    key_to_assembly_instance = get_key_to_assembly_instance_mapping(key_to_instance)
     key_to_feature = get_key_to_feature(assembly)
     key_to_mate_feature = get_key_to_mate_feature(key_to_feature)
+    key_to_mate_relation_feature = get_key_to_mate_relation_feature(key_to_feature)
+    key_to_euid = {key: assembly.key for key, _, assembly in traverse_assemblies(assembly)}
+    key_to_euid[()] = assembly.rootAssembly.key
     euid_to_part = {part.key: part for part in assembly.parts}
     key_namer = KeyNamer(assembly)
 
@@ -582,13 +632,25 @@ async def check_document(
     joints = get_joint_list(digraph, key_to_mate_feature)
     joint_limits = await get_joint_limits(assembly, api)
 
+    # Checks all the mate relations in the assembly.
+    try:
+        mate_relations = await get_mate_relations(key_to_mate_relation_feature)
+
+    except Exception as e:
+        raise FailedCheckError(
+            f"Failed to get mate relations for document {document_info.get_url()}",
+            "Check that you are only using supported mimic relations.",
+        ) from e
+
     return CheckedDocument(
         document=document,
         assembly=assembly,
         assembly_metadata=assembly_metadata,
         key_to_part_instance=key_to_part_instance,
+        key_to_assembly_instance=key_to_assembly_instance,
         key_to_feature=key_to_feature,
         key_to_mate_feature=key_to_mate_feature,
+        key_to_euid=key_to_euid,
         euid_to_part=euid_to_part,
         part_metadata=part_metadata,
         part_dynamics=part_dynamics,
@@ -597,6 +659,7 @@ async def check_document(
         digraph=digraph,
         joints=joints,
         joint_limits=joint_limits,
+        mate_relations=mate_relations,
     )
 
 
@@ -612,14 +675,12 @@ async def download_stl(
     key: Key,
     part_file_path: Path,
     api: OnshapeApi,
+    stl_origin_to_part_tf: np.ndarray,
 ) -> None:
     part_instance = doc.key_to_part_instance[key]
     part = doc.euid_to_part[part_instance.euid]
 
-    if part_file_path.exists():
-        logger.info("Using cached file %s", part_file_path)
-    else:
-        logger.info("Downloading file %s", part_file_path)
+    if not part_file_path.exists():
         buffer = io.BytesIO()
         await api.download_stl(part, buffer)
         buffer.seek(0)
@@ -729,25 +790,39 @@ def get_urdf_part(
     return urdf_part_link, stl_origin_to_part_tf
 
 
-async def get_urdf_joint(
+def get_urdf_joint(
     doc: CheckedDocument,
     joint: Joint,
+    parent_stl_origin_to_part_tf: np.ndarray,
+    *,
+    config: ConverterConfig | None = None,
 ) -> urdf.BaseJoint:
     """Returns the URDF joint.
 
     Args:
         doc: The checked document.
         joint: The joint to convert.
+        parent_stl_origin_to_part_tf: The transformation matrix from the parent
+            STL origin to the parent part frame.
+        config: The converter configuration.
 
     Returns:
         The URDF link and joint.
     """
-    parent_stl_origin_to_part_tf = self.stl_origin_to_part_tf[joint.parent]
+    if config is None:
+        config = ConverterConfig()
+
+    default_prismatic_joint_limits = urdf.JointLimits(*config.default_prismatic_joint_limits)
+    default_revolute_joint_limits = urdf.JointLimits(*config.default_revolute_joint_limits)
+
+    suffix_to_joint_effort = [(k.lower().strip(), v) for k, v in config.suffix_to_joint_effort.items()]
+    suffix_to_joint_velocity = [(k.lower().strip(), v) for k, v in config.suffix_to_joint_velocity.items()]
+
     parent_part_to_mate_tf = joint.parent_entity.matedCS.part_to_mate_tf
     parent_stl_origin_to_mate_tf = parent_stl_origin_to_part_tf @ parent_part_to_mate_tf
 
     # Gets the joint limits.
-    joint_assembly_id, feature_id = (await self.assembly_key_to_id)[joint.joint_key[:-1]], joint.joint_key[-1]
+    joint_assembly_id, feature_id = doc.key_to_euid[joint.joint_key[:-1]], joint.joint_key[-1]
     joint_info_key = ElementUid(
         document_id=joint_assembly_id.document_id,
         document_microversion=joint_assembly_id.document_microversion,
@@ -760,13 +835,26 @@ async def get_urdf_joint(
     def resolve(expression: str | None) -> float | None:
         return None if expression is None else expression_resolver.read_expression(expression)
 
-    name = await self.key_name(joint.joint_key, "joint")
+    def get_effort_and_velocity(name: str, default_effort: float, default_velocity: float) -> tuple[float, float]:
+        effort = default_effort
+        for suffix, value in suffix_to_joint_effort:
+            if name.lower().endswith(suffix):
+                effort = value
+                break
+        velocity = default_velocity
+        for suffix, value in suffix_to_joint_velocity:
+            if name.lower().endswith(suffix):
+                velocity = value
+                break
+        return effort, velocity
+
+    name = doc.key_namer(joint.joint_key, "joint")
     origin = urdf.Origin.from_matrix(parent_stl_origin_to_mate_tf)
     mate_type = joint.mate_type
 
     match mate_type:
         case MateType.FASTENED:
-            parent, child = await self.key_name(joint.parent, "link"), await self.key_name(joint.child, "link")
+            parent, child = doc.key_namer(joint.parent, "link"), doc.key_namer(joint.child, "link")
             return urdf.FixedJoint(
                 name=name,
                 parent=parent,
@@ -775,8 +863,8 @@ async def get_urdf_joint(
             )
 
         case MateType.REVOLUTE:
-            parent, child = await self.key_name(joint.parent, "link"), await self.key_name(joint.child, "link")
-            mimic_joint = (await self.relations).get(joint.joint_key)
+            parent, child = doc.key_namer(joint.parent, "link"), doc.key_namer(joint.child, "link")
+            mimic_joint = doc.mate_relations.get(joint.joint_key)
 
             min_value = resolve(joint_limits.axial_z_min_expression)
             max_value = resolve(joint_limits.axial_z_max_expression)
@@ -784,10 +872,10 @@ async def get_urdf_joint(
             if min_value is None or max_value is None:
                 raise ValueError(f"Revolute joint {name} ({parent} -> {child}) does not have limits defined.")
 
-            effort, velocity = self.get_effort_and_velocity(
+            effort, velocity = get_effort_and_velocity(
                 name,
-                self.default_revolute_joint_limits.effort,
-                self.default_revolute_joint_limits.velocity,
+                default_revolute_joint_limits.effort,
+                default_revolute_joint_limits.velocity,
             )
 
             return urdf.RevoluteJoint(
@@ -806,7 +894,7 @@ async def get_urdf_joint(
                     None
                     if mimic_joint is None
                     else urdf.JointMimic(
-                        joint=await self.key_name(mimic_joint.parent, "joint"),
+                        joint=doc.key_namer(mimic_joint.parent, "joint"),
                         multiplier=mimic_joint.multiplier,
                         offset=0.0,
                     )
@@ -814,8 +902,8 @@ async def get_urdf_joint(
             )
 
         case MateType.SLIDER:
-            parent, child = await self.key_name(joint.parent, "link"), await self.key_name(joint.child, "link")
-            mimic_joint = (await self.relations).get(joint.joint_key)
+            parent, child = doc.key_namer(joint.parent, "link"), doc.key_namer(joint.child, "link")
+            mimic_joint = doc.mate_relations.get(joint.joint_key)
 
             min_value = resolve(joint_limits.z_min_expression)
             max_value = resolve(joint_limits.z_max_expression)
@@ -823,10 +911,10 @@ async def get_urdf_joint(
             if min_value is None or max_value is None:
                 raise ValueError(f"Slider joint {name} ({parent} -> {child}) does not have limits defined.")
 
-            effort, velocity = self.get_effort_and_velocity(
+            effort, velocity = get_effort_and_velocity(
                 name,
-                self.default_prismatic_joint_limits.effort,
-                self.default_prismatic_joint_limits.velocity,
+                default_prismatic_joint_limits.effort,
+                default_prismatic_joint_limits.velocity,
             )
 
             return urdf.PrismaticJoint(
@@ -845,7 +933,7 @@ async def get_urdf_joint(
                     None
                     if mimic_joint is None
                     else urdf.JointMimic(
-                        joint=await self.key_name(mimic_joint.parent, "joint"),
+                        joint=doc.key_namer(mimic_joint.parent, "joint"),
                         multiplier=mimic_joint.multiplier,
                         offset=0.0,
                     )
@@ -889,16 +977,33 @@ async def save_urdf(
     if config is None:
         config = ConverterConfig()
     mesh_dir_name = config.mesh_dir
-    (mesh_dir := output_dir / mesh_dir_name).mkdir(parents=True, exist_ok=True)
 
     # Gets the root link in the URDF.
     urdf_parts: list[urdf.Link | urdf.BaseJoint] = []
-    part_link, root_stl_origin_to_part_tf = await get_urdf_part(doc, doc.central_node, mesh_dir_name)
+    part_link, root_stl_origin_to_part_tf = get_urdf_part(doc, doc.central_node, mesh_dir_name)
     urdf_parts.append(part_link)
 
-    breakpoint()
+    # Keeps track of the parent STL origin to part transformation matrices.
+    stl_origin_to_part_tfs: dict[Key, np.ndarray] = {doc.central_node: root_stl_origin_to_part_tf}
 
-    asdf
+    for joint in doc.joints:
+        urdf_joint = get_urdf_joint(doc, joint, stl_origin_to_part_tfs[joint.parent], config=config)
+        urdf_link, stl_origin_to_part_tf = get_urdf_part(doc, joint.child, mesh_dir_name, joint)
+        stl_origin_to_part_tfs[joint.child] = stl_origin_to_part_tf
+        urdf_parts.extend([urdf_joint, urdf_link])
+
+    robot_name = clean_name(str(doc.assembly_metadata.property_map.get("Name", "robot"))).lower()
+    urdf_robot = urdf.Robot(name=robot_name, parts=urdf_parts)
+    urdf_robot.save(output_dir / f"{robot_name}.urdf")
+
+    # Finally, downloads the STL files.
+    (mesh_dir := output_dir / mesh_dir_name).mkdir(parents=True, exist_ok=True)
+    await asyncio.gather(
+        *(
+            download_stl(doc, key, mesh_dir / f"{doc.key_namer(key, None)}.stl", api, stl_origin_to_part_tf)
+            for key, stl_origin_to_part_tf in stl_origin_to_part_tfs.items()
+        )
+    )
 
 
 async def convert(
