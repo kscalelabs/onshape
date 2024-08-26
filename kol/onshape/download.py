@@ -684,12 +684,13 @@ async def download_stl(
     part_file_path: Path,
     api: OnshapeApi,
     stl_origin_to_part_tf: np.ndarray,
+    min_facet_width: float | None = None,
 ) -> Path:
     part_instance = doc.key_to_part_instance[key]
     part = doc.euid_to_part[part_instance.euid]
 
     buffer = io.BytesIO()
-    await api.download_stl(part, buffer)
+    await api.download_stl(part, buffer, min_facet_width=min_facet_width)
     buffer.seek(0)
     mesh_obj = stl.mesh.Mesh.from_file(None, fh=buffer)
     mesh_obj = apply_matrix_(mesh_obj, stl_origin_to_part_tf)
@@ -747,7 +748,7 @@ def get_urdf_part(
     center_of_mass = part_dynamic.center_of_mass_in_frame(stl_origin_to_part_tf)
 
     inertia = part_dynamic.inertia_matrix
-    inertia_transformed = transform_inertia_tensor(inertia, stl_origin_to_part_tf[:3, :3])
+    inertia_transformed = transform_inertia_tensor(inertia, np.matrix(stl_origin_to_part_tf[:3, :3]))
 
     principal_axes = part_dynamic.principal_axes_in_frame(stl_origin_to_part_tf)
     principal_axes_rpy = R.from_matrix(principal_axes).as_euler("xyz", degrees=False)
@@ -1019,7 +1020,14 @@ async def save_urdf(
     (mesh_dir := output_dir / mesh_dir_name).mkdir(parents=True, exist_ok=True)
     mesh_paths = await asyncio.gather(
         *(
-            download_stl(doc, key, mesh_dir / f"{doc.key_namer(key, None)}.stl", api, stl_origin_to_part_tf)
+            download_stl(
+                doc,
+                key,
+                mesh_dir / f"{doc.key_namer(key, None)}.stl",
+                api,
+                stl_origin_to_part_tf,
+                min_facet_width=config.min_facet_width,
+            )
             for key, stl_origin_to_part_tf in stl_origin_to_part_tfs.items()
         )
     )

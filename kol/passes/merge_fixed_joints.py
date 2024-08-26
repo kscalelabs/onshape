@@ -1,5 +1,6 @@
-"""Defines functions for merging urdf parts at fixed joints."""
+"""Defines functions for merging URDF parts at fixed joints."""
 
+import argparse
 import logging
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass
@@ -297,3 +298,16 @@ def get_merged_urdf(urdf_path: Path) -> None:
 
     # Save the merged URDF
     save_xml(urdf_path, merged_urdf)
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Merge fixed joints in a URDF.")
+    parser.add_argument("urdf_path", type=Path, help="The path to the URDF file.")
+    args = parser.parse_args()
+
+    get_merged_urdf(args.urdf_path)
+
+
+if __name__ == "__main__":
+    # python -m kol.passes.merge_fixed_joints
+    main()

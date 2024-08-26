@@ -9,8 +9,10 @@ from typing import Sequence
 
 from kol.onshape.config import ConverterConfig, PostprocessConfig
 from kol.onshape.download import download
+from kol.passes.add_mjcf import convert_urdf_to_mjcf
+from kol.passes.merge_fixed_joints import get_merged_urdf
+from kol.passes.simplify_meshes import get_simplified_urdf
 from kol.utils.logging import configure_logging
-from kol.utils.merge_fixed_joints import get_merged_urdf
 
 
 @dataclass
@@ -39,6 +41,14 @@ async def postprocess(
     # Merges all fixed joints in the URDF.
     if config.merge_fixed_joints:
         get_merged_urdf(urdf_path)
+
+    # Simplifies the meshes in the URDF.
+    if config.simplify_meshes:
+        get_simplified_urdf(urdf_path, voxel_size=config.voxel_size)
+
+    # Adds the MJCF XML to the package.
+    if config.add_mjcf:
+        convert_urdf_to_mjcf(urdf_path, urdf_path.with_suffix(".mjcf"))
 
     return PostprocessedDocument(
         urdf_path=urdf_path,

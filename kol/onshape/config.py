@@ -73,6 +73,10 @@ class DownloadConfig:
         default=None,
         metadata={"help": "The name of the central node to use."},
     )
+    min_facet_width: float | None = field(
+        default=0.002,
+        metadata={"help": "The minimum facet width to use for simplifying meshes."},
+    )
     mesh_dir: str = field(
         default="meshes",
         metadata={"help": "The directory to store the meshes."},
@@ -118,6 +122,10 @@ class PostprocessConfig:
     voxel_size: float = field(
         default=0.002,
         metadata={"help": "The voxel size to use for simplifying meshes."},
+    )
+    add_mjcf: bool = field(
+        default=True,
+        metadata={"help": "Adds the MJCF XML to the package."},
     )
     package_tgz: bool = field(
         default=True,

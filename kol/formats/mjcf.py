@@ -3,18 +3,10 @@
 
 API reference:
 https://github.com/google-deepmind/mujoco/blob/main/src/xml/xml_native_writer.cc#L780
-
-Todo:
-    1. Clean up the inertia config
-    2. Add visual and imu support
 """
 
-import glob
-import os
-import shutil
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import Literal
 
 
@@ -155,9 +147,6 @@ class Body:
     geom: Geom | None = field(default=None)
     joint: Joint | None = field(default=None)
 
-    # TODO - Fix inertia, until then rely on Mujoco's engine
-    # inertial: Inertial = None
-
     def to_xml(self, root: ET.Element | None = None) -> ET.Element:
         body = ET.Element("body") if root is None else ET.SubElement(root, "body")
         body.set("name", self.name)
@@ -175,8 +164,6 @@ class Body:
 @dataclass
 class Flag:
     frictionloss: str | None = None
-    # removed at 3.1.4
-    # sensornoise: str | None = None
 
     def to_xml(self, root: ET.Element | None = None) -> ET.Element:
         flag = ET.Element("flag") if root is None else ET.SubElement(root, "flag")
@@ -405,102 +392,3 @@ class Sensor:
             for actuatorfrc in self.actuatorfrc:
                 actuatorfrc.to_xml(sensor)
         return sensor
-
-
-def _copy_stl_files(source_directory: str | Path, destination_directory: str | Path) -> None:
-    # Ensure the destination directory exists, create if not
-    os.makedirs(destination_directory, exist_ok=True)
-
-    # Use glob to find all .stl files in the source directory
-    pattern = os.path.join(source_directory, "*.stl")
-    for file_path in glob.glob(pattern):
-        destination_path = os.path.join(destination_directory, os.path.basename(file_path))
-        shutil.copy(file_path, destination_path)
-        print(f"Copied {file_path} to {destination_path}")
-
-
-def _remove_stl_files(source_directory: str | Path) -> None:
-    for filename in os.listdir(source_directory):
-        if filename.endswith(".stl"):
-            file_path = os.path.join(source_directory, filename)
-            os.remove(file_path)
-
-
-class Robot:
-    """A class to adapt the world in a Mujoco XML file."""
-
-    def __init__(
-        self,
-        robot_name: str,
-        output_dir: str | Path,
-        compiler: Compiler | None = None,
-    ) -> None:
-        """Initialize the robot.
-
-        Args:
-            robot_name (str): The name of the robot.
-            output_dir (str | Path): The output directory.
-            compiler (Compiler, optional): The compiler settings.
-        """
-        self.robot_name = robot_name
-        self.output_dir = output_dir
-        self.compiler = compiler
-        self._set_clean_up()
-        self.tree = ET.parse(self.output_dir / f"{self.robot_name}.xml")
-
-    def _set_clean_up(self) -> None:
-        try:
-            import mujoco
-        except ImportError as e:
-            raise ImportError(
-                "Please install the package with Mujoco as a dependency, using "
-                "`pip install kscale-onshape-library[mujoco]`"
-            ) from e
-
-        # HACK
-        # mujoco has a hard time reading meshes
-        _copy_stl_files(self.output_dir / "meshes", self.output_dir)
-
-        urdf_tree = ET.parse(self.output_dir / f"{self.robot_name}.urdf")
-        root = urdf_tree.getroot()
-
-        tree = ET.ElementTree(root)
-        tree.write(self.output_dir / f"{self.robot_name}.urdf", encoding="utf-8")
-        model = mujoco.MjModel.from_xml_path((self.output_dir / f"{self.robot_name}.urdf").as_posix())
-        mujoco.mj_saveLastXML((self.output_dir / f"{self.robot_name}.xml").as_posix(), model)
-
-        # Removes all the existing files.
-        _remove_stl_files(self.output_dir)
-
-    def adapt_world(self) -> None:
-        root = self.tree.getroot()
-
-        # Turn off internal collisions
-        for element in root:
-            if element.tag == "geom":
-                element.attrib["contype"] = str(1)
-                element.attrib["conaffinity"] = str(0)
-
-        compiler = root.find("compiler")
-        if self.compiler is not None:
-            compiler = self.compiler.to_xml(compiler)
-
-        worldbody = root.find("worldbody")
-        new_root_body = Body(name="root", pos=(0, 0, 0), quat=(1, 0, 0, 0)).to_xml()
-
-        # List to store items to be moved to the new root body
-        items_to_move = []
-        # Gather all children (geoms and bodies) that need to be moved under the new root body
-        for element in worldbody:
-            items_to_move.append(element)
-        # Move gathered elements to the new root body
-        for item in items_to_move:
-            worldbody.remove(item)
-            new_root_body.append(item)
-
-        # Add the new root body to the worldbody
-        worldbody.append(new_root_body)
-        self.tree = ET.ElementTree(root)
-
-    def save(self, path: str | Path) -> None:
-        self.tree.write(path, encoding="utf-8")

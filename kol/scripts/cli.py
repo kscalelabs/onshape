@@ -9,14 +9,13 @@ from kol.onshape.postprocess import (
     download_and_postprocess as download_and_postprocess_main,
     main as postprocess_main,
 )
-from kol.scripts import pybullet, show_mjcf, visualize_stl
+from kol.scripts import pybullet, visualize_stl
 
 Subcommand = Literal[
     "run",
     "download",
     "postprocess",
     "pybullet",
-    "mujoco",
     "stl",
 ]
 
@@ -36,8 +35,6 @@ async def main(args: Sequence[str] | None = None) -> None:
             await postprocess_main(remaining_args)
         case "pybullet":
             pybullet.main(remaining_args)
-        case "mujoco":
-            show_mjcf.main(remaining_args)
         case "stl":
             visualize_stl.main(remaining_args)
         case _:
