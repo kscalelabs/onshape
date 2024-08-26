@@ -5,17 +5,19 @@ import asyncio
 from typing import Literal, Sequence, get_args
 
 from kol.onshape.download import main as download_main
+from kol.onshape.postprocess import (
+    download_and_postprocess as download_and_postprocess_main,
+    main as postprocess_main,
+)
 from kol.scripts import pybullet, show_mjcf, visualize_stl
 
 Subcommand = Literal[
+    "run",
     "download",
+    "postprocess",
     "pybullet",
     "mujoco",
     "stl",
-    "simplify",
-    "merge-fixed-joints",
-    "simplify-all",
-    "cleanup-mesh-dir",
 ]
 
 
@@ -26,8 +28,12 @@ async def main(args: Sequence[str] | None = None) -> None:
     subcommand: Subcommand = parsed_args.subcommand
 
     match subcommand:
+        case "run":
+            await download_and_postprocess_main(remaining_args)
         case "download":
             await download_main(remaining_args)
+        case "postprocess":
+            await postprocess_main(remaining_args)
         case "pybullet":
             pybullet.main(remaining_args)
         case "mujoco":

@@ -195,7 +195,3 @@ def combine_meshes(parent_mesh: Mesh, child_mesh: Mesh, relative_transform: np.n
     offset_child_faces = child_mesh.faces + len(parent_mesh.points)
     combined_faces = np.concatenate([parent_mesh.faces, offset_child_faces])
     return Mesh(points=combined_points, faces=combined_faces)
-    # return Mesh.from_trimesh(
-    #     trimesh.util.concatenate([
-    #         parent_mesh.to_trimesh(),
-    #         child_mesh.to_trimesh().apply_transform(relative_transform)]))

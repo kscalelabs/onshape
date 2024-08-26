@@ -29,7 +29,7 @@ from kol.onshape.api import OnshapeApi
 from kol.onshape.cached_api import CachedOnshapeApi
 from kol.onshape.cacher import Cacher
 from kol.onshape.client import DocumentInfo, OnshapeClient
-from kol.onshape.config import ConverterConfig, Joint, JointLimits, MimicRelation
+from kol.onshape.config import DownloadConfig, Joint, JointLimits, MimicRelation
 from kol.onshape.schema.assembly import (
     Assembly,
     AssemblyInstance,
@@ -469,16 +469,25 @@ async def check_part(part: Part, api: OnshapeApi) -> tuple[PartMetadata, PartDyn
     return part_metadata, part_mass_properties
 
 
-async def get_mate_relations(key_to_mate_relation_feature: dict[Key, MateRelationFeature]) -> dict[Key, MimicRelation]:
+async def get_mate_relations(
+    key_to_mate_relation_feature: dict[Key, MateRelationFeature],
+    *,
+    config: DownloadConfig | None = None,
+) -> dict[Key, MimicRelation]:
     """Gets the mimic relations from the mate relations.
 
     Args:
         key_to_mate_relation_feature: The key to mate relation feature mapping.
+        config: The download configuration.
 
     Returns:
         The mimic relations.
     """
+    if config is None:
+        config = DownloadConfig()
     relations: dict[Key, MimicRelation] = {}
+    if config.disable_mimics:
+        return relations
 
     for path, mate_relation_feature in key_to_mate_relation_feature.items():
         if mate_relation_feature.suppressed:
@@ -535,7 +544,7 @@ async def check_document(
     document_info: DocumentInfo,
     api: OnshapeApi,
     *,
-    config: ConverterConfig | None = None,
+    config: DownloadConfig | None = None,
 ) -> CheckedDocument:
     """Checks that a document is valid.
 
@@ -553,7 +562,7 @@ async def check_document(
         FailedCheckError: If the document is invalid.
     """
     if config is None:
-        config = ConverterConfig()
+        config = DownloadConfig()
 
     # Checks that the document can be downloaded. We do this first to just make
     # sure that the user isn't trying to retrieve a private document.
@@ -640,7 +649,7 @@ async def check_document(
 
     # Checks all the mate relations in the assembly.
     try:
-        mate_relations = await get_mate_relations(key_to_mate_relation_feature)
+        mate_relations = await get_mate_relations(key_to_mate_relation_feature, config=config)
 
     except Exception as e:
         raise FailedCheckError(
@@ -669,30 +678,24 @@ async def check_document(
     )
 
 
-@dataclass
-class StlDownloadItem:
-    key: Key
-    part_file_path: Path
-    stl_origin_to_part_tf: np.ndarray
-
-
 async def download_stl(
     doc: CheckedDocument,
     key: Key,
     part_file_path: Path,
     api: OnshapeApi,
     stl_origin_to_part_tf: np.ndarray,
-) -> None:
+) -> Path:
     part_instance = doc.key_to_part_instance[key]
     part = doc.euid_to_part[part_instance.euid]
 
-    if not part_file_path.exists():
-        buffer = io.BytesIO()
-        await api.download_stl(part, buffer)
-        buffer.seek(0)
-        mesh_obj = stl.mesh.Mesh.from_file(None, fh=buffer)
-        mesh_obj = apply_matrix_(mesh_obj, stl_origin_to_part_tf)
-        mesh_obj.save(part_file_path)
+    buffer = io.BytesIO()
+    await api.download_stl(part, buffer)
+    buffer.seek(0)
+    mesh_obj = stl.mesh.Mesh.from_file(None, fh=buffer)
+    mesh_obj = apply_matrix_(mesh_obj, stl_origin_to_part_tf)
+    mesh_obj.save(part_file_path)
+
+    return part_file_path
 
 
 def get_urdf_part(
@@ -801,7 +804,7 @@ def get_urdf_joint(
     joint: Joint,
     parent_stl_origin_to_part_tf: np.ndarray,
     *,
-    config: ConverterConfig | None = None,
+    config: DownloadConfig | None = None,
 ) -> urdf.BaseJoint:
     """Returns the URDF joint.
 
@@ -816,7 +819,7 @@ def get_urdf_joint(
         The URDF link and joint.
     """
     if config is None:
-        config = ConverterConfig()
+        config = DownloadConfig()
 
     default_prismatic_joint_limits = urdf.JointLimits(*config.default_prismatic_joint_limits)
     default_revolute_joint_limits = urdf.JointLimits(*config.default_revolute_joint_limits)
@@ -965,13 +968,19 @@ def get_urdf_joint(
             raise ValueError(f"Unsupported mate type: {mate_type}")
 
 
+@dataclass
+class SavedUrdf:
+    urdf_path: Path
+    mesh_paths: list[Path]
+
+
 async def save_urdf(
     doc: CheckedDocument,
     output_dir: Path,
     api: OnshapeApi,
     *,
-    config: ConverterConfig | None = None,
-) -> Path:
+    config: DownloadConfig | None = None,
+) -> SavedUrdf:
     """Saves the URDF files for the document.
 
     Args:
@@ -981,10 +990,10 @@ async def save_urdf(
         config: The converter configuration.
 
     Returns:
-        The path to the saved URDF file.
+        The path to the saved URDF file and mesh files.
     """
     if config is None:
-        config = ConverterConfig()
+        config = DownloadConfig()
     mesh_dir_name = config.mesh_dir
 
     # Gets the root link in the URDF.
@@ -1008,23 +1017,32 @@ async def save_urdf(
 
     # Finally, downloads the STL files.
     (mesh_dir := output_dir / mesh_dir_name).mkdir(parents=True, exist_ok=True)
-    await asyncio.gather(
+    mesh_paths = await asyncio.gather(
         *(
             download_stl(doc, key, mesh_dir / f"{doc.key_namer(key, None)}.stl", api, stl_origin_to_part_tf)
             for key, stl_origin_to_part_tf in stl_origin_to_part_tfs.items()
         )
     )
 
-    return urdf_path
+    return SavedUrdf(
+        urdf_path=urdf_path,
+        mesh_paths=mesh_paths,
+    )
+
+
+@dataclass
+class DownloadedDocument:
+    check_document: CheckedDocument
+    urdf_info: SavedUrdf
 
 
 async def download(
     document_url: str,
     output_dir: str | Path,
     *,
-    config: ConverterConfig | None = None,
+    config: DownloadConfig | None = None,
     api: OnshapeApi | None = None,
-) -> Path:
+) -> DownloadedDocument:
     """Converts an Onshape document to a URDF.
 
     Args:
@@ -1034,11 +1052,11 @@ async def download(
         api: The Onshape API to use.
 
     Returns:
-        The path to the saved URDF file.
+        The downloaded document information.
     """
     output_dir = Path(output_dir).expanduser().resolve()
     if config is None:
-        config = ConverterConfig()
+        config = DownloadConfig()
 
     # Creates directories for storing cached artifacts and meshes.
     (cache_dir := output_dir / ".cache").mkdir(parents=True, exist_ok=True)
@@ -1057,19 +1075,22 @@ async def download(
     checked_document = await check_document(document, api, config=config)
 
     # Converts the checked document to a URDF.
-    urdf_path = await save_urdf(checked_document, output_dir, api, config=config)
+    urdf_info = await save_urdf(checked_document, output_dir, api, config=config)
 
-    return urdf_path
+    return DownloadedDocument(
+        check_document=checked_document,
+        urdf_info=urdf_info,
+    )
 
 
-async def main(args: Sequence[str] | None = None) -> None:
+async def main(args: Sequence[str] | None = None) -> DownloadedDocument:
     if args is None:
         args = sys.argv[1:]
-    document_url, output_dir, config = ConverterConfig.from_cli_args(args)
+    config = DownloadConfig.from_cli_args(args)
     configure_logging(level=logging.DEBUG if config.debug else logging.INFO)
-    await download(
-        document_url=document_url,
-        output_dir=output_dir,
+    return await download(
+        document_url=config.document_url,
+        output_dir=config.output_dir,
         config=config,
     )
 

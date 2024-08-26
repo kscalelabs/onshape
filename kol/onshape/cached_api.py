@@ -126,7 +126,7 @@ class CachedOnshapeApi(OnshapeApi):
         # the same STL file multiple times.
         async with self.stl_locks[part.key.unique_id]:
             cache_path = self.cacher.cache_dir / f"stl_{part.key.unique_id}.stl"
-            if not cache_path.exists():
+            if self.cacher._run_fn(cache_path):
                 with open(cache_path, "wb") as f:
                     await super(CachedOnshapeApi, self).download_stl(
                         part,
