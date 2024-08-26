@@ -123,6 +123,10 @@ class PostprocessConfig:
         default=0.002,
         metadata={"help": "The voxel size to use for simplifying meshes."},
     )
+    convex_collision_meshes: bool = field(
+        default=True,
+        metadata={"help": "Creates separate convex hulls for collision geometries."},
+    )
     add_mjcf: bool = field(
         default=True,
         metadata={"help": "Adds the MJCF XML to the package."},

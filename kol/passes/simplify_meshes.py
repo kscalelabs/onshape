@@ -55,18 +55,20 @@ def get_simplified_urdf(
     # Iterates through each link in the URDF and simplifies the meshes.
     total_pre_num_vertices = 0
     total_post_num_vertices = 0
-    for mesh_path in iter_meshes(urdf_path):
-        pre_num_vertices, post_num_vertices = simplify_mesh(mesh_path, voxel_size=voxel_size)
-        total_pre_num_vertices += pre_num_vertices
-        total_post_num_vertices += post_num_vertices
+    for (_, visual_mesh_path), (_, collision_mesh_path) in iter_meshes(urdf_path):
+        for mesh_path in list({visual_mesh_path, collision_mesh_path}):
+            pre_num_vertices, post_num_vertices = simplify_mesh(mesh_path, voxel_size=voxel_size)
+            total_pre_num_vertices += pre_num_vertices
+            total_post_num_vertices += post_num_vertices
 
-    percent_reduction = (1 - total_post_num_vertices / total_pre_num_vertices) * 100
-    logger.info(
-        "Simplified meshes from %d to %d vertices (%.2f%% reduction)",
-        total_pre_num_vertices,
-        total_post_num_vertices,
-        percent_reduction,
-    )
+    if total_pre_num_vertices > 0:
+        percent_reduction = (1 - total_post_num_vertices / total_pre_num_vertices) * 100
+        logger.info(
+            "Simplified meshes from %d to %d vertices (%.2f%% reduction)",
+            total_pre_num_vertices,
+            total_post_num_vertices,
+            percent_reduction,
+        )
 
 
 def main() -> None:
