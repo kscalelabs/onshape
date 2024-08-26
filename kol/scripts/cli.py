@@ -7,8 +7,8 @@ from typing import Literal, Sequence, get_args
 from kol.onshape.download import main as download_main
 from kol.onshape.postprocess import (
     download_and_postprocess as download_and_postprocess_main,
-    main as postprocess_main,
 )
+from kol.onshape.postprocess import main as postprocess_main
 from kol.scripts import pybullet, visualize_stl
 
 Subcommand = Literal[

@@ -144,13 +144,13 @@ def get_key_to_feature(assembly: Assembly) -> dict[Key, MateRelationFeature | Ma
 
 
 def get_key_to_mate_feature(
-    key_to_feature: dict[Key, MateRelationFeature | MateFeature | MateGroupFeature]
+    key_to_feature: dict[Key, MateRelationFeature | MateFeature | MateGroupFeature],
 ) -> dict[Key, MateFeature]:
     return {p: f for p, f in key_to_feature.items() if isinstance(f, MateFeature)}
 
 
 def get_key_to_mate_relation_feature(
-    key_to_feature: dict[Key, MateRelationFeature | MateFeature | MateGroupFeature]
+    key_to_feature: dict[Key, MateRelationFeature | MateFeature | MateGroupFeature],
 ) -> dict[Key, MateRelationFeature]:
     return {p: f for p, f in key_to_feature.items() if isinstance(f, MateRelationFeature)}
 
