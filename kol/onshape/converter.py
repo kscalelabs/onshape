@@ -1,8 +1,7 @@
 # mypy: disable-error-code="attr-defined"
-"""Defines shared functions."""
+"""Defines a unified API for converting Onshape to URDF."""
 
 import asyncio
-import datetime
 import hashlib
 import io
 import itertools
@@ -10,17 +9,13 @@ import logging
 import re
 import traceback
 from collections import deque
-from dataclasses import dataclass, field
 from pathlib import Path
 from typing import (
     Any,
     AsyncIterator,
-    Callable,
     Coroutine,
     Deque,
     Literal,
-    Self,
-    Sequence,
     TypeVar,
     cast,
 )
@@ -29,23 +24,23 @@ import asyncstdlib
 import networkx as nx
 import numpy as np
 import stl
-from omegaconf import MISSING, OmegaConf
 from scipy.spatial.transform import Rotation as R
 
 from kol.cleanup import cleanup_mesh_dir
-from kol.formats import mjcf, urdf
+from kol.formats import urdf
 from kol.geometry import apply_matrix_, inv_tf, transform_inertia_tensor
 from kol.merge_fixed_joints import get_merged_urdf
 from kol.mesh import get_mesh_type, stl_to_fmt
 from kol.onshape.api import OnshapeApi
+from kol.onshape.cacher import Cacher
 from kol.onshape.client import OnshapeClient
+from kol.onshape.config import ConverterConfig, Joint, JointLimits, MimicRelation
 from kol.onshape.schema.assembly import (
     Assembly,
     AssemblyInstance,
     AssemblyMetadata,
     Instance,
     Key,
-    MatedEntity,
     MateFeature,
     MateGroupFeature,
     MateRelationFeature,
@@ -83,149 +78,22 @@ async def gather_dict(d: dict[Tk, Coroutine[Any, Any, Tv]]) -> dict[Tk, Tv]:
     return {k: v for (k, _), v in zip(dict_items, values)}
 
 
-@dataclass
-class MimicRelation:
-    parent: Key
-    multiplier: float
-
-
-@dataclass
-class Joint:
-    parent: Key
-    child: Key
-    parent_entity: MatedEntity
-    child_entity: MatedEntity
-    mate_type: MateType
-    joint_key: Key
-    lhs_is_first: bool
-
-
-@dataclass
-class JointLimits:
-    z_min_expression: str | None = None
-    z_max_expression: str | None = None
-    axial_z_min_expression: str | None = None
-    axial_z_max_expression: str | None = None
-
-
-@dataclass
-class ConverterConfig:
-    """Defines a configuration class for the converter."""
-
-    document_url: str = field(
-        default=MISSING,
-        metadata={"help": "The URL of the Onshape document to convert."},
-    )
-    output_dir: str | Path | None = field(
-        default=None,
-        metadata={"help": "The output directory for the URDF files."},
-    )
-    default_prismatic_joint_limits: tuple[float, float, float, float] = field(
-        default=(80.0, 5.0, -1.0, 1.0),
-        metadata={"help": "The default prismatic joint limits, as (effort, velocity, min, max)."},
-    )
-    default_revolute_joint_limits: tuple[float, float, float, float] = field(
-        default=(80.0, 5.0, -np.pi, np.pi),
-        metadata={"help": "The default revolute joint limits, as (effort, velocity, min, max)."},
-    )
-    suffix_to_joint_effort: dict[str, float] = field(
-        default_factory=lambda: {},
-        metadata={"help": "The suffix to joint effort mapping."},
-    )
-    suffix_to_joint_velocity: dict[str, float] = field(
-        default_factory=lambda: {},
-        metadata={"help": "The suffix to joint velocity mapping."},
-    )
-    disable_mimics: bool = field(
-        default=False,
-        metadata={"help": "Disables the mimic joints."},
-    )
-    mesh_ext: str = field(
-        default="stl",
-        metadata={"help": "The mesh extension to use for the URDF files, e.g., 'stl' or 'obj'."},
-    )
-    override_central_node: str | None = field(
-        default=None,
-        metadata={"help": "The name of the central node to use."},
-    )
-    remove_inertia: bool = field(
-        default=False,
-        metadata={"help": "Removes inertia from the URDF."},
-    )
-    merge_fixed_joints: bool = field(
-        default=False,
-        metadata={"help": "Merges fixed joints in the URDF."},
-    )
-    simplify_meshes: bool = field(
-        default=True,
-        metadata={"help": "Simplifies the meshes when converting the URDF."},
-    )
-    override_joint_names: dict[str, str] | None = field(
-        default=None,
-        metadata={"help": "A mapping from an OnShape joint name to some canonical name."},
-    )
-    override_nonfixed: list[str] | None = field(
-        default=None,
-        metadata={"help": "The override non-fixed joints."},
-    )
-    override_limits: dict[str, str] | None = field(
-        default=None,
-        metadata={"help": "The override joint limits."},
-    )
-    override_torques: dict[str, int] | None = field(
-        default=None,
-        metadata={"help": "The override joint torques."},
-    )
-    sim_ignore_key: str = field(
-        default="sim_ignore",
-        metadata={"help": "If this key is in the joint name, ignore it."},
-    )
-    voxel_size: float = field(
-        default=0.002,
-        metadata={"help": "The voxel size to use for simplifying meshes."},
-    )
-    default_color: tuple[int, int, int, int] = field(
-        default=(0, 0, 255, 255),
-        metadata={"help": "The default color to use for parts."},
-    )
-    default_mass: float = field(
-        default=0.001,
-        metadata={"help": "The default mass to use for parts which have their masses missing."},
-    )
-    debug: bool = field(
-        default=False,
-        metadata={"help": "Enables debug mode."},
-    )
-
-    @classmethod
-    def from_cli_args(cls, args: Sequence[str]) -> Self:
-        cfg = OmegaConf.structured(cls)
-        cli_args: list[str] = []
-        for arg in args:
-            if Path(arg).is_file():
-                cfg = OmegaConf.merge(cfg, OmegaConf.load(arg))
-            else:
-                cli_args.append(arg)
-        if cli_args:
-            # This is a patch to support some syntax sugar - we automatically
-            # treat the first argument as the document URL.
-            if "=" not in cli_args[0]:
-                cli_args[0] = f"document_url={cli_args[0]}"
-            cfg = OmegaConf.merge(cfg, OmegaConf.from_cli(cli_args))
-        return cfg
-
-
 class Converter:
     """Defines a utility class for getting document components efficiently."""
 
     def __init__(
         self,
-        config: ConverterConfig,
+        document_url: str,
+        output_dir: str | Path,
         *,
+        config: ConverterConfig | None = None,
         api: OnshapeApi | None = None,
     ) -> None:
+        self.config = ConverterConfig() if config is None else config
+        self.api = OnshapeApi(OnshapeClient()) if api is None else api
+
         # Gets a default output directory.
-        self.output_dir = (Path.cwd() / "robot" if config.output_dir is None else Path(config.output_dir)).resolve()
+        self.output_dir = Path(output_dir).expanduser().resolve()
 
         # Creates a new directory for cached artifacts.
         self.cache_dir = self.output_dir / ".cache"
@@ -235,75 +103,36 @@ class Converter:
         self.mesh_dir = self.output_dir / "meshes"
         self.mesh_dir.mkdir(parents=True, exist_ok=True)
 
-        self.api = OnshapeApi(OnshapeClient()) if api is None else api
-        self.document = self.api.parse_url(config.document_url)
-        self.default_prismatic_joint_limits = urdf.JointLimits(*config.default_prismatic_joint_limits)
-        self.default_revolute_joint_limits = urdf.JointLimits(*config.default_revolute_joint_limits)
-        self.suffix_to_joint_effort = [(k.lower().strip(), v) for k, v in config.suffix_to_joint_effort.items()]
-        self.suffix_to_joint_velocity = [(k.lower().strip(), v) for k, v in config.suffix_to_joint_velocity.items()]
-        self.disable_mimics = config.disable_mimics
-        self.mesh_ext = get_mesh_type(config.mesh_ext)
-        self.override_central_node = config.override_central_node
-        self.remove_inertia = config.remove_inertia
-        self.merge_fixed_joints = config.merge_fixed_joints
-        self.simplify_meshes = config.simplify_meshes
-        self.override_joint_names = config.override_joint_names
-        self.override_nonfixed = config.override_nonfixed
-        self.override_limits = config.override_limits
-        self.override_torques = config.override_torques
-        self.sim_ignore_key = config.sim_ignore_key
-        self.voxel_size = config.voxel_size
-        self.default_color = tuple(config.default_color)
-        self.default_mass = config.default_mass
+        self.document = self.api.parse_url(document_url)
+        self.default_prismatic_joint_limits = urdf.JointLimits(*self.config.default_prismatic_joint_limits)
+        self.default_revolute_joint_limits = urdf.JointLimits(*self.config.default_revolute_joint_limits)
+        self.suffix_to_joint_effort = [(k.lower().strip(), v) for k, v in self.config.suffix_to_joint_effort.items()]
+        self.suffix_to_joint_velocity = [
+            (k.lower().strip(), v) for k, v in self.config.suffix_to_joint_velocity.items()
+        ]
+        self.disable_mimics = self.config.disable_mimics
+        self.mesh_ext = get_mesh_type(self.config.mesh_ext)
+        self.override_central_node = self.config.override_central_node
+        self.remove_inertia = self.config.remove_inertia
+        self.merge_fixed_joints = self.config.merge_fixed_joints
+        self.simplify_meshes = self.config.simplify_meshes
+        self.override_joint_names = self.config.override_joint_names
+        self.override_nonfixed = self.config.override_nonfixed
+        self.override_limits = self.config.override_limits
+        self.override_torques = self.config.override_torques
+        self.sim_ignore_key = self.config.sim_ignore_key
+        self.voxel_size = self.config.voxel_size
+        self.default_color = tuple(self.config.default_color)
+        self.default_mass = self.config.default_mass
 
-        # Map containing all cached items.
-        self.cache_map: dict[str, Any] = {}
+        self.cacher = Cacher(self.cache_dir)
 
         # Map containing the transformations from the STL origin to the part frame.
         self.stl_origin_to_part_tf: dict[Key, np.ndarray] = {}
 
-    async def get_or_use_cached(
-        self,
-        cache_key: str,
-        get_fn: Callable[[], Coroutine[Any, Any, T]],
-        from_json_fn: Callable[[str], T],
-        to_json_fn: Callable[[T], str],
-        invalidate_after_n_minutes: int | None = None,
-    ) -> T:
-        """Gets an item by calling an API or by retrieving it from the cache.
-
-        Args:
-            cache_dir: The directory to store the cache.
-            cache_key: The key to use for the cache.
-            get_fn: The function to call to get the item.
-            from_json_fn: The function to call to parse the item from JSON.
-            to_json_fn: The function to call to serialize the item to JSON.
-            invalidate_after_n_minutes: The number of minutes after which the cache should be invalidated.
-
-        Returns:
-            The item.
-        """
-        if cache_key in self.cache_map:
-            return self.cache_map[cache_key]
-        cache_path = self.cache_dir / f"{cache_key}.json"
-        if cache_path.exists():
-            if invalidate_after_n_minutes is not None:
-                modified_time = datetime.datetime.fromtimestamp(cache_path.stat().st_mtime)
-                if (datetime.datetime.now() - modified_time).seconds > invalidate_after_n_minutes * 60:
-                    logger.warning("Cache invalidated after %d minutes", invalidate_after_n_minutes)
-                    cache_path.unlink()
-            else:
-                with open(cache_path) as f:
-                    return from_json_fn(f.read())
-        item = await get_fn()
-        with open(cache_path, "w") as f:
-            f.write(to_json_fn(item))
-        self.cache_map[cache_key] = item
-        return item
-
     @property
     async def assembly(self) -> Assembly:
-        return await self.get_or_use_cached(
+        return await self.cacher(
             "assembly",
             lambda: self.api.get_assembly(self.document),
             lambda asm_str: Assembly.model_validate_json(asm_str),
@@ -314,7 +143,7 @@ class Converter:
     @property
     async def assembly_metadata(self) -> AssemblyMetadata:
         assembly = await self.assembly
-        return await self.get_or_use_cached(
+        return await self.cacher(
             "assembly_metadata",
             lambda: self.api.get_assembly_metadata(assembly.rootAssembly),
             lambda asm_str: AssemblyMetadata.model_validate_json(asm_str),
@@ -322,7 +151,7 @@ class Converter:
         )
 
     async def part_metadata(self, part: Part) -> PartMetadata:
-        return await self.get_or_use_cached(
+        return await self.cacher(
             f"part_{part.key.unique_id}_metadata",
             lambda: self.api.get_part_metadata(part),
             lambda part_str: PartMetadata.model_validate_json(part_str),
@@ -341,7 +170,7 @@ class Converter:
         )
 
     async def part_dynamics(self, part: Part) -> PartDynamics:
-        return await self.get_or_use_cached(
+        return await self.cacher(
             f"part_{part.key.unique_id}_mass_properties",
             lambda: self.api.get_part_mass_properties(part),
             lambda props_str: PartDynamics.model_validate_json(props_str),
@@ -744,7 +573,7 @@ class Converter:
         """
 
         async def download_or_get_cached_features(assembly: RootAssembly | SubAssembly) -> Features:
-            return await self.get_or_use_cached(
+            return await self.cacher(
                 f"assembly_{assembly.key.unique_id}",
                 lambda: self.api.get_features(assembly),
                 lambda feats_str: Features.model_validate_json(feats_str),
@@ -857,9 +686,7 @@ class Converter:
 
         mass = part_dynamic.mass[0]
         if mass <= 0.0:
-            logger.warning("Part %s has a mass of %f, which is invalid", part_name, mass)
-            logger.warning("Part %s set to default mass %f", part_name, self.default_mass)
-            mass = self.default_mass
+            raise ValueError(f"Part {part_name} has a mass of {mass}.")
 
         # Move the mesh origin and dynamics from the part frame to the parent
         # joint frame (since URDF expects this by convention).
@@ -1157,21 +984,3 @@ class Converter:
             for f in self.output_dir.glob("*.urdf"):
                 if f.name != f"{robot_name}.urdf":
                     f.unlink()
-
-    async def save_mjcf(self) -> None:
-        """Saves a MJCF file for the assembly to the output directory."""
-        if self.mesh_ext != "stl":
-            raise ValueError("MJCF only supports STL meshes")
-        await self.save_urdf()
-
-        robot_name = clean_name(str((await self.assembly_metadata).property_map.get("Name", "robot")))
-
-        # update robot_name if flags on
-        if self.merge_fixed_joints:
-            robot_name += "_merged"
-        if self.simplify_meshes:
-            robot_name += "_simplified"
-
-        mjcf_robot = mjcf.Robot(robot_name, self.output_dir, mjcf.Compiler(angle="radian", meshdir="meshes"))
-        mjcf_robot.adapt_world()
-        mjcf_robot.save(self.output_dir / f"{robot_name}.xml")

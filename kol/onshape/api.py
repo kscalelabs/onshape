@@ -35,6 +35,7 @@ class OnshapeApi:
     async def get_document(self, did: str) -> Document:
         async with self.client.request("get", f"/api/documents/{did}") as response:
             await response.aread()
+            response.raise_for_status()
             data = response.json()
         return Document.model_validate(data)
 
@@ -49,6 +50,7 @@ class OnshapeApi:
             f"/api/documents/d/{document_id}/{workspace_type}/{workspace_id}/elements",
         ) as response:
             await response.aread()
+            response.raise_for_status()
             data = response.json()
         return Elements.model_validate(data)
 
@@ -81,6 +83,7 @@ class OnshapeApi:
             },
         ) as response:
             await response.aread()
+            response.raise_for_status()
             data = response.json()
         return Assembly.model_validate(data)
 
@@ -88,6 +91,7 @@ class OnshapeApi:
         path = f"/api/assemblies/d/{asm.documentId}/m/{asm.documentMicroversion}/e/{asm.elementId}/features"
         async with self.client.request("get", path) as response:
             await response.aread()
+            response.raise_for_status()
             data = response.json()
         return Features.model_validate(data)
 
@@ -99,6 +103,7 @@ class OnshapeApi:
         path = f"/api/metadata/d/{assembly.documentId}/m/{assembly.documentMicroversion}/e/{assembly.elementId}"
         async with self.client.request("get", path, query={"configuration": configuration}) as response:
             await response.aread()
+            response.raise_for_status()
             data = response.json()
         return AssemblyMetadata.model_validate(data)
 
@@ -109,6 +114,7 @@ class OnshapeApi:
         )
         async with self.client.request("get", path, query={"configuration": part.configuration}) as response:
             await response.aread()
+            response.raise_for_status()
             data = response.json()
         return PartMetadata.model_validate(data)
 
@@ -122,25 +128,39 @@ class OnshapeApi:
             query={"configuration": part.configuration, "useMassPropertyOverrides": True},
         ) as response:
             await response.aread()
+            response.raise_for_status()
             data = response.json()
         return PartDynamics.model_validate(data)
 
-    async def download_stl(self, part: Part, fp: BinaryIO) -> None:
+    async def download_stl(
+        self,
+        part: Part,
+        fp: BinaryIO,
+        *,
+        units: str = "meter",
+        min_facet_width: float | None = None,
+        max_facet_width: float | None = None,
+    ) -> None:
         path = (
             f"/api/parts/d/{part.documentId}/m/{part.documentMicroversion}"
             f"/e/{part.elementId}/partid/{escape_url(part.partId)}/stl"
         )
+        query = {
+            "mode": "binary",
+            "grouping": True,
+            "units": units,
+            "configuration": part.configuration,
+        }
+        if min_facet_width is not None:
+            query["minFacetWidth"] = min_facet_width
+        if max_facet_width is not None:
+            query["maxFacetWidth"] = max_facet_width
         async with self.client.request(
             "get",
             path,
-            query={
-                "mode": "binary",
-                "grouping": True,
-                "units": "meter",
-                "configuration": part.configuration,
-            },
+            query=query,
             headers={"Accept": "*/*"},
         ) as response:
-            response.raise_for_status()
             data = await response.aread()
+            response.raise_for_status()
             fp.write(data)

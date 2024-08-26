@@ -13,9 +13,13 @@ from kol.onshape.converter import Converter, ConverterConfig
 async def main(args: Sequence[str] | None = None) -> None:
     if args is None:
         args = sys.argv[1:]
-    config = ConverterConfig.from_cli_args(args)
+    document_url, output_dir, config = ConverterConfig.from_cli_args(args)
     configure_logging(level=logging.DEBUG if config.debug else logging.INFO)
-    await Converter(config).save_urdf()
+    await Converter(
+        document_url=document_url,
+        output_dir=output_dir,
+        config=config,
+    ).save_urdf()
 
 
 def sync_main(args: Sequence[str] | None = None) -> None:
