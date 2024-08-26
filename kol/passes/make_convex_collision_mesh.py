@@ -48,7 +48,7 @@ def get_convex_collision_meshes(urdf_path: Path) -> None:
             continue
         if (visual_mesh := get_mesh(visual_link)) is None or (collision_mesh := get_mesh(collision_link)) is None:
             continue
-        visual_mesh_elem, visual_mesh_path = visual_mesh
+        _, visual_mesh_path = visual_mesh
         collision_mesh_elem, collision_mesh_path = collision_mesh
 
         # If the visual mesh and the collision mesh are the same, we need to

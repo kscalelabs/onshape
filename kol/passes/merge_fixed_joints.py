@@ -287,14 +287,14 @@ def get_merged_urdf(urdf_path: Path) -> None:
 
     # Process the fixed joints
     starting_joint_count = len(urdf_tree.findall(".//joint"))
-    logger.info("Processing fixed joints, starting joint count: %d", starting_joint_count)
-
     merged_urdf = process_fixed_joints(urdf_tree, urdf_path)
-
     ending_joint_count = len(merged_urdf.findall(".//joint"))
-    logger.info("Finished processing fixed joints, ending joint count: %d", ending_joint_count)
-    logger.info("Removed %d fixed joints.", starting_joint_count - ending_joint_count)
-    logger.info("Percent reduction: %.4f%%", 100 * (starting_joint_count - ending_joint_count) / starting_joint_count)
+    logger.info(
+        "Removed %d / %d fixed joints (%.4f%% reduction).",
+        starting_joint_count - ending_joint_count,
+        starting_joint_count,
+        100 * (starting_joint_count - ending_joint_count) / starting_joint_count,
+    )
 
     # Save the merged URDF
     save_xml(urdf_path, merged_urdf)

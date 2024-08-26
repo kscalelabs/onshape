@@ -52,8 +52,11 @@ async def postprocess(
         get_convex_collision_meshes(urdf_path)
 
     # Adds the MJCF XML to the package.
+    paths = [urdf_path]
     if config.add_mjcf:
-        convert_urdf_to_mjcf(urdf_path, urdf_path.with_suffix(".mjcf"))
+        mjcf_path = urdf_path.with_suffix(".mjcf")
+        convert_urdf_to_mjcf(urdf_path, mjcf_path)
+        paths.append(mjcf_path)
 
     return PostprocessedDocument(
         urdf_path=urdf_path,
