@@ -1,7 +1,5 @@
 """OnShape API and client."""
 
-import argparse
-import asyncio
 import logging
 from typing import BinaryIO
 
@@ -207,22 +205,3 @@ class OnshapeApi:
                 response.raise_for_status()
                 async for chunk in response.aiter_bytes():
                     fp.write(chunk)
-
-
-async def test_api_adhoc() -> None:
-    parser = argparse.ArgumentParser(description="Onshape API test")
-    parser.add_argument("document_url", help="Document URL")
-    parser.add_argument("output", help="Output file")
-    args = parser.parse_args()
-
-    client = OnshapeClient()
-    api = OnshapeApi(client)
-    document = api.parse_url(args.document_url)
-
-    with open(args.output, "wb") as fp:
-        await api.download_thumbnail(fp, document)
-
-
-if __name__ == "__main__":
-    # python -m kol.onshape.api
-    asyncio.run(test_api_adhoc())

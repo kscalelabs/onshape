@@ -1,6 +1,7 @@
 """Defines a cached version of the Onshape API."""
 
 import asyncio
+import hashlib
 from typing import BinaryIO
 
 from kol.onshape.api import OnshapeApi
@@ -16,7 +17,7 @@ from kol.onshape.schema.assembly import (
 from kol.onshape.schema.document import Document
 from kol.onshape.schema.elements import Elements
 from kol.onshape.schema.features import Features
-from kol.onshape.schema.part import PartDynamics, PartMetadata
+from kol.onshape.schema.part import PartDynamics, PartMetadata, ThumbnailInfo
 
 
 class CachedOnshapeApi(OnshapeApi):
@@ -134,6 +135,46 @@ class CachedOnshapeApi(OnshapeApi):
                         units=units,
                         min_facet_width=min_facet_width,
                         max_facet_width=max_facet_width,
+                    )
+
+        with open(cache_path, "rb") as f:
+            fp.write(f.read())
+
+    async def list_thumbnails(self, document: DocumentInfo) -> ThumbnailInfo:
+        return await self.cacher(
+            f"thumbnails_{document.document_id}_{document.item_id}",
+            lambda: super(CachedOnshapeApi, self).list_thumbnails(document),
+            lambda thumbnails_str: ThumbnailInfo.model_validate_json(thumbnails_str),
+            lambda thumbnails: thumbnails.model_dump_json(indent=2),
+        )
+
+    async def download_thumbnail(
+        self,
+        fp: BinaryIO,
+        document: DocumentInfo,
+        *,
+        width: int = 300,
+        height: int = 300,
+    ) -> None:
+        key = hashlib.md5(f"{document.document_id}_{document.item_id}_{width}_{height}".encode("utf-8")).hexdigest()
+
+        # Each part needs its own lock. We use a master lock to avoid double
+        # inserting the same lock.
+        async with self.master_lock:
+            if key not in self.stl_locks:
+                self.stl_locks[key] = asyncio.Lock()
+
+        # We need to lock the STL download for the part to avoid downloading
+        # the same STL file multiple times.
+        async with self.stl_locks[key]:
+            cache_path = self.cacher.cache_dir / f"png_{key}.png"
+            if self.cacher._run_fn(cache_path):
+                with open(cache_path, "wb") as f:
+                    await super(CachedOnshapeApi, self).download_thumbnail(
+                        f,
+                        document,
+                        width=width,
+                        height=height,
                     )
 
         with open(cache_path, "rb") as f:
