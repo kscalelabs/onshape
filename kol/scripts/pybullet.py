@@ -13,7 +13,7 @@ from kol.utils.logging import configure_logging
 logger = logging.getLogger(__name__)
 
 
-def main(args: Sequence[str] | None = None) -> None:
+def pybullet_main(args: Sequence[str] | None = None) -> None:
     configure_logging()
 
     parser = argparse.ArgumentParser(description="Show a URDF in PyBullet")
@@ -203,4 +203,4 @@ def main(args: Sequence[str] | None = None) -> None:
 
 if __name__ == "__main__":
     # python -m kol.scripts.pybullet
-    main()
+    pybullet_main()
