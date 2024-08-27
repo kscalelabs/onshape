@@ -6,14 +6,13 @@ from typing import Literal, Sequence, get_args
 
 from kol.onshape.download import main as download_main
 from kol.onshape.postprocess import download_and_postprocess_main, postprocess_main
-from kol.scripts import pybullet, visualize_stl
+from kol.scripts.pybullet import pybullet_main
 
 Subcommand = Literal[
     "run",
     "download",
     "postprocess",
     "pybullet",
-    "stl",
 ]
 
 
@@ -31,9 +30,7 @@ async def main(args: Sequence[str] | None = None) -> None:
         case "postprocess":
             await postprocess_main(remaining_args)
         case "pybullet":
-            pybullet.main(remaining_args)
-        case "stl":
-            visualize_stl.main(remaining_args)
+            pybullet_main(remaining_args)
         case _:
             raise ValueError(f"Unknown subcommand: {parsed_args.subcommand}")
 
