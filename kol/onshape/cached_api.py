@@ -1,9 +1,7 @@
 """Defines a cached version of the Onshape API."""
 
-import argparse
 import asyncio
 import hashlib
-from pathlib import Path
 from typing import BinaryIO
 
 from kol.onshape.api import OnshapeApi
