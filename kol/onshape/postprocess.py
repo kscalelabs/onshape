@@ -3,6 +3,7 @@
 import asyncio
 import logging
 import sys
+import tarfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Sequence
@@ -13,12 +14,14 @@ from kol.passes.add_mjcf import convert_urdf_to_mjcf
 from kol.passes.make_convex_collision_mesh import get_convex_collision_meshes
 from kol.passes.merge_fixed_joints import get_merged_urdf
 from kol.passes.simplify_meshes import get_simplified_urdf
+from kol.passes.utils import iter_meshes
 from kol.utils.logging import configure_logging
 
 
 @dataclass
 class PostprocessedDocument:
     urdf_path: Path
+    tar_path: Path
 
 
 async def postprocess(
@@ -58,8 +61,19 @@ async def postprocess(
         convert_urdf_to_mjcf(urdf_path, mjcf_path)
         paths.append(mjcf_path)
 
+    # Combines everything to a single TAR file.
+    for (_, visual_mesh_path), (_, collision_mesh_path) in iter_meshes(urdf_path):
+        for path in list({visual_mesh_path, collision_mesh_path}):
+            paths.append(path)
+
+    tar_path = urdf_path.with_suffix(".tgz")
+    with tarfile.open(tar_path, "w:gz") as tar:
+        for path in paths:
+            tar.add(path, arcname=path.name)
+
     return PostprocessedDocument(
         urdf_path=urdf_path,
+        tar_path=tar_path,
     )
 
 

@@ -6,19 +6,38 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 
 from kol.formats.common import save_xml
-from kol.utils.geometry import get_mesh_convex_hull
-from kol.utils.mesh import load_file, save_file
 
 logger = logging.getLogger(__name__)
 
 
 def make_convex_collision_mesh(mesh_path: Path, output_mesh_path: Path) -> tuple[int, int]:
-    mesh = load_file(mesh_path)
-    num_vertices_pre = len(mesh.points)
-    hull_mesh = get_mesh_convex_hull(mesh)
-    save_file(hull_mesh, output_mesh_path)
-    num_vertices_post = len(hull_mesh.points)
-    return num_vertices_pre, num_vertices_post
+    try:
+        import open3d as o3d
+    except ImportError:
+        logger.error(
+            "Open3D is required to run this script. Install it with `pip install "
+            "'kscale-onshape-library[open3d]'` to install the required dependencies."
+        )
+        raise
+
+    mesh = o3d.io.read_triangle_mesh(str(mesh_path))
+    hull, _ = mesh.compute_convex_hull()
+    hull = hull.remove_duplicated_vertices()
+    hull = hull.remove_degenerate_triangles()
+    hull = hull.remove_duplicated_triangles()
+    pre_num_vertices = len(mesh.vertices)
+    post_num_vertices = len(hull.vertices)
+
+    match output_mesh_path.suffix.lower():
+        case ".ply":
+            o3d.io.write_triangle_mesh(str(output_mesh_path), hull, write_ascii=True)
+        case ".stl":
+            hull.compute_vertex_normals()
+            o3d.io.write_triangle_mesh(str(output_mesh_path), hull)
+        case _:
+            o3d.io.write_triangle_mesh(str(output_mesh_path), hull)
+
+    return pre_num_vertices, post_num_vertices
 
 
 def get_convex_collision_meshes(urdf_path: Path) -> None:
