@@ -81,3 +81,20 @@ class PartBody(BaseModel):
 class PartDynamics(BaseModel):
     microversionId: str
     bodies: dict[str, PartBody]
+
+
+class ThumbnailSize(BaseModel):
+    size: str
+    href: str
+    mediaType: str
+    uniqueId: str | None
+    viewOrientation: str
+    renderMode: str
+    sheetName: str | None
+
+
+class ThumbnailInfo(BaseModel):
+    sizes: list[ThumbnailSize]
+    secondarySizes: list[ThumbnailSize] | None
+    id: str | None
+    href: str

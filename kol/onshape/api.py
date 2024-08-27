@@ -1,7 +1,11 @@
 """OnShape API and client."""
 
+import argparse
+import asyncio
 import logging
 from typing import BinaryIO
+
+from httpx import AsyncClient
 
 from kol.onshape.client import DocumentInfo, OnshapeClient, WorkspaceType
 from kol.onshape.schema.assembly import (
@@ -14,7 +18,7 @@ from kol.onshape.schema.assembly import (
 from kol.onshape.schema.document import Document
 from kol.onshape.schema.elements import Elements, ElementType
 from kol.onshape.schema.features import Features
-from kol.onshape.schema.part import PartDynamics, PartMetadata
+from kol.onshape.schema.part import PartDynamics, PartMetadata, ThumbnailInfo
 
 logger = logging.getLogger(__name__)
 
@@ -164,3 +168,61 @@ class OnshapeApi:
             data = await response.aread()
             response.raise_for_status()
             fp.write(data)
+
+    async def list_thumbnails(self, document: DocumentInfo) -> ThumbnailInfo:
+        path = f"/api/thumbnails/d/{document.document_id}/{document.item_kind}/{document.item_id}"
+        async with self.client.request("get", path) as response:
+            await response.aread()
+            response.raise_for_status()
+            data = response.json()
+        return ThumbnailInfo.model_validate(data)
+
+    async def download_thumbnail(
+        self,
+        fp: BinaryIO,
+        document: DocumentInfo,
+        *,
+        width: int = 300,
+        height: int = 300,
+    ) -> None:
+        thumbnail_info = await self.list_thumbnails(document)
+
+        # Gets the thumbnail with the requested size.
+        size = f"{width}x{height}"
+        for thumbnail in thumbnail_info.sizes:
+            if thumbnail.size == size:
+                break
+        else:
+            choices = ", ".join(thumbnail.size for thumbnail in thumbnail_info.sizes)
+            raise ValueError(f"Thumbnail size {size} not found! Choices are {choices}")
+
+        # Downloads the thumbnail to the file location.
+        async with AsyncClient() as client:
+            async with client.stream(
+                "get",
+                thumbnail.href,
+                headers={"Accept": thumbnail.mediaType},
+                data={},
+            ) as response:
+                response.raise_for_status()
+                async for chunk in response.aiter_bytes():
+                    fp.write(chunk)
+
+
+async def test_api_adhoc() -> None:
+    parser = argparse.ArgumentParser(description="Onshape API test")
+    parser.add_argument("document_url", help="Document URL")
+    parser.add_argument("output", help="Output file")
+    args = parser.parse_args()
+
+    client = OnshapeClient()
+    api = OnshapeApi(client)
+    document = api.parse_url(args.document_url)
+
+    with open(args.output, "wb") as fp:
+        await api.download_thumbnail(fp, document)
+
+
+if __name__ == "__main__":
+    # python -m kol.onshape.api
+    asyncio.run(test_api_adhoc())
