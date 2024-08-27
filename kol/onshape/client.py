@@ -40,6 +40,9 @@ class DocumentInfo:
     item_id: str
     element_id: str
 
+    def get_url(self, base_url: str = DEFAULT_BASE_URL) -> str:
+        return f"{base_url}/documents/{self.document_id}/{self.item_kind}/{self.item_id}/e/{self.element_id}"
+
 
 class OnshapeClient:
     def __init__(

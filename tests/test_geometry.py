@@ -1,7 +1,7 @@
 """Tests geometry functions."""
 
-from kol.geometry import get_mesh_convex_hull, scale_mesh
-from kol.mesh import load_file
+from kol.utils.geometry import get_mesh_convex_hull, scale_mesh
+from kol.utils.mesh import load_file
 
 
 def test_scale_mesh() -> None:

@@ -2,13 +2,13 @@
 
 import asyncio
 from pathlib import Path
-from typing import get_args
 
 import pytest
 
-from kol.logging import configure_logging
-from kol.mesh import MeshType
-from kol.onshape.converter import Converter, ConverterConfig
+from kol.onshape.config import ConverterConfig
+from kol.onshape.download import download
+from kol.onshape.postprocess import postprocess
+from kol.utils.logging import configure_logging
 
 # STOMPY_ONSHAPE_URL = (
 #     "https://cad.onshape.com/documents/71f793a23ab7562fb9dec82d/w/"
@@ -29,26 +29,34 @@ async def test_e2e(tmpdir: Path) -> None:
         tmpdir: The temporary directory to save the URDF file.
         ext: The mesh file format.
     """
-    for mesh_ext in get_args(MeshType):
-        config = ConverterConfig(
-            document_url=ONSHAPE_URL,
-            output_dir=tmpdir,
-            default_prismatic_joint_limits=(10, 10, -10, 10),
-            default_revolute_joint_limits=(10, 10, -10, 10),
-            suffix_to_joint_effort={
-                "dof_x4_h": 1.5,
-                "dof_x4": 1.5,
-                "dof_x6": 3,
-                "dof_x8": 6,
-                "dof_x10": 12,
-                "knee_revolute": 13.9,
-                "ankle_revolute": 6,
-            },
-            suffix_to_joint_velocity={},
-            disable_mimics=True,
-            mesh_ext=mesh_ext,
-        )
-        await Converter(config).save_urdf()
+    config = ConverterConfig(
+        document_url=ONSHAPE_URL,
+        output_dir=str(tmpdir),
+        default_prismatic_joint_limits=(10, 10, -10, 10),
+        default_revolute_joint_limits=(10, 10, -10, 10),
+        suffix_to_joint_effort={
+            "dof_x4_h": 1.5,
+            "dof_x4": 1.5,
+            "dof_x6": 3,
+            "dof_x8": 6,
+            "dof_x10": 12,
+            "knee_revolute": 13.9,
+            "ankle_revolute": 6,
+        },
+        suffix_to_joint_velocity={},
+        disable_mimics=True,
+    )
+
+    document_info = await download(
+        document_url=config.document_url,
+        output_dir=config.output_dir,
+        config=config,
+    )
+
+    await postprocess(
+        urdf_path=document_info.urdf_info.urdf_path,
+        config=config,
+    )
 
 
 if __name__ == "__main__":
