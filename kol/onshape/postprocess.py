@@ -69,7 +69,8 @@ async def postprocess(
     tar_path = urdf_path.with_suffix(".tgz")
     with tarfile.open(tar_path, "w:gz") as tar:
         for path in paths:
-            tar.add(path, arcname=path.name)
+            arcname = path.relative_to(urdf_path.parent).as_posix()
+            tar.add(path, arcname=arcname)
 
     return PostprocessedDocument(
         urdf_path=urdf_path,
