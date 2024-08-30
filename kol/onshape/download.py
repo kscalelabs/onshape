@@ -631,8 +631,6 @@ async def check_document(
         ) from e
 
     # Checks all the parts in the assembly.
-    # TODO: Remove
-    await asyncio.gather(*(check_part(part, api) for part in assembly.parts))
     check_part_results = await asyncio.gather(*(catch_error(check_part(part, api)) for part in assembly.parts))
     checked_part_properties, errs = zip(*check_part_results)
 

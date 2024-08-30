@@ -196,7 +196,10 @@ class OnshapeApi:
             raise ValueError(f"Thumbnail size {size} not found! Choices are {choices}")
 
         async with self.semaphore:
-            async with AsyncClient() as client:
+            async with AsyncClient(
+                timeout=self.client.timeout,
+                follow_redirects=True,
+            ) as client:
                 async with client.stream(
                     "get",
                     thumbnail.href,

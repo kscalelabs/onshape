@@ -50,6 +50,7 @@ class OnshapeClient:
         access_key: str | None = None,
         secret_key: str | None = None,
         base_url: str = DEFAULT_BASE_URL,
+        timeout: float = 30.0,
     ) -> None:
         super().__init__()
 
@@ -74,6 +75,7 @@ class OnshapeClient:
         self.access_key = access_key.encode("utf-8")
         self.secret_key = secret_key.encode("utf-8")
         self.base_url = base_url
+        self.timeout = timeout
 
     def parse_url(self, document_url: str) -> DocumentInfo:
         url_match = re.match(rf"{self.base_url}/documents/([\w\d]+)/(w|v)/([\w\d]+)/e/([\w\d]+)", document_url)
@@ -189,7 +191,10 @@ class OnshapeClient:
             base_url = self.base_url
         url = base_url + path + "?" + urllib.parse.urlencode(query)
 
-        async with AsyncClient() as client:
+        async with AsyncClient(
+            timeout=self.timeout,
+            follow_redirects=True,
+        ) as client:
             async with client.stream(
                 method,
                 url,

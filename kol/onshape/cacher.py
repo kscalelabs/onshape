@@ -24,6 +24,8 @@ class Cacher:
     ) -> bool:
         if not file_path.exists():
             return True
+        if file_path.stat().st_size == 0:
+            return True
         if invalidate_after_n_minutes is None:
             invalidate_after_n_minutes = self.invalidate_after_n_minutes
         if invalidate_after_n_minutes is None:
