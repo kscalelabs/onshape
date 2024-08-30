@@ -1,7 +1,8 @@
 """OnShape API and client."""
 
+import asyncio
 import logging
-from typing import BinaryIO
+from typing import Any, BinaryIO, Literal, Mapping
 
 from httpx import AsyncClient
 
@@ -26,19 +27,38 @@ def escape_url(s: str) -> str:
 
 
 class OnshapeApi:
-    def __init__(self, client: OnshapeClient) -> None:
+    def __init__(self, client: OnshapeClient, max_concurrent_requests: int = 1) -> None:
         super().__init__()
-
         self.client = client
+        self.semaphore = asyncio.Semaphore(max_concurrent_requests)
 
     def parse_url(self, document_url: str) -> DocumentInfo:
         return self.client.parse_url(document_url)
 
+    async def _request(
+        self,
+        method: Literal["get", "post", "put", "delete"],
+        path: str,
+        query: Mapping[str, Any] | None = None,
+        headers: Mapping[str, str] | None = None,
+        body: Mapping[str, Any] | None = None,
+        base_url: str | None = None,
+    ) -> dict:
+        async with self.semaphore:
+            async with self.client.request(
+                method=method,
+                path=path,
+                query={} if query is None else query,
+                headers={} if headers is None else headers,
+                body={} if body is None else body,
+                base_url=base_url,
+            ) as response:
+                await response.aread()
+                response.raise_for_status()
+                return response.json()
+
     async def get_document(self, did: str) -> Document:
-        async with self.client.request("get", f"/api/documents/{did}") as response:
-            await response.aread()
-            response.raise_for_status()
-            data = response.json()
+        data = await self._request("get", f"/api/documents/{did}")
         return Document.model_validate(data)
 
     async def list_elements(
@@ -47,13 +67,10 @@ class OnshapeApi:
         workspace_id: str,
         workspace_type: WorkspaceType = "w",
     ) -> Elements:
-        async with self.client.request(
+        data = await self._request(
             "get",
             f"/api/documents/d/{document_id}/{workspace_type}/{workspace_id}/elements",
-        ) as response:
-            await response.aread()
-            response.raise_for_status()
-            data = response.json()
+        )
         return Elements.model_validate(data)
 
     async def get_first_assembly_id(
@@ -74,7 +91,7 @@ class OnshapeApi:
             f"/api/assemblies/d/{document.document_id}/"
             f"{document.item_kind}/{document.item_id}/e/{document.element_id}"
         )
-        async with self.client.request(
+        data = await self._request(
             "get",
             path,
             query={
@@ -83,18 +100,12 @@ class OnshapeApi:
                 "includeNonSolids": "true",
                 "configuration": configuration,
             },
-        ) as response:
-            await response.aread()
-            response.raise_for_status()
-            data = response.json()
+        )
         return Assembly.model_validate(data)
 
     async def get_features(self, asm: RootAssembly | SubAssembly) -> Features:
         path = f"/api/assemblies/d/{asm.documentId}/m/{asm.documentMicroversion}/e/{asm.elementId}/features"
-        async with self.client.request("get", path) as response:
-            await response.aread()
-            response.raise_for_status()
-            data = response.json()
+        data = await self._request("get", path)
         return Features.model_validate(data)
 
     async def get_assembly_metadata(
@@ -103,10 +114,7 @@ class OnshapeApi:
         configuration: str = "default",
     ) -> AssemblyMetadata:
         path = f"/api/metadata/d/{assembly.documentId}/m/{assembly.documentMicroversion}/e/{assembly.elementId}"
-        async with self.client.request("get", path, query={"configuration": configuration}) as response:
-            await response.aread()
-            response.raise_for_status()
-            data = response.json()
+        data = await self._request("get", path, query={"configuration": configuration})
         return AssemblyMetadata.model_validate(data)
 
     async def get_part_metadata(self, part: Part) -> PartMetadata:
@@ -114,24 +122,19 @@ class OnshapeApi:
             f"/api/metadata/d/{part.documentId}/m/{part.documentMicroversion}"
             f"/e/{part.elementId}/p/{escape_url(part.partId)}"
         )
-        async with self.client.request("get", path, query={"configuration": part.configuration}) as response:
-            await response.aread()
-            response.raise_for_status()
-            data = response.json()
+        data = await self._request("get", path, query={"configuration": part.configuration})
         return PartMetadata.model_validate(data)
 
     async def get_part_mass_properties(self, part: Part) -> PartDynamics:
-        async with self.client.request(
+        path = (
+            f"/api/parts/d/{part.documentId}/m/{part.documentMicroversion}"
+            f"/e/{part.elementId}/partid/{escape_url(part.partId)}/massproperties"
+        )
+        data = await self._request(
             "get",
-            (
-                f"/api/parts/d/{part.documentId}/m/{part.documentMicroversion}"
-                f"/e/{part.elementId}/partid/{escape_url(part.partId)}/massproperties"
-            ),
+            path,
             query={"configuration": part.configuration, "useMassPropertyOverrides": True},
-        ) as response:
-            await response.aread()
-            response.raise_for_status()
-            data = response.json()
+        )
         return PartDynamics.model_validate(data)
 
     async def download_stl(
@@ -157,22 +160,21 @@ class OnshapeApi:
             query["minFacetWidth"] = min_facet_width
         if max_facet_width is not None:
             query["maxFacetWidth"] = max_facet_width
-        async with self.client.request(
-            "get",
-            path,
-            query=query,
-            headers={"Accept": "*/*"},
-        ) as response:
-            data = await response.aread()
-            response.raise_for_status()
-            fp.write(data)
+
+        async with self.semaphore:
+            async with self.client.request(
+                "get",
+                path,
+                query=query,
+                headers={"Accept": "*/*"},
+            ) as response:
+                data = await response.aread()
+                response.raise_for_status()
+                fp.write(data)
 
     async def list_thumbnails(self, document: DocumentInfo) -> ThumbnailInfo:
         path = f"/api/thumbnails/d/{document.document_id}/{document.item_kind}/{document.item_id}"
-        async with self.client.request("get", path) as response:
-            await response.aread()
-            response.raise_for_status()
-            data = response.json()
+        data = await self._request("get", path)
         return ThumbnailInfo.model_validate(data)
 
     async def download_thumbnail(
@@ -185,7 +187,6 @@ class OnshapeApi:
     ) -> None:
         thumbnail_info = await self.list_thumbnails(document)
 
-        # Gets the thumbnail with the requested size.
         size = f"{width}x{height}"
         for thumbnail in thumbnail_info.sizes:
             if thumbnail.size == size:
@@ -194,14 +195,14 @@ class OnshapeApi:
             choices = ", ".join(thumbnail.size for thumbnail in thumbnail_info.sizes)
             raise ValueError(f"Thumbnail size {size} not found! Choices are {choices}")
 
-        # Downloads the thumbnail to the file location.
-        async with AsyncClient() as client:
-            async with client.stream(
-                "get",
-                thumbnail.href,
-                headers={"Accept": thumbnail.mediaType},
-                data={},
-            ) as response:
-                response.raise_for_status()
-                async for chunk in response.aiter_bytes():
-                    fp.write(chunk)
+        async with self.semaphore:
+            async with AsyncClient() as client:
+                async with client.stream(
+                    "get",
+                    thumbnail.href,
+                    headers={"Accept": thumbnail.mediaType},
+                    data={},
+                ) as response:
+                    response.raise_for_status()
+                    async for chunk in response.aiter_bytes():
+                        fp.write(chunk)
