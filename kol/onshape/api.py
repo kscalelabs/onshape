@@ -27,7 +27,7 @@ def escape_url(s: str) -> str:
 
 
 class OnshapeApi:
-    def __init__(self, client: OnshapeClient, max_concurrent_requests: int = 10) -> None:
+    def __init__(self, client: OnshapeClient, max_concurrent_requests: int = 1) -> None:
         super().__init__()
         self.client = client
         self.semaphore = asyncio.Semaphore(max_concurrent_requests)

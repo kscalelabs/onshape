@@ -81,6 +81,10 @@ class DownloadConfig:
         default="meshes",
         metadata={"help": "The directory to store the meshes."},
     )
+    max_concurrent_requests: int = field(
+        default=3,
+        metadata={"help": "The maximum number of concurrent requests to make."},
+    )
     debug: bool = field(
         default=False,
         metadata={"help": "Enables debug mode."},
