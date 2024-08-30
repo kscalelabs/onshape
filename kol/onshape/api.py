@@ -198,7 +198,7 @@ class OnshapeApi:
         async with self.semaphore:
             async with AsyncClient(
                 timeout=self.client.timeout,
-                follow_redirects=True,
+                follow_redirects=False,
             ) as client:
                 async with client.stream(
                     "get",

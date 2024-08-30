@@ -822,9 +822,6 @@ def get_urdf_joint(
     if config is None:
         config = DownloadConfig()
 
-    default_prismatic_joint_limits = urdf.JointLimits(*config.default_prismatic_joint_limits)
-    default_revolute_joint_limits = urdf.JointLimits(*config.default_revolute_joint_limits)
-
     suffix_to_joint_effort = [(k.lower().strip(), v) for k, v in config.suffix_to_joint_effort.items()]
     suffix_to_joint_velocity = [(k.lower().strip(), v) for k, v in config.suffix_to_joint_velocity.items()]
 
@@ -884,8 +881,8 @@ def get_urdf_joint(
 
             effort, velocity = get_effort_and_velocity(
                 name,
-                default_revolute_joint_limits.effort,
-                default_revolute_joint_limits.velocity,
+                config.default_revolute_joint_effort,
+                config.default_revolute_joint_velocity,
             )
 
             return urdf.RevoluteJoint(
@@ -923,8 +920,8 @@ def get_urdf_joint(
 
             effort, velocity = get_effort_and_velocity(
                 name,
-                default_prismatic_joint_limits.effort,
-                default_prismatic_joint_limits.velocity,
+                config.default_prismatic_joint_effort,
+                config.default_prismatic_joint_velocity,
             )
 
             return urdf.PrismaticJoint(

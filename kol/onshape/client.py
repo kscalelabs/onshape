@@ -193,7 +193,7 @@ class OnshapeClient:
 
         async with AsyncClient(
             timeout=self.timeout,
-            follow_redirects=True,
+            follow_redirects=False,
         ) as client:
             async with client.stream(
                 method,

@@ -32,8 +32,10 @@ async def test_e2e(tmpdir: Path) -> None:
     config = ConverterConfig(
         document_url=ONSHAPE_URL,
         output_dir=str(tmpdir),
-        default_prismatic_joint_limits=(10, 10, -10, 10),
-        default_revolute_joint_limits=(10, 10, -10, 10),
+        default_prismatic_joint_effort=100,
+        default_prismatic_joint_velocity=5,
+        default_revolute_joint_effort=100,
+        default_revolute_joint_velocity=5,
         suffix_to_joint_effort={
             "dof_x4_h": 1.5,
             "dof_x4": 1.5,

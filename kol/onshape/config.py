@@ -4,7 +4,6 @@ import argparse
 from dataclasses import dataclass, field
 from typing import Self, Sequence, cast
 
-import numpy as np
 from omegaconf import MISSING, OmegaConf
 
 from kol.onshape.schema.assembly import Key, MatedEntity, MateType
@@ -45,13 +44,21 @@ class DownloadConfig:
         default=MISSING,
         metadata={"help": "The output directory."},
     )
-    default_prismatic_joint_limits: tuple[float, float, float, float] = field(
-        default=(80.0, 5.0, -1.0, 1.0),
-        metadata={"help": "The default prismatic joint limits, as (effort, velocity, min, max)."},
+    default_prismatic_joint_effort: float = field(
+        default=80.0,
+        metadata={"help": "The default effort limit for prismatic joints."},
     )
-    default_revolute_joint_limits: tuple[float, float, float, float] = field(
-        default=(80.0, 5.0, -np.pi, np.pi),
-        metadata={"help": "The default revolute joint limits, as (effort, velocity, min, max)."},
+    default_prismatic_joint_velocity: float = field(
+        default=5.0,
+        metadata={"help": "The default velocity limit for prismatic joints."},
+    )
+    default_revolute_joint_effort: float = field(
+        default=80.0,
+        metadata={"help": "The default effort limit for revolute joints."},
+    )
+    default_revolute_joint_velocity: float = field(
+        default=5.0,
+        metadata={"help": "The default velocity limit for revolute joints."},
     )
     suffix_to_joint_effort: dict[str, float] = field(
         default_factory=lambda: {},
@@ -82,7 +89,7 @@ class DownloadConfig:
         metadata={"help": "The directory to store the meshes."},
     )
     max_concurrent_requests: int = field(
-        default=3,
+        default=5,
         metadata={"help": "The maximum number of concurrent requests to make."},
     )
     debug: bool = field(
