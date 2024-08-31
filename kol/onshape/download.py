@@ -637,7 +637,7 @@ async def check_document(
     if any(err is not None for err in errs):
         raise FailedCheckError(
             f"Invalid parts for document {document_info.get_url()}",
-            *(str(err) for err in errs if err is not None),
+            *(f"{type(err).__name__}: {err}" for err in errs if err is not None),
         )
 
     part_metadata = {part.key: md for part, (md, _) in zip(assembly.parts, checked_part_properties)}
