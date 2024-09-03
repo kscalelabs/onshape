@@ -69,8 +69,8 @@ class DownloadConfig:
         default_factory=lambda: {},
         metadata={"help": "The suffix to joint velocity mapping."},
     )
-    invalidate_cache_after_n_minutes: int | None = field(
-        default=0,
+    invalidate_cache_after_n_minutes: float | None = field(
+        default=0.5,
         metadata={"help": "Invalidates the cache after n minutes."},
     )
     disable_mimics: bool = field(
@@ -129,6 +129,18 @@ class DownloadConfig:
 
 @dataclass
 class PostprocessConfig:
+    update_names: bool = field(
+        default=True,
+        metadata={"help": "Updates the names in the URDF."},
+    )
+    joint_name_map: dict[str, str] = field(
+        default_factory=lambda: {},
+        metadata={"help": "The mapping from old joint names to new joint names."},
+    )
+    link_name_map: dict[str, str] = field(
+        default_factory=lambda: {},
+        metadata={"help": "The mapping from old link names to new link names."},
+    )
     urdf_path: str = field(
         default=MISSING,
         metadata={"help": "The path to the downloaded URDF."},
@@ -146,7 +158,7 @@ class PostprocessConfig:
         metadata={"help": "The voxel size to use for simplifying meshes."},
     )
     convex_collision_meshes: bool = field(
-        default=True,
+        default=False,
         metadata={"help": "Creates separate convex hulls for collision geometries."},
     )
     add_mjcf: bool = field(
