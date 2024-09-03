@@ -69,7 +69,7 @@ class DownloadConfig:
         default_factory=lambda: {},
         metadata={"help": "The suffix to joint velocity mapping."},
     )
-    invalidate_cache_after_n_minutes: int | None = field(
+    invalidate_cache_after_n_minutes: float | None = field(
         default=0.5,
         metadata={"help": "Invalidates the cache after n minutes."},
     )

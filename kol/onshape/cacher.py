@@ -11,7 +11,7 @@ T = TypeVar("T")
 
 
 class Cacher:
-    def __init__(self, cache_dir: str | Path, invalidate_after_n_minutes: int | None = None) -> None:
+    def __init__(self, cache_dir: str | Path, invalidate_after_n_minutes: float | None = None) -> None:
         self.cache_map: dict[str, Any] = {}
         self.cache_dir = Path(cache_dir).expanduser().resolve()
         self.cache_dir.mkdir(parents=True, exist_ok=True)
@@ -20,7 +20,7 @@ class Cacher:
     def _run_fn(
         self,
         file_path: Path,
-        invalidate_after_n_minutes: int | None = None,
+        invalidate_after_n_minutes: float | None = None,
     ) -> bool:
         if not file_path.exists():
             return True
@@ -33,7 +33,7 @@ class Cacher:
         modified_time = datetime.datetime.fromtimestamp(file_path.stat().st_mtime)
         rerun_fn = (datetime.datetime.now() - modified_time).seconds > invalidate_after_n_minutes * 60
         if rerun_fn:
-            logger.warning("Cache invalidated after %d minutes", invalidate_after_n_minutes)
+            logger.warning("Cache invalidated after %.2f minutes", invalidate_after_n_minutes)
             file_path.unlink()
         return rerun_fn
 
@@ -43,7 +43,7 @@ class Cacher:
         get_fn: Callable[[], Coroutine[Any, Any, T]],
         from_json_fn: Callable[[str], T],
         to_json_fn: Callable[[T], str],
-        invalidate_after_n_minutes: int | None = None,
+        invalidate_after_n_minutes: float | None = None,
     ) -> T:
         """Gets an item by calling an API or by retrieving it from the cache.
 
