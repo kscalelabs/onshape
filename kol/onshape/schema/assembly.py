@@ -34,7 +34,6 @@ class BaseInstance(BaseModel):
     id: str
     fullConfiguration: str
     configuration: str
-    documentVersion: str
     documentMicroversion: str
     documentId: str
     elementId: str

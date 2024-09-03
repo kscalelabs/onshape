@@ -86,6 +86,9 @@ async def gather_dict(d: dict[Tk, Coroutine[Any, Any, Tv]]) -> dict[Tk, Tv]:
 
 class FailedCheckError(ValueError):
     def __init__(self, msg: str, *suggestions: str, end_msg: str | None = None) -> None:
+        self.original_msg = msg
+        self.suggestions = suggestions
+        self.end_msg = end_msg
         full_msg = f"{msg}" + "".join(f"\n * {s}" for s in suggestions)
         if end_msg is not None:
             full_msg += f"\n\n{end_msg}"
@@ -260,10 +263,17 @@ def get_graph(
         key_to_mate_feature = get_key_to_mate_feature(key_to_feature)
 
     # Adds all the graph nodes.
-    for key, _ in key_to_part_instance.items():
+    for key, instance in key_to_part_instance.items():
+        if instance.suppressed:
+            continue
         graph.add_node(key)
 
     def add_edge_safe(node_a: Key, node_b: Key, joint: Key) -> None:
+        part_instance_a = key_to_part_instance[node_a]
+        part_instance_b = key_to_part_instance[node_b]
+        if part_instance_a.suppressed or part_instance_b.suppressed:
+            return
+
         # Here, we are considering a graph with no ignored joints
         # to make sure the original graph is connected.
         for node_lhs, node_rhs in ((node_a, node_b), (node_b, node_a)):
@@ -351,6 +361,7 @@ def get_digraph(graph: nx.Graph, override_central_node: Key | None = None) -> tu
 def get_joint_list(
     digraph: nx.DiGraph,
     key_to_mate_feature: dict[Key, MateFeature],
+    key_namer: KeyNamer,
 ) -> list[Joint]:
     # Creates a BFS ordering of the graph.
     bfs_node_ordering = list(nx.topological_sort(digraph))
@@ -362,8 +373,23 @@ def get_joint_list(
         if mate_feature.suppressed:
             continue
 
+        if len(mate_feature.featureData.matedEntities) == 1:
+            logger.warning("Mate feature %s has only one entity", mate_feature.featureData.name)
+            continue
+
         lhs_entity, rhs_entity = mate_feature.featureData.matedEntities
         lhs_key, rhs_key = joint_key[:-1] + lhs_entity.key, joint_key[:-1] + rhs_entity.key
+
+        if lhs_key not in node_level or rhs_key not in node_level:
+            lhs_name = key_namer(lhs_key, None, " : ", False)
+            rhs_name = key_namer(rhs_key, None, " : ", False)
+            logger.warning(
+                'Mate feature "%s" has entities "%s" and "%s" that are not connected',
+                mate_feature.featureData.name,
+                lhs_name,
+                rhs_name,
+            )
+            continue
 
         lhs_is_first = node_level[lhs_key] < node_level[rhs_key]
         parent_key, child_key = (lhs_key, rhs_key) if lhs_is_first else (rhs_key, lhs_key)
@@ -490,8 +516,9 @@ async def check_part(
 
     if mass <= 0 and config.default_part_mass is None:
         raise FailedCheckError(
-            f'Part "{part_name}" has a mass of {mass}. All parts should have a positive mass. To fix this, '
-            "either assign a material to the part or manually set the part mass.",
+            f'Part "{part_name}" has a mass of {mass}',
+            "All parts should have a positive mass.",
+            "To fix this, either assign a material to the part or manually set the part mass",
         )
 
     return part_metadata, part_mass_properties
@@ -665,9 +692,15 @@ async def check_document(
     checked_part_properties, errs = zip(*check_part_results)
 
     if any(err is not None for err in errs):
+        extra_msgs = {suggestion for err in errs if isinstance(err, FailedCheckError) for suggestion in err.suggestions}
         raise FailedCheckError(
             f"Invalid parts for document {document_info.get_url()}",
-            *(f"{type(err).__name__}: {err}" for err in errs if err is not None),
+            *(
+                f"{err.original_msg}" if isinstance(err, FailedCheckError) else f"{type(err).__name__}: {err}"
+                for err in errs
+                if err is not None
+            ),
+            *extra_msgs,
             "Note that the Onshape API returns a mass of 0 for standard parts.",
             "You can manually set the part mass for these parts using the `default_part_mass` option.",
         )
@@ -676,7 +709,7 @@ async def check_document(
     part_dynamics = {part.key: dyn for part, (_, dyn) in zip(assembly.parts, checked_part_properties)}
 
     # Checks all the joints in the assembly.
-    joints = get_joint_list(digraph, key_to_mate_feature)
+    joints = get_joint_list(digraph, key_to_mate_feature, key_namer)
     joint_limits = await get_joint_limits(assembly, api)
 
     # Checks that all the document keys have joint limits.
@@ -684,7 +717,7 @@ async def check_document(
     if missing_joint_limits:
         raise FailedCheckError(
             f"Missing joint limits for document {document_info.get_url()}",
-            *(f"Missing joint limits for part {key}" for key in missing_joint_limits),
+            *(f"Missing joint limits for part {key_namer(key, None)}" for key in missing_joint_limits),
         )
 
     # Checks all the mate relations in the assembly.
@@ -1138,7 +1171,7 @@ async def main(args: Sequence[str] | None = None) -> DownloadedDocument:
     if args is None:
         args = sys.argv[1:]
     config = DownloadConfig.from_cli_args(args)
-    configure_logging(level=logging.DEBUG if config.debug else logging.INFO)
+    configure_logging(level=logging.DEBUG if config.debug else logging.WARN)
     return await download(
         document_url=config.document_url,
         output_dir=config.output_dir,
