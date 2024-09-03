@@ -133,7 +133,11 @@ class OnshapeApi:
         data = await self._request(
             "get",
             path,
-            query={"configuration": part.configuration, "useMassPropertyOverrides": True},
+            query={
+                "configuration": part.configuration,
+                "useMassPropertyOverrides": True,
+                "elementMicroversionId": part.documentMicroversion,
+            },
         )
         return PartDynamics.model_validate(data)
 
