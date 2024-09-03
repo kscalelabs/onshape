@@ -54,15 +54,15 @@ def get_access_and_secret_keys_interactively() -> tuple[str, str]:
     open_web_browser = input("Would you like to open the API key portal? (y/n) ")
     if open_web_browser.lower() in {"y", "yes"}:
         webbrowser.open(ONSHAPE_API_KEY_URL)
-    while (access_key := input("Enter your access key: ")) == "":
+    while (access_key_input := input("Enter your access key: ")) == "":
         continue
-    while (secret_key := input("Enter your secret key: ")) == "":
+    while (secret_key_input := input("Enter your secret key: ")) == "":
         continue
     print("For future use, you can set the ONSHAPE_ACCESS_KEY and ONSHAPE_SECRET_KEY environment variables.")
     print("For example:")
-    print(f"export ONSHAPE_ACCESS_KEY={access_key}")
-    print(f"export ONSHAPE_SECRET_KEY={secret_key}")
-    return access_key, secret_key
+    print(f"export ONSHAPE_ACCESS_KEY={access_key_input}")
+    print(f"export ONSHAPE_SECRET_KEY={secret_key_input}")
+    return access_key_input, secret_key_input
 
 
 class OnshapeClient:

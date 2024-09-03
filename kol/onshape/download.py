@@ -713,7 +713,7 @@ async def check_document(
     joint_limits = await get_joint_limits(assembly, api)
 
     # Checks that all the document keys have joint limits.
-    missing_joint_limits = [key for key in key_to_euid.keys() if key not in joint_limits]
+    missing_joint_limits = [key for key, euid in key_to_euid.items() if euid not in joint_limits]
     if missing_joint_limits:
         raise FailedCheckError(
             f"Missing joint limits for document {document_info.get_url()}",
