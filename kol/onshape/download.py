@@ -492,7 +492,6 @@ async def check_part(
         raise FailedCheckError(
             f'Part "{part_name}" has a mass of {mass}. All parts should have a positive mass. To fix this, '
             "either assign a material to the part or manually set the part mass.",
-            "Note that the Onshape API returns a mass of 0 for standard parts.",
         )
 
     return part_metadata, part_mass_properties
@@ -660,13 +659,17 @@ async def check_document(
         ) from e
 
     # Checks all the parts in the assembly.
-    check_part_results = await asyncio.gather(*(catch_error(check_part(part, api)) for part in assembly.parts))
+    check_part_results = await asyncio.gather(
+        *(catch_error(check_part(part, api, config=config)) for part in assembly.parts)
+    )
     checked_part_properties, errs = zip(*check_part_results)
 
     if any(err is not None for err in errs):
         raise FailedCheckError(
             f"Invalid parts for document {document_info.get_url()}",
             *(f"{type(err).__name__}: {err}" for err in errs if err is not None),
+            "Note that the Onshape API returns a mass of 0 for standard parts.",
+            "You can manually set the part mass for these parts using the `default_part_mass` option.",
         )
 
     part_metadata = {part.key: md for part, (md, _) in zip(assembly.parts, checked_part_properties)}
@@ -675,6 +678,14 @@ async def check_document(
     # Checks all the joints in the assembly.
     joints = get_joint_list(digraph, key_to_mate_feature)
     joint_limits = await get_joint_limits(assembly, api)
+
+    # Checks that all the document keys have joint limits.
+    missing_joint_limits = [key for key in key_to_euid.keys() if key not in joint_limits]
+    if missing_joint_limits:
+        raise FailedCheckError(
+            f"Missing joint limits for document {document_info.get_url()}",
+            *(f"Missing joint limits for part {key}" for key in missing_joint_limits),
+        )
 
     # Checks all the mate relations in the assembly.
     try:

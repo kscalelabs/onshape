@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field
 class FeatureType(str, Enum):
     mate = "mate"
     mateRelation = "mateRelation"
+    replicate = "replicate"
 
 
 class InferenceType(str, Enum):

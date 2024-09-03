@@ -23,12 +23,18 @@ class MimicRelation:
     multiplier: float
 
 
+class EmptyInstance(BaseModel):
+    id: str
+    name: str
+
+
 class BaseInstance(BaseModel):
     name: str
     suppressed: bool
     id: str
     fullConfiguration: str
     configuration: str
+    documentVersion: str
     documentMicroversion: str
     documentId: str
     elementId: str
@@ -64,7 +70,7 @@ class PartInstance(BaseInstance):
         )
 
 
-Instance = AssemblyInstance | PartInstance
+Instance = AssemblyInstance | PartInstance | EmptyInstance
 
 
 class Occurrence(BaseModel):

@@ -10,6 +10,7 @@ import random
 import re
 import string
 import urllib.parse
+import webbrowser
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from typing import Any, AsyncIterator, Literal, Mapping, cast
@@ -44,6 +45,26 @@ class DocumentInfo:
         return f"{base_url}/documents/{self.document_id}/{self.item_kind}/{self.item_id}/e/{self.element_id}"
 
 
+def get_access_and_secret_keys_interactively() -> tuple[str, str]:
+    access_key = os.environ.get("ONSHAPE_ACCESS_KEY")
+    secret_key = os.environ.get("ONSHAPE_SECRET_KEY")
+    if access_key is not None and secret_key is not None:
+        return access_key, secret_key
+    print(f"In order to use this tool, you must first set an Onshape API key here: {ONSHAPE_API_KEY_URL}")
+    open_web_browser = input("Would you like to open the API key portal? (y/n) ")
+    if open_web_browser.lower() in {"y", "yes"}:
+        webbrowser.open(ONSHAPE_API_KEY_URL)
+    while (access_key := input("Enter your access key: ")) == "":
+        continue
+    while (secret_key := input("Enter your secret key: ")) == "":
+        continue
+    print("For future use, you can set the ONSHAPE_ACCESS_KEY and ONSHAPE_SECRET_KEY environment variables.")
+    print("For example:")
+    print(f"export ONSHAPE_ACCESS_KEY={access_key}")
+    print(f"export ONSHAPE_SECRET_KEY={secret_key}")
+    return access_key, secret_key
+
+
 class OnshapeClient:
     def __init__(
         self,
@@ -54,24 +75,8 @@ class OnshapeClient:
     ) -> None:
         super().__init__()
 
-        if access_key is None:
-            if "ONSHAPE_ACCESS_KEY" not in os.environ:
-                raise ValueError(
-                    "The ONSHAPE_ACCESS_KEY environment variable is not set. You must first generate an API key "
-                    f"by navigating to the following URL: {ONSHAPE_API_KEY_URL}, then set the ONSHAPE_ACCESS_KEY "
-                    "and ONSHAPE_SECRET_KEY environment variables."
-                )
-            access_key = os.environ["ONSHAPE_ACCESS_KEY"]
-
-        if secret_key is None:
-            if "ONSHAPE_SECRET_KEY" not in os.environ:
-                raise ValueError(
-                    "The ONSHAPE_SECRET_KEY environment variable is not set. You must first generate an API key "
-                    f"by navigating to the following URL: {ONSHAPE_API_KEY_URL}, then set the ONSHAPE_ACCESS_KEY "
-                    "and ONSHAPE_SECRET_KEY environment variables."
-                )
-            secret_key = os.environ["ONSHAPE_SECRET_KEY"]
-
+        if access_key is None or secret_key is None:
+            access_key, secret_key = get_access_and_secret_keys_interactively()
         self.access_key = access_key.encode("utf-8")
         self.secret_key = secret_key.encode("utf-8")
         self.base_url = base_url
@@ -224,7 +229,10 @@ class OnshapeClient:
                         logger.error("Got response %d for %s, details: %s", response.status_code, path, response.text)
 
                         if response.status_code == 403:
-                            logger.warning("Check that your authentication information is correct")
+                            logger.warning(
+                                "Check that your access key and secret key are correct, "
+                                "and that the document exists and is not private."
+                            )
 
                     else:
                         logger.debug("Got response %d for %s", response.status_code, path)

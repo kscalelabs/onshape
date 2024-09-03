@@ -107,11 +107,11 @@ class DownloadConfig:
         # First, parse the document URL and output directory.
         parser = argparse.ArgumentParser()
         parser.add_argument("document_url", help="The URL of the OnShape document.")
-        parser.add_argument("output_dir", nargs="?", default=None, help="The output directory.")
+        parser.add_argument("-o", "--output-dir", type=str, default="robot", help="The output directory.")
         parser.add_argument("-c", "--config-path", type=Path, default=None, help="The path to the config file.")
         parsed_args, remaining_args = parser.parse_known_args(args)
         document_url: str = parsed_args.document_url
-        output_dir: str = "robot" if parsed_args.output_dir is None else parsed_args.output_dir
+        output_dir: str = parsed_args.output_dir
         config_path: Path | None = parsed_args.config_path
 
         # Next, parses additional config arguments.
@@ -191,11 +191,11 @@ class ConverterConfig(DownloadConfig, PostprocessConfig):
         # First, parse the document URL and output directory.
         parser = argparse.ArgumentParser()
         parser.add_argument("document_url", help="The URL of the OnShape document.")
-        parser.add_argument("output_dir", nargs="?", default=None, help="The output directory.")
+        parser.add_argument("-o", "--output-dir", type=str, default="robot", help="The output directory.")
         parser.add_argument("-c", "--config-path", type=Path, default=None, help="The path to the config file.")
         parsed_args, remaining_args = parser.parse_known_args(args)
         document_url: str = parsed_args.document_url
-        output_dir: str = "robot" if parsed_args.output_dir is None else parsed_args.output_dir
+        output_dir: str = parsed_args.output_dir
         config_path: Path | None = parsed_args.config_path
 
         # Next, parses additional config arguments.
