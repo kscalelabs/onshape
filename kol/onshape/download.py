@@ -85,13 +85,22 @@ async def gather_dict(d: dict[Tk, Coroutine[Any, Any, Tv]]) -> dict[Tk, Tv]:
 
 
 class FailedCheckError(ValueError):
-    def __init__(self, msg: str, *suggestions: str, end_msg: str | None = None) -> None:
+    def __init__(
+        self,
+        msg: str,
+        *suggestions: str,
+        orig_err: Exception | None = None,
+        end_msg: str | None = None,
+    ) -> None:
         self.original_msg = msg
         self.suggestions = suggestions
+        self.orig_err = orig_err
         self.end_msg = end_msg
         full_msg = f"{msg}"
         if suggestions:
             full_msg += "\n\nSuggestions:\n" + "".join(f" * {s}" for s in suggestions)
+        if orig_err is not None:
+            full_msg += f"\n\nOriginal error:\n{orig_err}"
         if end_msg is not None:
             full_msg += f"\n\n{end_msg}"
         super().__init__(full_msg)
@@ -653,9 +662,10 @@ async def check_document(
         document = await api.get_document(document_info.document_id)
     except Exception as e:
         raise FailedCheckError(
-            f"Failed to get document {document_info.get_url()}: {e}",
+            f"Failed to get document {document_info.get_url()}",
             "Check that the document ID is correct.",
             "Check that the document is not private.",
+            orig_err=e,
         ) from e
 
     # Checks that the assembly is valid.
@@ -663,8 +673,9 @@ async def check_document(
         assembly = await api.get_assembly(document_info)
     except Exception as e:
         raise FailedCheckError(
-            f"Failed to get assembly for document {document_info.get_url()}: {e}",
+            f"Failed to get assembly for document {document_info.get_url()}",
             "Check that the document is an assembly, not a part studio.",
+            orig_err=e,
         ) from e
 
     # Checks that the assembly metadata is valid.
@@ -672,8 +683,9 @@ async def check_document(
         assembly_metadata = await api.get_assembly_metadata(assembly.rootAssembly)
     except Exception as e:
         raise FailedCheckError(
-            f"Failed to get assembly metadata for document {document_info.get_url()}: {e}",
+            f"Failed to get assembly metadata for document {document_info.get_url()}",
             "Check that the assembly is not empty.",
+            orig_err=e,
         ) from e
 
     # Gets some mappings from the assembly to make subsequent lookups easier.
@@ -693,10 +705,11 @@ async def check_document(
 
     except ValueError as e:
         raise FailedCheckError(
-            f"Failed to get graph for document {document_info.get_url()}: {e}",
+            f"Failed to get graph for document {document_info.get_url()}",
             "Check that the assembly is fully connected.",
             "Check that there are no parallel connections.",
             "Check that no parts are connected to the origin.",
+            orig_err=e,
         ) from e
 
     try:
@@ -709,8 +722,9 @@ async def check_document(
 
     except ValueError as e:
         raise FailedCheckError(
-            f"Failed to get digraph for document {document_info.get_url()}: {e}",
+            f"Failed to get digraph for document {document_info.get_url()}",
             "Check that the provided central node is in the graph.",
+            orig_err=e,
         ) from e
 
     # Checks all the parts in the assembly.
@@ -756,6 +770,7 @@ async def check_document(
         raise FailedCheckError(
             f"Failed to get mate relations for document {document_info.get_url()}",
             "Check that you are only using supported mimic relations.",
+            orig_err=e,
         ) from e
 
     return CheckedDocument(
