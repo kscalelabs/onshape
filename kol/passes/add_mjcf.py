@@ -42,11 +42,12 @@ def convert_urdf_to_mjcf(urdf_file: str | Path, mjcf_file: str | Path) -> None:
     symlink_to_orig: dict[str, Path] = {}
     for (_, visual_mesh_path), (_, collision_mesh_path) in iter_meshes(urdf_file):
         for mesh_path in list({visual_mesh_path, collision_mesh_path}):
-            mesh_name = mesh_path.name
-            mesh_symlink = mjcf_file.parent / mesh_name
-            if not mesh_symlink.exists():
-                mesh_symlink.symlink_to(mesh_path)
-            symlink_to_orig[mesh_name] = mesh_path
+            if mesh_path is None:
+                mesh_name = mesh_path.name
+                mesh_symlink = mjcf_file.parent / mesh_name
+                if not mesh_symlink.exists():
+                    mesh_symlink.symlink_to(mesh_path)
+                symlink_to_orig[mesh_name] = mesh_path
 
     model = mujoco.MjModel.from_xml_path(urdf_file.as_posix())
     mujoco.mj_saveLastXML(mjcf_file.as_posix(), model)

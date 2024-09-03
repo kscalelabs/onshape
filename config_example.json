@@ -1,30 +1,10 @@
 {
-  "update_dict": {
-      "lower_half_1_hip_assembly_1_rmd_x8_90_mock_1_dof_x8": "left hip pitch",
-      "lower_half_1_hip_assembly_1_rmd_x8_90_mock_2_dof_x8": "right hip pitch",
-      "upper_half_1_left_arm_1_rmd_x8_90_mock_1_dof_x8": "left shoulder roll",
-      "upper_half_1_right_arm_1_rmd_x8_90_mock_1_dof_x8": "right shoulder roll",
-      "lower_half_1_left_leg_1_rmd_x4_24_mock_1_dof_x4": "left hip yaw",
-      "lower_half_1_right_leg_1_rmd_x4_24_mock_1_dof_x4": "right hip yaw",
-      "upper_half_1_left_arm_1_rmd_x4_24_mock_1_dof_x4": "left shoulder pitch",
-      "upper_half_1_right_arm_1_rmd_x4_24_mock_1_dof_x4": "right shoulder pitch",
-      "lower_half_1_left_leg_1_rmd_x4_24_mock_2_dof_x4": "left hip roll",
-      "lower_half_1_right_leg_1_rmd_x4_24_mock_2_dof_x4": "right hip roll",
-      "upper_half_1_left_arm_1_rmd_x4_24_mock_2_dof_x4": "left elbow roll",
-      "upper_half_1_right_arm_1_rmd_x4_24_mock_2_dof_x4": "right elbow roll",
-      "lower_half_1_left_leg_1_rmd_x8_90_mock_1_dof_x8": "left knee pitch",
-      "lower_half_1_right_leg_1_rmd_x8_90_mock_1_dof_x8": "right knee pitch",
-      "upper_half_1_left_arm_1_rmd_x4_24_mock_3_dof_x4": "left elbow yaw",
-      "upper_half_1_right_arm_1_rmd_x4_24_mock_3_dof_x4": "right elbow yaw",
-      "lower_half_1_left_leg_1_left_foot_revolute": "left ankle pitch",
-      "lower_half_1_right_leg_1_right_foot_revolute": "right ankle pitch",
-      "upper_half_1_left_arm_1_rmd_x4_24_mock_4_dof_x4": "left wrist roll",
-      "upper_half_1_right_arm_1_rmd_x4_24_mock_4_dof_x4": "right wrist roll"
-  },
-  "override": [
-      "lower_half_1_left_leg_1_rmd_x4_24_mock_3_dof_x4",
-      "lower_half_1_right_leg_1_rmd_x4_24_mock_3_dof_x4"
-  ],
-  "joint_limits": {},
-  "new_torques": {}
+  "merge_fixed_joints": false,
+  "simplify_meshes": false,
+  "voxel_size": 0.00002,
+  "convex_collision_meshes": false,
+  "remove_collision_meshes": true,
+  "add_mjcf": false,
+  "package_tgz": false,
+  "debug": true
 }

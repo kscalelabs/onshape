@@ -142,12 +142,16 @@ class PostprocessConfig:
         metadata={"help": "Simplifies the meshes when converting the URDF."},
     )
     voxel_size: float = field(
-        default=0.002,
+        default=0.00002,
         metadata={"help": "The voxel size to use for simplifying meshes."},
     )
     convex_collision_meshes: bool = field(
         default=True,
         metadata={"help": "Creates separate convex hulls for collision geometries."},
+    )
+    remove_collision_meshes: bool = field(
+        default=False,
+        metadata={"help": "Removes collision meshes from the URDF."},
     )
     add_mjcf: bool = field(
         default=True,
@@ -167,7 +171,9 @@ class PostprocessConfig:
         # First, parse the URDF path.
         parser = argparse.ArgumentParser()
         parser.add_argument("urdf_path", help="The path to the downloaded URDF.")
-        parser.add_argument("-c", "--config-path", type=Path, default=None, help="The path to the config file.")
+        parser.add_argument(
+            "-c", "--config-path", type=Path, default=None, 
+            help="The path to the config file. See example at `config_example.json`.")
         parsed_args, remaining_args = parser.parse_known_args(args)
         urdf_path: str = parsed_args.urdf_path
         config_path: Path | None = parsed_args.config_path
