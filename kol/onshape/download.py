@@ -822,7 +822,7 @@ def get_urdf_part(
     joint: Joint | None = None,
     *,
     config: DownloadConfig | None = None,
-) -> tuple[urdf.Link, np.ndarray]:
+) -> tuple[urdf.Link, np.ndarray, str]:
     """Returns the URDF link for a part.
 
     Args:
@@ -884,7 +884,8 @@ def get_urdf_part(
     principal_axes_rpy = R.from_matrix(principal_axes).as_euler("xyz", degrees=False)
 
     # Gets the part name.
-    part_file_name = f"{part_name}.stl"
+    configuration = part_instance.configuration
+    part_file_name = f"{part_name}{get_configuration_str(configuration)}.stl"
     urdf_file_path = f"{mesh_dir_name}/{part_file_name}"
     urdf_link_name = doc.key_namer(key, "link")
 
@@ -919,7 +920,7 @@ def get_urdf_part(
         ),
     )
 
-    return urdf_part_link, stl_origin_to_part_tf
+    return urdf_part_link, stl_origin_to_part_tf, configuration
 
 
 def get_urdf_joint(
@@ -1118,16 +1119,25 @@ async def save_urdf(
 
     # Gets the root link in the URDF.
     urdf_parts: list[urdf.Link | urdf.BaseJoint] = []
-    part_link, root_stl_origin_to_part_tf = get_urdf_part(doc, doc.central_node, mesh_dir_name)
+    part_link, root_stl_origin_to_part_tf, configuration = get_urdf_part(doc, doc.central_node, mesh_dir_name)
     urdf_parts.append(part_link)
 
     # Keeps track of the parent STL origin to part transformation matrices.
-    stl_origin_to_part_tfs: dict[Key, np.ndarray] = {doc.central_node: root_stl_origin_to_part_tf}
+    stl_origin_to_part_tfs: dict[Key, tuple[np.ndarray, str]] = {
+        doc.central_node: (root_stl_origin_to_part_tf, configuration)
+    }
 
     for joint in doc.joints:
-        urdf_joint = get_urdf_joint(doc, joint, stl_origin_to_part_tfs[joint.parent], config=config)
-        urdf_link, stl_origin_to_part_tf = get_urdf_part(doc, joint.child, mesh_dir_name, joint, config=config)
-        stl_origin_to_part_tfs[joint.child] = stl_origin_to_part_tf
+        joint_tf, _ = stl_origin_to_part_tfs[joint.parent]
+        urdf_joint = get_urdf_joint(doc, joint, joint_tf, config=config)
+        urdf_link, stl_origin_to_part_tf, configuration = get_urdf_part(
+            doc,
+            joint.child,
+            mesh_dir_name,
+            joint,
+            config=config,
+        )
+        stl_origin_to_part_tfs[joint.child] = (stl_origin_to_part_tf, configuration)
         urdf_parts.extend([urdf_joint, urdf_link])
 
     robot_name = clean_name(str(doc.assembly_metadata.property_map.get("Name", "robot"))).lower()
@@ -1142,12 +1152,12 @@ async def save_urdf(
             download_stl(
                 doc,
                 key,
-                mesh_dir / f"{doc.key_namer(key, None)}.stl",
+                mesh_dir / f"{doc.key_namer(key, None)}{get_configuration_str(configuration)}.stl",
                 api,
                 stl_origin_to_part_tf,
                 min_facet_width=config.min_facet_width,
             )
-            for key, stl_origin_to_part_tf in stl_origin_to_part_tfs.items()
+            for key, (stl_origin_to_part_tf, configuration) in stl_origin_to_part_tfs.items()
         )
     )
 
