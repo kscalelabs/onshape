@@ -14,6 +14,7 @@ from kol.passes.add_mjcf import convert_urdf_to_mjcf
 from kol.passes.make_convex_collision_mesh import get_convex_collision_meshes
 from kol.passes.merge_fixed_joints import get_merged_urdf
 from kol.passes.simplify_meshes import get_simplified_urdf
+from kol.passes.update_names import update_urdf_names
 from kol.passes.utils import iter_meshes
 from kol.utils.logging import configure_logging
 
@@ -45,6 +46,10 @@ async def postprocess(
     # Merges all fixed joints in the URDF.
     if config.merge_fixed_joints:
         get_merged_urdf(urdf_path)
+
+    # Updates the names in the URDF.
+    if config.update_names:
+        update_urdf_names(urdf_path, joint_name_map=config.joint_name_map, link_name_map=config.link_name_map)
 
     # Simplifies the meshes in the URDF.
     if config.simplify_meshes:
