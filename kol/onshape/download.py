@@ -89,7 +89,9 @@ class FailedCheckError(ValueError):
         self.original_msg = msg
         self.suggestions = suggestions
         self.end_msg = end_msg
-        full_msg = f"{msg}" + "".join(f"\n * {s}" for s in suggestions)
+        full_msg = f"{msg}"
+        if suggestions:
+            full_msg += "\n\nSuggestions:\n" + "".join(f" * {s}" for s in suggestions)
         if end_msg is not None:
             full_msg += f"\n\n{end_msg}"
         super().__init__(full_msg)
@@ -595,6 +597,32 @@ class CheckedDocument:
     mate_relations: dict[Key, MimicRelation]
 
 
+def has_valid_joint_limits(
+    joint: Joint,
+    joint_limits: dict[ElementUid, JointLimits],
+    key_to_euid: dict[Key, ElementUid],
+) -> bool:
+    joint_assembly_id, feature_id = key_to_euid[joint.joint_key[:-1]], joint.joint_key[-1]
+    joint_info_key = ElementUid(
+        document_id=joint_assembly_id.document_id,
+        document_microversion=joint_assembly_id.document_microversion,
+        element_id=joint_assembly_id.element_id,
+        part_id=feature_id,
+    )
+
+    match joint.mate_type:
+        case MateType.REVOLUTE:
+            if (limits := joint_limits.get(joint_info_key)) is None:
+                return False
+            return limits.axial_z_min_expression is not None and limits.axial_z_max_expression is not None
+        case MateType.SLIDER:
+            if (limits := joint_limits.get(joint_info_key)) is None:
+                return False
+            return limits.z_min_expression is not None and limits.z_max_expression is not None
+        case _:
+            return True
+
+
 async def check_document(
     document_info: DocumentInfo,
     api: OnshapeApi,
@@ -702,7 +730,6 @@ async def check_document(
             ),
             *extra_msgs,
             "Note that the Onshape API returns a mass of 0 for standard parts.",
-            "You can manually set the part mass for these parts using the `default_part_mass` option.",
         )
 
     part_metadata = {part.key: md for part, (md, _) in zip(assembly.parts, checked_part_properties)}
@@ -712,12 +739,13 @@ async def check_document(
     joints = get_joint_list(digraph, key_to_mate_feature, key_namer)
     joint_limits = await get_joint_limits(assembly, api)
 
-    # Checks that all the document keys have joint limits.
-    missing_joint_limits = [key for key, euid in key_to_euid.items() if euid not in joint_limits]
+    # Checks that the joint limits are defined for all relevant joints.
+    missing_joint_limits = [joint for joint in joints if not has_valid_joint_limits(joint, joint_limits, key_to_euid)]
     if missing_joint_limits:
+        missing_joint_names = "".join(f"\n * {key_namer(joint.joint_key, None)}" for joint in missing_joint_limits)
         raise FailedCheckError(
-            f"Missing joint limits for document {document_info.get_url()}",
-            *(f"Missing joint limits for part {key_namer(key, None)}" for key in missing_joint_limits),
+            f"Missing joint limits for {len(missing_joint_limits)} joints: {missing_joint_names}",
+            "Check that the joint limits are defined for all relevant joints.",
         )
 
     # Checks all the mate relations in the assembly.
