@@ -2,6 +2,7 @@
 
 import argparse
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Self, Sequence, cast
 
 from omegaconf import MISSING, OmegaConf
@@ -69,7 +70,7 @@ class DownloadConfig:
         metadata={"help": "The suffix to joint velocity mapping."},
     )
     invalidate_cache_after_n_minutes: int | None = field(
-        default=None,
+        default=0,
         metadata={"help": "Invalidates the cache after n minutes."},
     )
     disable_mimics: bool = field(
@@ -92,6 +93,10 @@ class DownloadConfig:
         default=5,
         metadata={"help": "The maximum number of concurrent requests to make."},
     )
+    default_part_mass: float | None = field(
+        default=None,
+        metadata={"help": "The default mass to use for parts, if mass is missing."},
+    )
     debug: bool = field(
         default=False,
         metadata={"help": "Enables debug mode."},
@@ -102,15 +107,21 @@ class DownloadConfig:
         # First, parse the document URL and output directory.
         parser = argparse.ArgumentParser()
         parser.add_argument("document_url", help="The URL of the OnShape document.")
-        parser.add_argument("output_dir", help="The output directory.")
+        parser.add_argument("output_dir", nargs="?", default=None, help="The output directory.")
+        parser.add_argument("-c", "--config-path", type=Path, default=None, help="The path to the config file.")
         parsed_args, remaining_args = parser.parse_known_args(args)
         document_url: str = parsed_args.document_url
-        output_dir: str = parsed_args.output_dir
+        output_dir: str = "robot" if parsed_args.output_dir is None else parsed_args.output_dir
+        config_path: Path | None = parsed_args.config_path
 
         # Next, parses additional config arguments.
         cfg = cast(Self, OmegaConf.structured(cls))
         cfg.document_url = document_url
         cfg.output_dir = output_dir
+        if config_path is not None:
+            with config_path.open("r") as f:
+                file_cfg = OmegaConf.load(f)
+                cfg = cast(Self, OmegaConf.merge(cfg, file_cfg))
         cli_cfg = OmegaConf.from_cli(remaining_args)
         cfg = cast(Self, OmegaConf.merge(cfg, cli_cfg))
         return cfg
@@ -156,12 +167,18 @@ class PostprocessConfig:
         # First, parse the URDF path.
         parser = argparse.ArgumentParser()
         parser.add_argument("urdf_path", help="The path to the downloaded URDF.")
+        parser.add_argument("-c", "--config-path", type=Path, default=None, help="The path to the config file.")
         parsed_args, remaining_args = parser.parse_known_args(args)
         urdf_path: str = parsed_args.urdf_path
+        config_path: Path | None = parsed_args.config_path
 
         # Next, parses additional config arguments.
         cfg = cast(Self, OmegaConf.structured(cls))
         cfg.urdf_path = urdf_path
+        if config_path is not None:
+            with config_path.open("r") as f:
+                file_cfg = OmegaConf.load(f)
+                cfg = cast(Self, OmegaConf.merge(cfg, file_cfg))
         cli_cfg = OmegaConf.from_cli(remaining_args)
         cfg = cast(Self, OmegaConf.merge(cfg, cli_cfg))
         return cfg
@@ -174,15 +191,21 @@ class ConverterConfig(DownloadConfig, PostprocessConfig):
         # First, parse the document URL and output directory.
         parser = argparse.ArgumentParser()
         parser.add_argument("document_url", help="The URL of the OnShape document.")
-        parser.add_argument("output_dir", help="The output directory.")
+        parser.add_argument("output_dir", nargs="?", default=None, help="The output directory.")
+        parser.add_argument("-c", "--config-path", type=Path, default=None, help="The path to the config file.")
         parsed_args, remaining_args = parser.parse_known_args(args)
         document_url: str = parsed_args.document_url
-        output_dir: str = parsed_args.output_dir
+        output_dir: str = "robot" if parsed_args.output_dir is None else parsed_args.output_dir
+        config_path: Path | None = parsed_args.config_path
 
         # Next, parses additional config arguments.
         cfg = cast(Self, OmegaConf.structured(cls))
         cfg.document_url = document_url
         cfg.output_dir = output_dir
+        if config_path is not None:
+            with config_path.open("r") as f:
+                file_cfg = OmegaConf.load(f)
+                cfg = cast(Self, OmegaConf.merge(cfg, file_cfg))
         cli_cfg = OmegaConf.from_cli(remaining_args)
         cfg = cast(Self, OmegaConf.merge(cfg, cli_cfg))
         return cfg

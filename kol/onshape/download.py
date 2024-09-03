@@ -70,6 +70,14 @@ def clean_name(name: str) -> str:
     return name
 
 
+def get_configuration_str(configuration: str) -> str:
+    if configuration == "default":
+        return ""
+    if len(configuration) > 40:
+        return hashlib.md5(configuration.encode()).hexdigest()[:16]
+    return f"_{configuration}"
+
+
 async def gather_dict(d: dict[Tk, Coroutine[Any, Any, Tv]]) -> dict[Tk, Tv]:
     dict_items = [(k, v) for k, v in d.items()]
     values = await asyncio.gather(*(v for _, v in dict_items))
@@ -77,8 +85,10 @@ async def gather_dict(d: dict[Tk, Coroutine[Any, Any, Tv]]) -> dict[Tk, Tv]:
 
 
 class FailedCheckError(ValueError):
-    def __init__(self, msg: str, *suggestions: str) -> None:
+    def __init__(self, msg: str, *suggestions: str, end_msg: str | None = None) -> None:
         full_msg = f"{msg}" + "".join(f"\n * {s}" for s in suggestions)
+        if end_msg is not None:
+            full_msg += f"\n\n{end_msg}"
         super().__init__(full_msg)
 
 
@@ -307,7 +317,12 @@ def get_graph(
         prefix = "first " if len(first_n_bad) > 5 else ""
         raise FailedCheckError(
             f"The assembly has parallel connections! URDF export requires no parallel connections. The {prefix}"
-            f"{min(5, len(first_n_bad))} joints in the parallel connection are:\n{first_n_bad_str}"
+            f"{min(5, len(first_n_bad))} joints in the parallel connection are:\n{first_n_bad_str}",
+            end_msg=(
+                "A parallel connection occurs when there is a cycle in the graph of parts and joints. URDF files "
+                "expect a tree of parts and joints, so this is not allowed. To fix it, you should remove one the "
+                "above joints."
+            ),
         )
 
     return graph
@@ -439,12 +454,18 @@ def get_part_name(part: Part, part_metadata: PartMetadata) -> str:
     return str(part_metadata.property_map.get("Name", part.key.unique_id))
 
 
-async def check_part(part: Part, api: OnshapeApi) -> tuple[PartMetadata, PartDynamics]:
+async def check_part(
+    part: Part,
+    api: OnshapeApi,
+    *,
+    config: DownloadConfig | None = None,
+) -> tuple[PartMetadata, PartDynamics]:
     """Checks the metadata and mass properties of a single part.
 
     Args:
         part: The part to check.
         api: The Onshape API to use.
+        config: The download configuration.
 
     Returns:
         The part metadata and mass properties.
@@ -463,8 +484,13 @@ async def check_part(part: Part, api: OnshapeApi) -> tuple[PartMetadata, PartDyn
 
     part_dynamic = part_mass_properties.bodies[part.partId]
     mass = part_dynamic.mass[0]
-    if mass <= 0:
-        raise FailedCheckError(f'Part "{part_name}" has a mass of {mass}. All parts should have a positive mass.')
+
+    if mass <= 0 and config.default_part_mass is None:
+        raise FailedCheckError(
+            f'Part "{part_name}" has a mass of {mass}. All parts should have a positive mass. To fix this, '
+            "either assign a material to the part or manually set the part mass.",
+            "Note that the Onshape API returns a mass of 0 for standard parts.",
+        )
 
     return part_metadata, part_mass_properties
 
@@ -570,7 +596,7 @@ async def check_document(
         document = await api.get_document(document_info.document_id)
     except Exception as e:
         raise FailedCheckError(
-            f"Failed to get document {document_info.get_url()}",
+            f"Failed to get document {document_info.get_url()}: {e}",
             "Check that the document ID is correct.",
             "Check that the document is not private.",
         ) from e
@@ -580,7 +606,7 @@ async def check_document(
         assembly = await api.get_assembly(document_info)
     except Exception as e:
         raise FailedCheckError(
-            f"Failed to get assembly for document {document_info.get_url()}",
+            f"Failed to get assembly for document {document_info.get_url()}: {e}",
             "Check that the document is an assembly, not a part studio.",
         ) from e
 
@@ -589,7 +615,7 @@ async def check_document(
         assembly_metadata = await api.get_assembly_metadata(assembly.rootAssembly)
     except Exception as e:
         raise FailedCheckError(
-            f"Failed to get assembly metadata for document {document_info.get_url()}",
+            f"Failed to get assembly metadata for document {document_info.get_url()}: {e}",
             "Check that the assembly is not empty.",
         ) from e
 
@@ -610,7 +636,7 @@ async def check_document(
 
     except ValueError as e:
         raise FailedCheckError(
-            f"Failed to get graph for document {document_info.get_url()}",
+            f"Failed to get graph for document {document_info.get_url()}: {e}",
             "Check that the assembly is fully connected.",
             "Check that there are no parallel connections.",
             "Check that no parts are connected to the origin.",
@@ -626,7 +652,7 @@ async def check_document(
 
     except ValueError as e:
         raise FailedCheckError(
-            f"Failed to get digraph for document {document_info.get_url()}",
+            f"Failed to get digraph for document {document_info.get_url()}: {e}",
             "Check that the provided central node is in the graph.",
         ) from e
 
@@ -704,6 +730,8 @@ def get_urdf_part(
     key: Key,
     mesh_dir_name: str,
     joint: Joint | None = None,
+    *,
+    config: DownloadConfig | None = None,
 ) -> tuple[urdf.Link, np.ndarray]:
     """Returns the URDF link for a part.
 
@@ -713,11 +741,15 @@ def get_urdf_part(
         mesh_dir: The directory to save the mesh files.
         mesh_dir_name: The name of the mesh directory.
         joint: The joint to use.
+        config: The converter configuration.
 
     Returns:
         The URDF link and the transformation matrix from the STL origin to
         the part frame.
     """
+    if config is None:
+        config = DownloadConfig()
+
     part_name = doc.key_namer(key, None)
     part_instance = doc.key_to_part_instance[key]
     part = doc.euid_to_part[part_instance.euid]
@@ -739,30 +771,30 @@ def get_urdf_part(
 
     # Gets the part mass.
     mass = part_dynamic.mass[0]
+    uses_default_mass = False
     if mass <= 0.0:
-        raise ValueError(f"Part {part_name} has a mass of {mass}.")
+        if config.default_part_mass is None:
+            raise ValueError(f"Part {part_name} has a mass of {mass}.")
+        logger.warning("Part %s has a mass of %f, using default mass of %f", part_name, mass, config.default_part_mass)
+        mass = config.default_part_mass
+        uses_default_mass = True
 
     # Move the mesh origin and dynamics from the part frame to the parent
     # joint frame (since URDF expects this by convention).
     mesh_origin = urdf.Origin.zero_origin()
     center_of_mass = part_dynamic.center_of_mass_in_frame(stl_origin_to_part_tf)
 
-    inertia = part_dynamic.inertia_matrix
-    inertia_transformed = transform_inertia_tensor(inertia, np.matrix(stl_origin_to_part_tf[:3, :3]))
+    if uses_default_mass:
+        inertia_transformed = np.zeros((3, 3))
+    else:
+        inertia = part_dynamic.inertia_matrix
+        inertia_transformed = transform_inertia_tensor(inertia, np.matrix(stl_origin_to_part_tf[:3, :3]))
 
     principal_axes = part_dynamic.principal_axes_in_frame(stl_origin_to_part_tf)
     principal_axes_rpy = R.from_matrix(principal_axes).as_euler("xyz", degrees=False)
 
-    # Gets the configuration string suffix.
-    if part.configuration == "default":
-        configuration_str = ""
-    elif len(part.configuration) > 40:
-        configuration_str = hashlib.md5(part.configuration.encode()).hexdigest()[:16]
-    else:
-        configuration_str = part.configuration
-
-    # Downloads the STL file.
-    part_file_name = f"{part_name}{configuration_str}.stl"
+    # Gets the part name.
+    part_file_name = f"{part_name}.stl"
     urdf_file_path = f"{mesh_dir_name}/{part_file_name}"
     urdf_link_name = doc.key_namer(key, "link")
 
@@ -1004,7 +1036,7 @@ async def save_urdf(
 
     for joint in doc.joints:
         urdf_joint = get_urdf_joint(doc, joint, stl_origin_to_part_tfs[joint.parent], config=config)
-        urdf_link, stl_origin_to_part_tf = get_urdf_part(doc, joint.child, mesh_dir_name, joint)
+        urdf_link, stl_origin_to_part_tf = get_urdf_part(doc, joint.child, mesh_dir_name, joint, config=config)
         stl_origin_to_part_tfs[joint.child] = stl_origin_to_part_tf
         urdf_parts.extend([urdf_joint, urdf_link])
 
