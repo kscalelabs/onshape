@@ -58,11 +58,12 @@ def update_urdf_names(
     def get_unique_name(name: str, name_set: set[str]) -> str:
         base_name = cleanup_name(name)
         count = 2
-        while base_name in name_set:
-            base_name = f"{base_name}_{count}"
+        unique_name = base_name
+        while unique_name in name_set:
+            unique_name = f"{base_name}_{count}"
             count += 1
-        name_set.add(base_name)
-        return base_name
+        name_set.add(unique_name)
+        return unique_name
 
     for joint in root.findall(".//joint"):
         if "name" in joint.attrib:
