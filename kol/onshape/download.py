@@ -473,6 +473,9 @@ async def check_part(
     Raises:
         FailedCheckError: If the part is invalid.
     """
+    if config is None:
+        config = DownloadConfig()
+
     part_metadata, part_mass_properties = await asyncio.gather(
         api.get_part_metadata(part),
         api.get_part_mass_properties(part),
