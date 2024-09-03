@@ -31,6 +31,11 @@ def update_urdf_names(
         joint_name_map: A mapping from old joint names to new joint names.
         link_name_map: A mapping from old link names to new link names.
     """
+    if joint_name_map is None:
+        joint_name_map = {}
+    if link_name_map is None:
+        link_name_map = {}
+
     urdf_tree = ET.parse(urdf_path)
     root = urdf_tree.getroot()
 
@@ -43,7 +48,7 @@ def update_urdf_names(
     # update all the links and joints which reference those names to be
     # correct.
     name_mapping: dict[str, str] = {}
-    name_set = set()
+    name_set: set[str] = set()
 
     def cleanup_name(name: str) -> str:
         base_name = name.split(":")[-1]
@@ -80,7 +85,7 @@ def update_urdf_names(
 
     # Cleans up mesh STL names (note, this requires renaming the mesh files).
     new_mesh_paths: dict[str, Path] = {}
-    mesh_name_set = set()
+    mesh_name_set: set[str] = set()
     for mesh in root.findall(".//mesh"):
         if "filename" in mesh.attrib:
             mesh_relpath = mesh.attrib["filename"]
