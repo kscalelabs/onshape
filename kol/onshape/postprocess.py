@@ -1,3 +1,4 @@
+# mypy: disable-error-code="misc"
 """Defines functions for post-processing the downloaded URDF."""
 
 import asyncio
@@ -13,6 +14,7 @@ from kol.onshape.download import download
 from kol.passes.add_mjcf import convert_urdf_to_mjcf
 from kol.passes.make_convex_collision_mesh import get_convex_collision_meshes
 from kol.passes.merge_fixed_joints import get_merged_urdf
+from kol.passes.remove_collision_meshes import remove_collision_meshes
 from kol.passes.simplify_meshes import get_simplified_urdf
 from kol.passes.update_names import update_urdf_names
 from kol.passes.utils import iter_meshes
@@ -59,6 +61,10 @@ async def postprocess(
     if config.convex_collision_meshes:
         get_convex_collision_meshes(urdf_path)
 
+    # Removes collision meshes.
+    if config.remove_collision_meshes:
+        remove_collision_meshes(urdf_path)
+
     # Adds the MJCF XML to the package.
     paths = [urdf_path]
     if config.add_mjcf:
@@ -67,9 +73,10 @@ async def postprocess(
         paths.append(mjcf_path)
 
     # Combines everything to a single TAR file.
-    for (_, visual_mesh_path), (_, collision_mesh_path) in iter_meshes(urdf_path):
+    for (_, visual_mesh_path), (_, collision_mesh_path) in iter_meshes(urdf_path, config.remove_collision_meshes):
         for path in list({visual_mesh_path, collision_mesh_path}):
-            paths.append(path)
+            if path is not None:
+                paths.append(path)
 
     tar_path = urdf_path.with_suffix(".tgz")
     with tarfile.open(tar_path, "w:gz") as tar:

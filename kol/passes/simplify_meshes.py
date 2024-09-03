@@ -1,3 +1,4 @@
+# mypy: disable-error-code="misc"
 """Defines a pass to reduce the number of vertices in each mesh."""
 
 import argparse
@@ -57,9 +58,10 @@ def get_simplified_urdf(
     total_post_num_vertices = 0
     for (_, visual_mesh_path), (_, collision_mesh_path) in iter_meshes(urdf_path):
         for mesh_path in list({visual_mesh_path, collision_mesh_path}):
-            pre_num_vertices, post_num_vertices = simplify_mesh(mesh_path, voxel_size=voxel_size)
-            total_pre_num_vertices += pre_num_vertices
-            total_post_num_vertices += post_num_vertices
+            if mesh_path is not None:
+                pre_num_vertices, post_num_vertices = simplify_mesh(mesh_path, voxel_size=voxel_size)
+                total_pre_num_vertices += pre_num_vertices
+                total_post_num_vertices += post_num_vertices
 
     if total_pre_num_vertices > 0:
         percent_reduction = (1 - total_post_num_vertices / total_pre_num_vertices) * 100
