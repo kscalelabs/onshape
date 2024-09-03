@@ -1,3 +1,4 @@
+# mypy: disable-error-code="misc"
 """Defines functions for post-processing the downloaded URDF."""
 
 import asyncio
@@ -13,8 +14,8 @@ from kol.onshape.download import download
 from kol.passes.add_mjcf import convert_urdf_to_mjcf
 from kol.passes.make_convex_collision_mesh import get_convex_collision_meshes
 from kol.passes.merge_fixed_joints import get_merged_urdf
-from kol.passes.simplify_meshes import get_simplified_urdf
 from kol.passes.remove_collision_meshes import remove_collision_meshes
+from kol.passes.simplify_meshes import get_simplified_urdf
 from kol.passes.utils import iter_meshes
 from kol.utils.logging import configure_logging
 
@@ -67,8 +68,7 @@ async def postprocess(
         paths.append(mjcf_path)
 
     # Combines everything to a single TAR file.
-    for (_, visual_mesh_path), (_, collision_mesh_path) in iter_meshes(
-            urdf_path, config.remove_collision_meshes):
+    for (_, visual_mesh_path), (_, collision_mesh_path) in iter_meshes(urdf_path, config.remove_collision_meshes):
         for path in list({visual_mesh_path, collision_mesh_path}):
             if path is not None:
                 paths.append(path)

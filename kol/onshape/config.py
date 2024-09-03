@@ -172,8 +172,12 @@ class PostprocessConfig:
         parser = argparse.ArgumentParser()
         parser.add_argument("urdf_path", help="The path to the downloaded URDF.")
         parser.add_argument(
-            "-c", "--config-path", type=Path, default=None, 
-            help="The path to the config file. See example at `config_example.json`.")
+            "-c",
+            "--config-path",
+            type=Path,
+            default=None,
+            help="The path to the config file. See example at `config_example.json`.",
+        )
         parsed_args, remaining_args = parser.parse_known_args(args)
         urdf_path: str = parsed_args.urdf_path
         config_path: Path | None = parsed_args.config_path

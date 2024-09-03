@@ -1,13 +1,13 @@
-""" Removes collision meshes from the URDF. """
+"""Removes collision meshes from the URDF."""
+
+import argparse
 import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import List, Optional
-import argparse
 
 
-def remove_collision_meshes(urdf_path: str, keep_collisions: Optional[List[str]] = None) -> None:
-    """
-    Removes collision meshes from the URDF file, except for specified parts.
+def remove_collision_meshes(urdf_path: Path | str, keep_collisions: Optional[List[str]] = None) -> None:
+    """Removes collision meshes from the URDF file, except for specified parts.
 
     Args:
         urdf_path (str): Path to the URDF file.
@@ -21,18 +21,18 @@ def remove_collision_meshes(urdf_path: str, keep_collisions: Optional[List[str]]
     root = tree.getroot()
 
     # Iterate through all links
-    for link in root.findall('link'):
-        link_name = link.get('name')
-        
+    for link in root.findall("link"):
+        link_name = link.get("name")
+
         # If the link is not in the keep_collisions list, remove its collision elements
         if link_name not in keep_collisions:
-            collisions = link.findall('collision')
+            collisions = link.findall("collision")
             for collision in collisions:
                 link.remove(collision)
 
     # Save the modified URDF
     output_path = Path(urdf_path)
-    tree.write(output_path, encoding='utf-8', xml_declaration=True)
+    tree.write(output_path, encoding="utf-8", xml_declaration=True)
     print(f"Modified URDF saved to: {output_path}")
 
 

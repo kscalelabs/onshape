@@ -1,3 +1,4 @@
+# mypy: disable-error-code="misc"
 """Defines a pass to get an MJCF file from the URDF."""
 
 import argparse
@@ -42,7 +43,7 @@ def convert_urdf_to_mjcf(urdf_file: str | Path, mjcf_file: str | Path) -> None:
     symlink_to_orig: dict[str, Path] = {}
     for (_, visual_mesh_path), (_, collision_mesh_path) in iter_meshes(urdf_file):
         for mesh_path in list({visual_mesh_path, collision_mesh_path}):
-            if mesh_path is None:
+            if mesh_path is not None:
                 mesh_name = mesh_path.name
                 mesh_symlink = mjcf_file.parent / mesh_name
                 if not mesh_symlink.exists():

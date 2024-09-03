@@ -6,11 +6,13 @@ from typing import Iterator
 
 
 def iter_meshes(
-        urdf_path: Path, remove_collision_meshes: bool = False
-    ) -> Iterator[tuple[tuple[ET.Element, Path], tuple[ET.Element, Path]]]:
+    urdf_path: Path, remove_collision_meshes: bool = False
+) -> Iterator[tuple[tuple[ET.Element, Path] | None, tuple[ET.Element, Path] | tuple[None, None]]]:
     urdf_tree = ET.parse(urdf_path)
 
-    def get_mesh(visual_or_collision: ET.Element) -> tuple[ET.Element, Path] | None:
+    def get_mesh(visual_or_collision: ET.Element | None) -> tuple[ET.Element, Path] | None:
+        if visual_or_collision is None:
+            return None
         if (geometry := visual_or_collision.find("geometry")) is None:
             return None
         if (mesh := geometry.find("mesh")) is None:
