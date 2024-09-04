@@ -806,7 +806,7 @@ async def check_document(
             suggestions=[
                 "Check that you are only using supported mimic relations.",
             ],
-            orig_err=e,
+            orig_errs=(e,),
         ) from e
 
     return CheckedDocument(
