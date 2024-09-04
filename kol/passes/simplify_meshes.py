@@ -1,4 +1,3 @@
-# mypy: disable-error-code="misc"
 """Defines a pass to reduce the number of vertices in each mesh."""
 
 import argparse

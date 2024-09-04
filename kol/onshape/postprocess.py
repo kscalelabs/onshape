@@ -1,4 +1,3 @@
-# mypy: disable-error-code="misc"
 """Defines functions for post-processing the downloaded URDF."""
 
 import asyncio
