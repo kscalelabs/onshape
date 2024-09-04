@@ -18,14 +18,14 @@ from kol.passes.simplify_meshes import get_simplified_urdf
 from kol.passes.update_names import update_urdf_names
 from kol.passes.utils import iter_meshes
 from kol.utils.logging import configure_logging
-import xml.etree.ElementTree as ET
+
 
 @dataclass
 class PostprocessedDocument:
     urdf_path: Path
     tar_path: Path
 
-        
+
 async def postprocess(
     urdf_path: str | Path,
     *,
