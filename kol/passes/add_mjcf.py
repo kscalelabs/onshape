@@ -1,4 +1,3 @@
-# mypy: disable-error-code="misc"
 """Defines a pass to get an MJCF file from the URDF."""
 
 import argparse
