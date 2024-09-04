@@ -8,32 +8,31 @@
   "package_tgz": false,
   "debug": true,
   "update_names": true,
-  "joint_name_map": {  
+  "joint_name_map": {
     "joint:Upper_Half_Assembly_(1):Torso_Assembly_(1):Robstride_04_Mock_(1):Revolute_1": "left shoulder pitch",
-       
-    "joint:Upper_Half_Assembly_(1):Torso_Assembly_(1):Robstride_04_Mock_(2):Revolute_1": "right shoulder pitch",
     "joint:Upper_Half_Assembly_(1):Left_Arm_(1):Robstride_01_Mock_(2):Revolute_1": "left shoulder roll",
+    "joint:Upper_Half_Assembly_(1):Left_Arm_(1):Robstride_01_Mock_(1):Revolute_1": "left shoulder yaw",
     "joint:Upper_Half_Assembly_(1):Left_Arm_(1):Robstride_01_Mock_(3):Revolute_1": "left elbow pitch",
-    // "Revolute_1_5": "left shoulder yaw",
-    // "Revolute_1_15": "left hand roll",
-
-    // "Revolute_1_22": "right hand gripper",
-    "joint:Lower_Half_Assembly_(1):Hip_Assembly_(1):Robstride_04_Mock_(1):Revolute_1": "left hip pitch",
-    "joint:Lower_Half_Assembly_(1):Left_Leg_(1):Robstride_04_Mock_(1):Revolute_1": "left hip yaw",
-    "joint:Lower_Half_Assembly_(1):Left_Leg_(1):Robstride_04_Mock_(2):Revolute_1": "left knee pitch",
-    "joint:Lower_Half_Assembly_(1):Left_Leg_(1):Robstride_01_Mock_(1):Revolute_1": "left hip roll",
-    "joint:Lower_Half_Assembly_(1):Left_Leg_(1):Robstride_01_Mock_(2):Revolute_1": "left ankle pitch",
+    "joint:Upper_Half_Assembly_(1):Left_Arm_(1):Robstride_01_Mock_(4):Revolute_1": "left hand roll",
     "joint:Upper_Half_Assembly_(1):Left_Arm_(1):Left_Hand_(1):Robstride_01_Mock_(1):Revolute_1": "left hand gripper",
 
-    "joint:Upper_Half_Assembly_(1):Right_Arm_(2):Robstride_01_Mock_(1):Revolute_1": "right shoulder yaw",
-    "joint:Upper_Half_Assembly_(1):Right_Arm_(2):Robstride_01_Mock_(2):Revolute_1": "right wrist roll",
-    "joint:Upper_Half_Assembly_(1):Right_Arm_(2):Robstride_01_Mock_(3):Revolute_1": "right shouler yaw",
+    "joint:Lower_Half_Assembly_(1):Hip_Assembly_(1):Robstride_04_Mock_(1):Revolute_1": "left hip pitch",
+    "joint:Lower_Half_Assembly_(1):Left_Leg_(1):Robstride_01_Mock_(1):Revolute_1": "left hip roll",
+    "joint:Lower_Half_Assembly_(1):Left_Leg_(1):Robstride_04_Mock_(1):Revolute_1": "left hip yaw",
+    "joint:Lower_Half_Assembly_(1):Left_Leg_(1):Robstride_04_Mock_(2):Revolute_1": "left knee pitch",
+    "joint:Lower_Half_Assembly_(1):Left_Leg_(1):Robstride_01_Mock_(2):Revolute_1": "left ankle pitch",
+
+    "joint:Upper_Half_Assembly_(1):Torso_Assembly_(1):Robstride_04_Mock_(2):Revolute_1": "right shoulder pitch",
     "joint:Upper_Half_Assembly_(1):Right_Arm_(2):Robstride_01_Mock_(4):Revolute_1": "right shoulder roll",
-    
+    "joint:Upper_Half_Assembly_(1):Right_Arm_(2):Robstride_01_Mock_(1):Revolute_1": "right shoulder yaw",
+    "joint:Upper_Half_Assembly_(1):Right_Arm_(2):Robstride_01_Mock_(3):Revolute_1": "right shouler yaw",
+    "joint:Upper_Half_Assembly_(1):Right_Arm_(2):Robstride_01_Mock_(2):Revolute_1": "right wrist roll",
+    "joint:Upper_Half_Assembly_(1):Right_Arm_(2):Right_Hand_(1):Robstride_01_Mock_(1):Revolute_1": "right hand gripper",
+
     "joint:Lower_Half_Assembly_(1):Hip_Assembly_(1):Robstride_04_Mock_(2):Revolute_1": "right hip pitch",
+    "joint:Lower_Half_Assembly_(1):Right_Leg_(1):Robstride_01_Mock_(1):Revolute_1": "right hip roll",
     "joint:Lower_Half_Assembly_(1):Right_Leg_(1):Robstride_04_Mock_(1):Revolute_1": "right hip yaw",
     "joint:Lower_Half_Assembly_(1):Right_Leg_(1):Robstride_04_Mock_(2):Revolute_1": "right knee pitch",
-    "joint:Lower_Half_Assembly_(1):Right_Leg_(1):Robstride_01_Mock_(1):Revolute_1": "right hip roll",
     "joint:Lower_Half_Assembly_(1):Right_Leg_(1):Robstride_01_Mock_(2):Revolute_1": "right ankle pitch"
-}
+  }
 }
