@@ -43,8 +43,12 @@ To download and postprocess an assembly, run:
 ```bash
 kol run https://cad.onshape.com/documents/DDDDDDDD/w/WWWWWWWW/e/EEEEEEEE
 ```
+An example run with a config file to download Stompy Mini:
+```bash
+kol run https://cad.onshape.com/documents/50fe60f593f5c98e8f52552c/w/23cfc61ce40dd25ad76f414c/e/9c37b547deaa42ff258901fe  -c config_example.json
+```
 
-By default, this will automatically generate both a URDF and MJCF file
+By default, this will automatically generate both a URDF and MJCF file.
 
 You can visualize the resulting artifacts using MuJoCo Viewer:
 

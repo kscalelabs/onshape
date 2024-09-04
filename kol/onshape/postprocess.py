@@ -48,13 +48,13 @@ async def postprocess(
     if config.merge_fixed_joints:
         get_merged_urdf(urdf_path)
 
-    # Updates the names in the URDF.
-    if config.update_names:
-        update_urdf_names(urdf_path, joint_name_map=config.joint_name_map, link_name_map=config.link_name_map)
-
     # Simplifies the meshes in the URDF.
     if config.simplify_meshes:
         get_simplified_urdf(urdf_path, voxel_size=config.voxel_size)
+
+    # Updates the names in the URDF.
+    if config.update_names:
+        update_urdf_names(urdf_path, joint_name_map=config.joint_name_map, link_name_map=config.link_name_map)
 
     # Creates separate convex hulls for collision geomtries.
     if config.convex_collision_meshes:
