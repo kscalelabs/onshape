@@ -26,7 +26,14 @@ class PostprocessedDocument:
     urdf_path: Path
     tar_path: Path
 
-
+def print_joints(urdf_path):
+    print("updated names")
+    tree = ET.parse(urdf_path)
+    root = tree.getroot()
+    # Iterate through all links
+    for link in root.findall("joint"):
+        print(link.attrib)
+        
 async def postprocess(
     urdf_path: str | Path,
     *,
@@ -41,6 +48,7 @@ async def postprocess(
     Returns:
         The post-processed document.
     """
+
     urdf_path = Path(urdf_path)
     if config is None:
         config = PostprocessConfig()
@@ -53,23 +61,11 @@ async def postprocess(
     if config.simplify_meshes:
         get_simplified_urdf(urdf_path, voxel_size=config.voxel_size)
 
-    print("before updated names")
-    tree = ET.parse(urdf_path)
-    root = tree.getroot()
-    # Iterate through all links
-    for link in root.findall("joint"):
-        print(link.attrib)
-
+    breakpoint()
     # Updates the names in the URDF.
     if config.update_names:
         update_urdf_names(urdf_path, joint_name_map=config.joint_name_map, link_name_map=config.link_name_map)
 
-    print("updated names")
-    tree = ET.parse(urdf_path)
-    root = tree.getroot()
-    # Iterate through all links
-    for link in root.findall("joint"):
-        print(link.attrib)
 
     # Creates separate convex hulls for collision geomtries.
     if config.convex_collision_meshes:
@@ -86,13 +82,6 @@ async def postprocess(
         convert_urdf_to_mjcf(urdf_path, mjcf_path)
         paths.append(mjcf_path)
 
-    print("remove collision meshes")
-    tree = ET.parse(urdf_path)
-    root = tree.getroot()
-    # Iterate through all links
-    for link in root.findall("joint"):
-        print(link.attrib)
-    
     # Combines everything to a single TAR file.
     for (_, visual_mesh_path), (_, collision_mesh_path) in iter_meshes(urdf_path, config.remove_collision_meshes):
         for path in list({visual_mesh_path, collision_mesh_path}):
