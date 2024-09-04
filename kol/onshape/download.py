@@ -85,24 +85,39 @@ async def gather_dict(d: dict[Tk, Coroutine[Any, Any, Tv]]) -> dict[Tk, Tv]:
 
 
 class FailedCheckError(ValueError):
+    """An error that occurs when a check fails.
+
+    Args:
+        msg: The error message.
+        suggestions: Suggestions for fixing the error.
+        orig_errs: Original errors that caused the failure.
+        end_msg: Additional information to add to the error message.
+    """
+
     def __init__(
         self,
         msg: str,
-        *suggestions: str,
-        orig_err: Exception | None = None,
+        *,
+        extra_msgs: Sequence[str] | None = None,
+        suggestions: Sequence[str] | None = None,
+        orig_errs: Sequence[Exception] | None = None,
         end_msg: str | None = None,
     ) -> None:
         self.original_msg = msg
-        self.suggestions = suggestions
-        self.orig_err = orig_err
+        self.extra_msgs = extra_msgs or []
+        self.suggestions = suggestions or []
+        self.orig_errs = orig_errs or []
         self.end_msg = end_msg
         full_msg = f"{msg}"
-        if suggestions:
-            full_msg += "\n\nSuggestions:\n" + "".join(f" * {s}" for s in suggestions)
-        if orig_err is not None:
-            full_msg += f"\n\nOriginal error:\n{orig_err}"
-        if end_msg is not None:
-            full_msg += f"\n\n{end_msg}"
+        if self.extra_msgs:
+            full_msg += "\n\n" + "\n".join(self.extra_msgs)
+        if self.suggestions:
+            full_msg += "\n\nSuggestions:\n" + "".join(f" * {s}" for s in self.suggestions)
+        if self.orig_errs:
+            for orig_err in self.orig_errs:
+                full_msg += f"\n\nOriginal error:\n{orig_err}"
+        if self.end_msg is not None:
+            full_msg += f"\n\n{self.end_msg}"
         super().__init__(full_msg)
 
 
@@ -528,8 +543,10 @@ async def check_part(
     if mass <= 0 and config.default_part_mass is None:
         raise FailedCheckError(
             f'Part "{part_name}" has a mass of {mass}',
-            "All parts should have a positive mass.",
-            "To fix this, either assign a material to the part or manually set the part mass",
+            suggestions=[
+                "All parts should have a positive mass.",
+                "To fix this, either assign a material to the part or manually set the part mass",
+            ],
         )
 
     return part_metadata, part_mass_properties
@@ -663,9 +680,11 @@ async def check_document(
     except Exception as e:
         raise FailedCheckError(
             f"Failed to get document {document_info.get_url()}",
-            "Check that the document ID is correct.",
-            "Check that the document is not private.",
-            orig_err=e,
+            suggestions=[
+                "Check that the document ID is correct.",
+                "Check that the document is not private.",
+            ],
+            orig_errs=(e,),
         ) from e
 
     # Checks that the assembly is valid.
@@ -674,8 +693,10 @@ async def check_document(
     except Exception as e:
         raise FailedCheckError(
             f"Failed to get assembly for document {document_info.get_url()}",
-            "Check that the document is an assembly, not a part studio.",
-            orig_err=e,
+            suggestions=[
+                "Check that the document is an assembly, not a part studio.",
+            ],
+            orig_errs=(e,),
         ) from e
 
     # Checks that the assembly metadata is valid.
@@ -684,8 +705,10 @@ async def check_document(
     except Exception as e:
         raise FailedCheckError(
             f"Failed to get assembly metadata for document {document_info.get_url()}",
-            "Check that the assembly is not empty.",
-            orig_err=e,
+            suggestions=[
+                "Check that the assembly is not empty.",
+            ],
+            orig_errs=(e,),
         ) from e
 
     # Gets some mappings from the assembly to make subsequent lookups easier.
@@ -706,10 +729,12 @@ async def check_document(
     except ValueError as e:
         raise FailedCheckError(
             f"Failed to get graph for document {document_info.get_url()}",
-            "Check that the assembly is fully connected.",
-            "Check that there are no parallel connections.",
-            "Check that no parts are connected to the origin.",
-            orig_err=e,
+            suggestions=[
+                "Check that the assembly is fully connected.",
+                "Check that there are no parallel connections.",
+                "Check that no parts are connected to the origin.",
+            ],
+            orig_errs=(e,),
         ) from e
 
     try:
@@ -723,8 +748,10 @@ async def check_document(
     except ValueError as e:
         raise FailedCheckError(
             f"Failed to get digraph for document {document_info.get_url()}",
-            "Check that the provided central node is in the graph.",
-            orig_err=e,
+            suggestions=[
+                "Check that the provided central node is in the graph.",
+            ],
+            orig_errs=(e,),
         ) from e
 
     # Checks all the parts in the assembly.
@@ -737,13 +764,18 @@ async def check_document(
         extra_msgs = {suggestion for err in errs if isinstance(err, FailedCheckError) for suggestion in err.suggestions}
         raise FailedCheckError(
             f"Invalid parts for document {document_info.get_url()}",
-            *(
-                f"{err.original_msg}" if isinstance(err, FailedCheckError) else f"{type(err).__name__}: {err}"
-                for err in errs
-                if err is not None
-            ),
-            *extra_msgs,
-            "Note that the Onshape API returns a mass of 0 for standard parts.",
+            extra_msgs=[
+                *(
+                    f"{err.original_msg}" if isinstance(err, FailedCheckError) else f"{type(err).__name__}: {err}"
+                    for err in errs
+                    if err is not None
+                ),
+                *extra_msgs,
+            ],
+            suggestions=[
+                "Note that the Onshape API returns a mass of 0 for standard parts.",
+                "Check that the part is not a standard part.",
+            ],
         )
 
     part_metadata = {part.key: md for part, (md, _) in zip(assembly.parts, checked_part_properties)}
@@ -759,7 +791,9 @@ async def check_document(
         missing_joint_names = "".join(f"\n * {key_namer(joint.joint_key, None)}" for joint in missing_joint_limits)
         raise FailedCheckError(
             f"Missing joint limits for {len(missing_joint_limits)} joints: {missing_joint_names}",
-            "Check that the joint limits are defined for all relevant joints.",
+            suggestions=[
+                "Check that the joint limits are defined for all relevant joints.",
+            ],
         )
 
     # Checks all the mate relations in the assembly.
@@ -769,8 +803,10 @@ async def check_document(
     except Exception as e:
         raise FailedCheckError(
             f"Failed to get mate relations for document {document_info.get_url()}",
-            "Check that you are only using supported mimic relations.",
-            orig_err=e,
+            suggestions=[
+                "Check that you are only using supported mimic relations.",
+            ],
+            orig_errs=(e,),
         ) from e
 
     return CheckedDocument(
