@@ -33,7 +33,6 @@ def remove_collision_meshes(urdf_path: Path | str, keep_collisions: Optional[Lis
     # Save the modified URDF
     output_path = Path(urdf_path)
     tree.write(output_path, encoding="utf-8", xml_declaration=True)
-    print(f"Modified URDF saved to: {output_path}")
 
 
 if __name__ == "__main__":
