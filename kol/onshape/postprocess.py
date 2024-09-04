@@ -19,7 +19,7 @@ from kol.passes.simplify_meshes import get_simplified_urdf
 from kol.passes.update_names import update_urdf_names
 from kol.passes.utils import iter_meshes
 from kol.utils.logging import configure_logging
-
+import xml.etree.ElementTree as ET
 
 @dataclass
 class PostprocessedDocument:
@@ -49,13 +49,27 @@ async def postprocess(
     if config.merge_fixed_joints:
         get_merged_urdf(urdf_path)
 
+    # Simplifies the meshes in the URDF.
+    if config.simplify_meshes:
+        get_simplified_urdf(urdf_path, voxel_size=config.voxel_size)
+
+    print("before updated names")
+    tree = ET.parse(urdf_path)
+    root = tree.getroot()
+    # Iterate through all links
+    for link in root.findall("joint"):
+        print(link.attrib)
+
     # Updates the names in the URDF.
     if config.update_names:
         update_urdf_names(urdf_path, joint_name_map=config.joint_name_map, link_name_map=config.link_name_map)
 
-    # Simplifies the meshes in the URDF.
-    if config.simplify_meshes:
-        get_simplified_urdf(urdf_path, voxel_size=config.voxel_size)
+    print("updated names")
+    tree = ET.parse(urdf_path)
+    root = tree.getroot()
+    # Iterate through all links
+    for link in root.findall("joint"):
+        print(link.attrib)
 
     # Creates separate convex hulls for collision geomtries.
     if config.convex_collision_meshes:
@@ -64,7 +78,7 @@ async def postprocess(
     # Removes collision meshes.
     if config.remove_collision_meshes:
         remove_collision_meshes(urdf_path)
-
+    
     # Adds the MJCF XML to the package.
     paths = [urdf_path]
     if config.add_mjcf:
@@ -72,6 +86,13 @@ async def postprocess(
         convert_urdf_to_mjcf(urdf_path, mjcf_path)
         paths.append(mjcf_path)
 
+    print("remove collision meshes")
+    tree = ET.parse(urdf_path)
+    root = tree.getroot()
+    # Iterate through all links
+    for link in root.findall("joint"):
+        print(link.attrib)
+    
     # Combines everything to a single TAR file.
     for (_, visual_mesh_path), (_, collision_mesh_path) in iter_meshes(urdf_path, config.remove_collision_meshes):
         for path in list({visual_mesh_path, collision_mesh_path}):
