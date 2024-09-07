@@ -5,7 +5,7 @@ import functools
 from enum import Enum
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 
 class FeatureType(str, Enum):
@@ -35,7 +35,8 @@ class MateConnectorMessage(BaseModel):
     featureType: str
     featureId: str
     name: str
-    parameters: list[Parameter] = Field(discriminator="type")
+    # Seems to be breaking in a more recent version of Pydantic.
+    # parameters: list[Parameter] = Field(discriminator="type")
 
 
 class MateConnector(BaseModel):
