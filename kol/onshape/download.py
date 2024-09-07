@@ -985,7 +985,13 @@ def get_urdf_joint(
     suffix_to_joint_velocity = [(k.lower().strip(), v) for k, v in config.suffix_to_joint_velocity.items()]
 
     parent_part_to_mate_tf = joint.parent_entity.matedCS.part_to_mate_tf
-    parent_stl_origin_to_mate_tf = parent_stl_origin_to_part_tf @ parent_part_to_mate_tf
+    child_part_to_mate_tf = joint.child_entity.matedCS.part_to_mate_tf
+
+    # Compute the transformation from parent STL origin to joint frame
+    parent_stl_origin_to_joint_tf = parent_stl_origin_to_part_tf @ parent_part_to_mate_tf
+
+    # Compute the transformation from child part frame to joint frame
+    child_part_to_joint_tf = inv_tf(child_part_to_mate_tf)
 
     # Gets the joint limits.
     joint_assembly_id, feature_id = doc.key_to_euid[joint.joint_key[:-1]], joint.joint_key[-1]
@@ -1015,7 +1021,7 @@ def get_urdf_joint(
         return effort, velocity
 
     name = doc.key_namer(joint.joint_key, "joint")
-    origin = urdf.Origin.from_matrix(parent_stl_origin_to_mate_tf)
+    origin = urdf.Origin.from_matrix(parent_stl_origin_to_joint_tf)
     mate_type = joint.mate_type
 
     match mate_type:
@@ -1044,12 +1050,16 @@ def get_urdf_joint(
                 config.default_revolute_joint_velocity,
             )
 
+            # Compute joint axis in parent frame
+            joint_axis = parent_stl_origin_to_joint_tf[:3, :3] @ np.array([0, 0, 1])
+            axis_tuple = tuple(*joint_axis.reshape(3).tolist())
+
             return urdf.RevoluteJoint(
                 name=name,
                 parent=parent,
                 child=child,
                 origin=origin,
-                axis=urdf.Axis((0.0, 0.0, 1.0)),
+                axis=urdf.Axis(axis_tuple),
                 limits=urdf.JointLimits(
                     effort=effort,
                     velocity=velocity,
