@@ -70,7 +70,7 @@ class DownloadConfig:
         metadata={"help": "The suffix to joint velocity mapping."},
     )
     invalidate_cache_after_n_minutes: float | None = field(
-        default=0.5,
+        default=None,
         metadata={"help": "Invalidates the cache after n minutes."},
     )
     disable_mimics: bool = field(
@@ -108,7 +108,8 @@ class DownloadConfig:
         parser = argparse.ArgumentParser()
         parser.add_argument("document_url", help="The URL of the OnShape document.")
         parser.add_argument("-o", "--output-dir", type=str, default="robot", help="The output directory.")
-        parser.add_argument("-c", "--config-path", type=Path, default=None, help="The path to the config file.")
+        parser.add_argument("-f", "--config-path", type=Path, default=None, help="The path to the config file.")
+        parser.add_argument("-n", "--no-cache", action="store_true", help="Disables caching.")
         parsed_args, remaining_args = parser.parse_known_args(args)
         document_url: str = parsed_args.document_url
         output_dir: str = parsed_args.output_dir
@@ -124,6 +125,8 @@ class DownloadConfig:
                 cfg = cast(Self, OmegaConf.merge(cfg, file_cfg))
         cli_cfg = OmegaConf.from_cli(remaining_args)
         cfg = cast(Self, OmegaConf.merge(cfg, cli_cfg))
+        if cfg.invalidate_cache_after_n_minutes is None and parsed_args.no_cache:
+            cfg.invalidate_cache_after_n_minutes = 0.0
         return cfg
 
 
@@ -183,13 +186,7 @@ class PostprocessConfig:
         # First, parse the URDF path.
         parser = argparse.ArgumentParser()
         parser.add_argument("urdf_path", help="The path to the downloaded URDF.")
-        parser.add_argument(
-            "-c",
-            "--config-path",
-            type=Path,
-            default=None,
-            help="The path to the config file. See example at `config_example.json`.",
-        )
+        parser.add_argument("-f", "--config-path", type=Path, default=None, help="The path to the config file.")
         parsed_args, remaining_args = parser.parse_known_args(args)
         urdf_path: str = parsed_args.urdf_path
         config_path: Path | None = parsed_args.config_path
@@ -214,7 +211,8 @@ class ConverterConfig(DownloadConfig, PostprocessConfig):
         parser = argparse.ArgumentParser()
         parser.add_argument("document_url", help="The URL of the OnShape document.")
         parser.add_argument("-o", "--output-dir", type=str, default="robot", help="The output directory.")
-        parser.add_argument("-c", "--config-path", type=Path, default=None, help="The path to the config file.")
+        parser.add_argument("-f", "--config-path", type=Path, default=None, help="The path to the config file.")
+        parser.add_argument("-n", "--no-cache", action="store_true", help="Disables caching.")
         parsed_args, remaining_args = parser.parse_known_args(args)
         document_url: str = parsed_args.document_url
         output_dir: str = parsed_args.output_dir
@@ -230,4 +228,6 @@ class ConverterConfig(DownloadConfig, PostprocessConfig):
                 cfg = cast(Self, OmegaConf.merge(cfg, file_cfg))
         cli_cfg = OmegaConf.from_cli(remaining_args)
         cfg = cast(Self, OmegaConf.merge(cfg, cli_cfg))
+        if cfg.invalidate_cache_after_n_minutes is None and parsed_args.no_cache:
+            cfg.invalidate_cache_after_n_minutes = 0.0
         return cfg
