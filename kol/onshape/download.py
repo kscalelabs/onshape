@@ -1049,7 +1049,7 @@ def get_urdf_joint(
                 parent=parent,
                 child=child,
                 origin=origin,
-                axis=urdf.Axis((0.0, 0.0, 1.0)),
+                axis=urdf.Axis((0.0, 0.0, -1.0 if joint.lhs_is_first else 1.0)),
                 limits=urdf.JointLimits(
                     effort=effort,
                     velocity=velocity,
@@ -1088,7 +1088,7 @@ def get_urdf_joint(
                 parent=parent,
                 child=child,
                 origin=origin,
-                axis=urdf.Axis((0.0, 0.0, 1.0)),
+                axis=urdf.Axis((0.0, 0.0, -1.0 if joint.lhs_is_first else 1.0)),
                 limits=urdf.JointLimits(
                     effort=effort,
                     velocity=velocity,
