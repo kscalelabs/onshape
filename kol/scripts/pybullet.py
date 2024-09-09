@@ -6,7 +6,7 @@ import logging
 import math
 import time
 from pathlib import Path
-from typing import Sequence
+from typing import Dict, Sequence
 
 from kol.utils.logging import configure_logging
 
@@ -25,6 +25,9 @@ def pybullet_main(args: Sequence[str] | None = None) -> None:
     parser.add_argument("--show-inertia", action="store_true", help="Visualizes the inertia frames")
     parser.add_argument("--see-thru", action="store_true", help="Use see-through mode")
     parser.add_argument("--show-collision", action="store_true", help="Show collision meshes")
+    parser.add_argument("--fixed-base", action="store_true", help="Fix the base linkage in place")
+    parser.add_argument("--cycle-duration", type=float, default=10, help="Duration of the joint cycling")
+    parser.add_argument("--start-height", type=float, default=1.0, help="Initial height of the robot")
     parsed_args = parser.parse_args(args)
 
     try:
@@ -60,7 +63,7 @@ def pybullet_main(args: Sequence[str] | None = None) -> None:
         raise FileNotFoundError(urdf_path)
 
     # Load the robot URDF.
-    start_position = [0.0, 0.0, 1.0]
+    start_position = [0.0, 0.0, parsed_args.start_height]  # Use the start_height argument
     start_orientation = p.getQuaternionFromEuler([0.0, 0.0, 0.0])
     flags = p.URDF_USE_INERTIA_FROM_FILE
     if not parsed_args.no_merge:
@@ -71,7 +74,7 @@ def pybullet_main(args: Sequence[str] | None = None) -> None:
         start_position,
         start_orientation,
         flags=flags,
-        useFixedBase=0,
+        useFixedBase=parsed_args.fixed_base,
     )
 
     # Display collision meshes as separate object.
@@ -168,9 +171,42 @@ def pybullet_main(args: Sequence[str] | None = None) -> None:
             joint_min, joint_max = joint_info[8:10]
             controls[name] = p.addUserDebugParameter(name, joint_min, joint_max, 0.0)
 
+    def reset_joints_to_zero(robot: int, joints: Dict[str, int]) -> None:
+        for joint_id in joints.values():
+            joint_info = p.getJointInfo(robot, joint_id)
+            joint_min, joint_max = joint_info[8:10]
+            zero_position = (joint_min + joint_max) / 2
+            p.setJointMotorControl2(robot, joint_id, p.POSITION_CONTROL, zero_position)
+
+    def reset_camera(position: int) -> None:
+        camera_positions = {
+            1: (2.0, 0, -30, [0, 0, parsed_args.start_height / 2]),  # Default view
+            2: (2.0, 90, -30, [0, 0, parsed_args.start_height / 2]),  # Side view
+            3: (2.0, 180, -30, [0, 0, parsed_args.start_height / 2]),  # Back view
+            4: (2.0, 270, -30, [0, 0, parsed_args.start_height / 2]),  # Other side view
+            5: (2.0, 0, 0, [0, 0, parsed_args.start_height * 2]),  # Front level view
+            6: (2.0, 0, -80, [0, 0, parsed_args.start_height / 2]),  # Top-down view
+            7: (1.5, 45, -45, [0, 0, parsed_args.start_height / 2]),  # Closer angled view
+            8: (3.0, 30, -30, [0, 0, parsed_args.start_height / 2]),  # Further angled view
+            9: (2.0, 0, 30, [0, 0, parsed_args.start_height / 2]),  # Low angle view
+        }
+
+        if position in camera_positions:
+            distance, yaw, pitch, target = camera_positions[position]
+            p.resetDebugVisualizerCamera(
+                cameraDistance=distance,
+                cameraYaw=yaw,
+                cameraPitch=pitch,
+                cameraTargetPosition=target,
+            )
+
     # Run the simulation until the user closes the window.
     last_time = time.time()
     prev_control_values = {k: 0.0 for k in controls}
+    cycle_joints = False
+    cycle_start_time = 0.0
+    cycle_duration = parsed_args.cycle_duration
+
     while p.isConnected():
         # Reset the simulation if "r" was pressed.
         keys = p.getKeyboardEvents()
@@ -183,16 +219,46 @@ def pybullet_main(args: Sequence[str] | None = None) -> None:
                 targetPositions=[0] * p.getNumJoints(robot),
             )
 
+        # Reset joints to zero position if "z" was pressed
+        if ord("z") in keys and keys[ord("z")] & p.KEY_WAS_TRIGGERED:
+            reset_joints_to_zero(robot, joints)
+            cycle_joints = False  # Stop joint cycling if it was active
+
+        # Reset camera if number keys 1-9 are pressed
+        for i in range(1, 10):
+            if ord(str(i)) in keys and keys[ord(str(i))] & p.KEY_WAS_TRIGGERED:
+                reset_camera(i)
+
+        # Start/stop joint cycling if "c" was pressed
+        if ord("c") in keys and keys[ord("c")] & p.KEY_WAS_TRIGGERED:
+            cycle_joints = not cycle_joints
+            if cycle_joints:
+                cycle_start_time = time.time()
+            else:
+                # When stopping joint cycling, set joints to their current positions
+                for k, v in controls.items():
+                    current_position = p.getJointState(robot, joints[k])[0]
+                    p.setJointMotorControl2(robot, joints[k], p.POSITION_CONTROL, current_position)
+
         # Set joint positions.
-        for k, v in controls.items():
-            try:
-                target_position = p.readUserDebugParameter(v)
-                if target_position != prev_control_values[k]:
-                    prev_control_values[k] = target_position
-                    p.setJointMotorControl2(robot, joints[k], p.POSITION_CONTROL, target_position)
-            except p.error:
-                logger.debug("Failed to set joint %s", k)
-                pass
+        if cycle_joints:
+            elapsed_time = time.time() - cycle_start_time
+            cycle_progress = (elapsed_time % cycle_duration) / cycle_duration
+            for k, v in controls.items():
+                joint_info = p.getJointInfo(robot, joints[k])
+                joint_min, joint_max = joint_info[8:10]
+                target_position = joint_min + (joint_max - joint_min) * math.sin(cycle_progress * math.pi)
+                p.setJointMotorControl2(robot, joints[k], p.POSITION_CONTROL, target_position)
+        else:
+            for k, v in controls.items():
+                try:
+                    target_position = p.readUserDebugParameter(v)
+                    if target_position != prev_control_values[k]:
+                        prev_control_values[k] = target_position
+                        p.setJointMotorControl2(robot, joints[k], p.POSITION_CONTROL, target_position)
+                except p.error:
+                    logger.debug("Failed to set joint %s", k)
+                    pass
 
         # Step simulation.
         p.stepSimulation()
