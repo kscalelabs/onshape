@@ -891,7 +891,7 @@ def get_urdf_part(
         link_to_stl_origin_tf[:3, 3] = np.array(part_dynamic.center_of_mass).reshape(3)
     else:
         link_to_stl_origin_tf = joint.child_entity.matedCS.part_to_mate_tf
-    stl_origin_to_link_tf = inv_tf(link_to_stl_origin_tf)
+    stl_origin_to_link_tf = inv_tf(np.matrix(link_to_stl_origin_tf))
 
     # Gets the part mass.
     mass = part_dynamic.mass[0]
@@ -918,7 +918,7 @@ def get_urdf_part(
     # identity matrix for the principal axes.
     # principal_axes = part_dynamic.principal_axes_in_frame(stl_origin_to_link_tf)
     # principal_axes_rpy = R.from_matrix(principal_axes).as_euler("xyz", degrees=False)
-    principal_axes_rpy = np.zeros(3)
+    principal_axes_rpy = (0.0, 0.0, 0.0)
 
     # Gets the part name.
     configuration = part_instance.configuration

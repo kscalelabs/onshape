@@ -23,7 +23,9 @@ def prepend_root_link(urdf_path: Path) -> None:
     tree = ET.parse(urdf_path)
     root = tree.getroot()
 
-    first_link_name = root.find(".//link").attrib["name"]
+    if (first_link := root.find(".//link")) is None:
+        raise ValueError("No link found in URDF")
+    first_link_name = first_link.attrib["name"]
 
     # Create the root link
     root_link = ET.Element("link", {"name": "base"})
