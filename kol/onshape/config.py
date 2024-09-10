@@ -90,8 +90,12 @@ class DownloadConfig:
         metadata={"help": "The directory to store the meshes."},
     )
     max_concurrent_requests: int = field(
-        default=3,
+        default=5,
         metadata={"help": "The maximum number of concurrent requests to make."},
+    )
+    api_post_wait: float = field(
+        default=0.0,
+        metadata={"help": "The number of seconds to wait after each API request."},
     )
     default_part_mass: float | None = field(
         default=None,

@@ -1245,7 +1245,12 @@ async def download(
     )
 
     if api is None:
-        api = CachedOnshapeApi(OnshapeClient(), cacher, max_concurrent_requests=config.max_concurrent_requests)
+        api = CachedOnshapeApi(
+            OnshapeClient(),
+            cacher,
+            max_concurrent_requests=config.max_concurrent_requests,
+            post_wait=config.api_post_wait,
+        )
 
     document = api.parse_url(document_url)
 

@@ -21,8 +21,14 @@ from kol.onshape.schema.part import PartDynamics, PartMetadata, ThumbnailInfo
 
 
 class CachedOnshapeApi(OnshapeApi):
-    def __init__(self, client: OnshapeClient, cacher: Cacher, max_concurrent_requests: int = 1) -> None:
-        super().__init__(client, max_concurrent_requests)
+    def __init__(
+        self,
+        client: OnshapeClient,
+        cacher: Cacher,
+        max_concurrent_requests: int = 1,
+        post_wait: float = 0.0,
+    ) -> None:
+        super().__init__(client, max_concurrent_requests, post_wait)
 
         self.cacher = cacher
 
