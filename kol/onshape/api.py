@@ -27,10 +27,16 @@ def escape_url(s: str) -> str:
 
 
 class OnshapeApi:
-    def __init__(self, client: OnshapeClient, max_concurrent_requests: int = 1) -> None:
+    def __init__(
+        self,
+        client: OnshapeClient,
+        max_concurrent_requests: int = 1,
+        post_wait: float = 0.0,
+    ) -> None:
         super().__init__()
         self.client = client
         self.semaphore = asyncio.Semaphore(max_concurrent_requests)
+        self.post_wait = post_wait
 
     def parse_url(self, document_url: str) -> DocumentInfo:
         return self.client.parse_url(document_url)
@@ -55,7 +61,12 @@ class OnshapeApi:
             ) as response:
                 await response.aread()
                 response.raise_for_status()
-                return response.json()
+                response_data = response.json()
+
+        if self.post_wait > 0.0:
+            await asyncio.sleep(self.post_wait)
+
+        return response_data
 
     async def get_document(self, did: str) -> Document:
         data = await self._request("get", f"/api/documents/{did}")
@@ -176,6 +187,9 @@ class OnshapeApi:
                 response.raise_for_status()
                 fp.write(data)
 
+        if self.post_wait > 0.0:
+            await asyncio.sleep(self.post_wait)
+
     async def list_thumbnails(self, document: DocumentInfo) -> ThumbnailInfo:
         path = f"/api/thumbnails/d/{document.document_id}/{document.item_kind}/{document.item_id}"
         data = await self._request("get", path)
@@ -213,3 +227,6 @@ class OnshapeApi:
                     response.raise_for_status()
                     async for chunk in response.aiter_bytes():
                         fp.write(chunk)
+
+        if self.post_wait > 0.0:
+            await asyncio.sleep(self.post_wait)
