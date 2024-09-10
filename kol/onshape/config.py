@@ -156,6 +156,10 @@ class PostprocessConfig:
         default=True,
         metadata={"help": "Simplifies the meshes when converting the URDF."},
     )
+    prepend_root_link: bool = field(
+        default=True,
+        metadata={"help": "Prepends the root link to the URDF."},
+    )
     voxel_size: float = field(
         default=0.00002,
         metadata={"help": "The voxel size to use for simplifying meshes."},

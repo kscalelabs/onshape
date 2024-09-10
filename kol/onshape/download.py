@@ -22,7 +22,6 @@ from typing import Any, Coroutine, Deque, Iterator, Literal, Sequence, TypeVar
 import networkx as nx
 import numpy as np
 import stl
-from scipy.spatial.transform import Rotation as R
 
 from kol.formats import urdf
 from kol.onshape.api import OnshapeApi

@@ -13,6 +13,7 @@ from kol.onshape.download import download
 from kol.passes.add_mjcf import convert_urdf_to_mjcf
 from kol.passes.make_convex_collision_mesh import get_convex_collision_meshes
 from kol.passes.merge_fixed_joints import get_merged_urdf
+from kol.passes.prepend_root_link import prepend_root_link
 from kol.passes.remove_collision_meshes import remove_collision_meshes
 from kol.passes.simplify_meshes import get_simplified_urdf
 from kol.passes.update_names import update_urdf_names
@@ -51,6 +52,10 @@ async def postprocess(
     # Simplifies the meshes in the URDF.
     if config.simplify_meshes:
         get_simplified_urdf(urdf_path, voxel_size=config.voxel_size)
+
+    # Prepends the root link to the URDF.
+    if config.prepend_root_link:
+        prepend_root_link(urdf_path)
 
     # Updates the names in the URDF.
     if config.update_names:
