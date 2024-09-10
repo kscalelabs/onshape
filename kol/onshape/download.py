@@ -294,6 +294,18 @@ def get_graph(
         graph.add_node(key)
 
     def add_edge_safe(node_a: Key, node_b: Key, joint: Key) -> None:
+        if node_a not in key_to_part_instance:
+            logger.warning(
+                'Part instance "%s" not found in key to part instance mapping',
+                key_namer(node_a, None, " : ", False),
+            )
+            return
+        if node_b not in key_to_part_instance:
+            logger.warning(
+                'Part instance "%s" not found in key to part instance mapping',
+                key_namer(node_b, None, " : ", False),
+            )
+            return
         part_instance_a = key_to_part_instance[node_a]
         part_instance_b = key_to_part_instance[node_b]
         if part_instance_a.suppressed or part_instance_b.suppressed:
