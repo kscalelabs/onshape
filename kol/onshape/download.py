@@ -411,7 +411,7 @@ def get_joint_list(
             continue
 
         if (num_entities := len(mate_feature.featureData.matedEntities)) != 2:
-            logger.warning("Mate feature \"%s\" has %d entity", key_namer(joint_key, None, " : ", False), num_entities)
+            logger.warning('Mate feature "%s" has %d entity', key_namer(joint_key, None, " : ", False), num_entities)
             continue
 
         lhs_entity, rhs_entity = mate_feature.featureData.matedEntities
@@ -799,7 +799,9 @@ async def check_document(
     # Checks that the joint limits are defined for all relevant joints.
     missing_joint_limits = [joint for joint in joints if not has_valid_joint_limits(joint, joint_limits, key_to_euid)]
     if missing_joint_limits:
-        missing_joint_names = "".join(f"\n * {key_namer(joint.joint_key, None)}" for joint in missing_joint_limits)
+        missing_joint_names = "".join(
+            f"\n * {key_namer(joint.joint_key, None, ' : ', False)}" for joint in missing_joint_limits
+        )
         raise FailedCheckError(
             f"Missing joint limits for {len(missing_joint_limits)} joints: {missing_joint_names}",
             suggestions=[
