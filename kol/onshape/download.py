@@ -22,7 +22,6 @@ from typing import Any, Coroutine, Deque, Iterator, Literal, Sequence, TypeVar
 import networkx as nx
 import numpy as np
 import stl
-from scipy.spatial.transform import Rotation as R
 
 from kol.formats import urdf
 from kol.onshape.api import OnshapeApi
@@ -885,15 +884,14 @@ def get_urdf_part(
         raise ValueError(f"Part {part_name} has no color.")
     part_dynamic = doc.part_dynamics[part_instance.euid].bodies[part.partId]
 
-    # If the part is the root part, move the STL to be relative to the
-    # center of mass and principle inertia axes, otherwise move it to
-    # the origin of the part frame.
-    com_to_part_tf = np.eye(4)
-    com_to_part_tf[:3, 3] = -np.array(part_dynamic.center_of_mass).reshape(3)
+    # If the part is the root part, move the STL so that its origin is at the
+    # center of mass.
     if joint is None:
-        stl_origin_to_part_tf = com_to_part_tf
+        link_to_stl_origin_tf = np.eye(4)
+        link_to_stl_origin_tf[:3, 3] = np.array(part_dynamic.center_of_mass).reshape(3)
     else:
-        stl_origin_to_part_tf = inv_tf(joint.child_entity.matedCS.part_to_mate_tf)
+        link_to_stl_origin_tf = joint.child_entity.matedCS.part_to_mate_tf
+    stl_origin_to_link_tf = inv_tf(np.matrix(link_to_stl_origin_tf))
 
     # Gets the part mass.
     mass = part_dynamic.mass[0]
@@ -905,19 +903,22 @@ def get_urdf_part(
         mass = config.default_part_mass
         uses_default_mass = True
 
-    # Move the mesh origin and dynamics from the part frame to the parent
-    # joint frame (since URDF expects this by convention).
+    # We update the STL mesh so that its origin is at the joint frame.
     mesh_origin = urdf.Origin.zero_origin()
-    center_of_mass = part_dynamic.center_of_mass_in_frame(stl_origin_to_part_tf)
+    center_of_mass = part_dynamic.center_of_mass_in_frame(stl_origin_to_link_tf)
 
     if uses_default_mass:
-        inertia_transformed = np.zeros((3, 3))
+        inertia_transformed = np.eye(3)
     else:
         inertia = part_dynamic.inertia_matrix
-        inertia_transformed = transform_inertia_tensor(inertia, np.matrix(stl_origin_to_part_tf[:3, :3]))
+        inertia_transformed = transform_inertia_tensor(inertia, np.matrix(stl_origin_to_link_tf[:3, :3]))
 
-    principal_axes = part_dynamic.principal_axes_in_frame(stl_origin_to_part_tf)
-    principal_axes_rpy = R.from_matrix(principal_axes).as_euler("xyz", degrees=False)
+    # Since we are already transforming the inertia tensor so that the
+    # principal axes are aligned with the link frame, we can just use the
+    # identity matrix for the principal axes.
+    # principal_axes = part_dynamic.principal_axes_in_frame(stl_origin_to_link_tf)
+    # principal_axes_rpy = R.from_matrix(principal_axes).as_euler("xyz", degrees=False)
+    principal_axes_rpy = (0.0, 0.0, 0.0)
 
     # Gets the part name.
     configuration = part_instance.configuration
@@ -956,7 +957,7 @@ def get_urdf_part(
         ),
     )
 
-    return urdf_part_link, stl_origin_to_part_tf, configuration
+    return urdf_part_link, stl_origin_to_link_tf, configuration
 
 
 def get_urdf_joint(
@@ -1049,7 +1050,7 @@ def get_urdf_joint(
                 parent=parent,
                 child=child,
                 origin=origin,
-                axis=urdf.Axis((0.0, 0.0, 1.0)),
+                axis=urdf.Axis((0.0, 0.0, -1.0 if joint.lhs_is_first else 1.0)),
                 limits=urdf.JointLimits(
                     effort=effort,
                     velocity=velocity,
@@ -1088,7 +1089,7 @@ def get_urdf_joint(
                 parent=parent,
                 child=child,
                 origin=origin,
-                axis=urdf.Axis((0.0, 0.0, 1.0)),
+                axis=urdf.Axis((0.0, 0.0, -1.0 if joint.lhs_is_first else 1.0)),
                 limits=urdf.JointLimits(
                     effort=effort,
                     velocity=velocity,
@@ -1155,7 +1156,11 @@ async def save_urdf(
 
     # Gets the root link in the URDF.
     urdf_parts: list[urdf.Link | urdf.BaseJoint] = []
-    part_link, root_stl_origin_to_part_tf, configuration = get_urdf_part(doc, doc.central_node, mesh_dir_name)
+    part_link, root_stl_origin_to_part_tf, configuration = get_urdf_part(
+        doc=doc,
+        key=doc.central_node,
+        mesh_dir_name=mesh_dir_name,
+    )
     urdf_parts.append(part_link)
 
     # Keeps track of the parent STL origin to part transformation matrices.
@@ -1167,10 +1172,10 @@ async def save_urdf(
         joint_tf, _ = stl_origin_to_part_tfs[joint.parent]
         urdf_joint = get_urdf_joint(doc, joint, joint_tf, config=config)
         urdf_link, stl_origin_to_part_tf, configuration = get_urdf_part(
-            doc,
-            joint.child,
-            mesh_dir_name,
-            joint,
+            doc=doc,
+            key=joint.child,
+            mesh_dir_name=mesh_dir_name,
+            joint=joint,
             config=config,
         )
         stl_origin_to_part_tfs[joint.child] = (stl_origin_to_part_tf, configuration)
