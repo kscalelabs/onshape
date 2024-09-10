@@ -106,8 +106,10 @@ def pybullet_main(args: Sequence[str] | None = None) -> None:
     # Make the robot see-through.
     joint_ids = [i for i in range(p.getNumJoints(robot))] + [-1]
     if parsed_args.see_thru:
+        shape_data = p.getVisualShapeData(robot)
         for i in joint_ids:
-            p.changeVisualShape(robot, i, rgbaColor=[1, 1, 1, 0.5])
+            prev_color = shape_data[i][-1]
+            p.changeVisualShape(robot, i, rgbaColor=prev_color[:3] + (0.9,))
 
     def draw_box(pt: list[list[float]], color: tuple[float, float, float], obj_id: int, link_id: int) -> None:
         assert len(pt) == 8
@@ -136,14 +138,15 @@ def pybullet_main(args: Sequence[str] | None = None) -> None:
             if mass <= 0:
                 continue
             inertia = dynamics_info[2]
-            ixx = inertia[0]
-            iyy = inertia[1]
-            izz = inertia[2]
-            box_scale_x = 0.5 * math.sqrt(6 * (izz + iyy - ixx) / mass)
-            box_scale_y = 0.5 * math.sqrt(6 * (izz + ixx - iyy) / mass)
-            box_scale_z = 0.5 * math.sqrt(6 * (ixx + iyy - izz) / mass)
 
+            # Calculate box dimensions.
+            ixx, iyy, izz = inertia[0], inertia[1], inertia[2]
+            box_scale_x = math.sqrt(6 * (iyy + izz - ixx) / mass) / 2
+            box_scale_y = math.sqrt(6 * (ixx + izz - iyy) / mass) / 2
+            box_scale_z = math.sqrt(6 * (ixx + iyy - izz) / mass) / 2
             half_extents = [box_scale_x, box_scale_y, box_scale_z]
+
+            # Create box vertices in local inertia frame
             pt = [
                 [half_extents[0], half_extents[1], half_extents[2]],
                 [-half_extents[0], half_extents[1], half_extents[2]],
@@ -154,6 +157,7 @@ def pybullet_main(args: Sequence[str] | None = None) -> None:
                 [half_extents[0], -half_extents[1], -half_extents[2]],
                 [-half_extents[0], -half_extents[1], -half_extents[2]],
             ]
+
             draw_box(pt, (1, 0, 0), robot, i)
 
     # Show joint controller.
@@ -179,16 +183,17 @@ def pybullet_main(args: Sequence[str] | None = None) -> None:
             p.setJointMotorControl2(robot, joint_id, p.POSITION_CONTROL, zero_position)
 
     def reset_camera(position: int) -> None:
+        height = parsed_args.start_height if parsed_args.fixed_base else 0
         camera_positions = {
-            1: (2.0, 0, -30, [0, 0, parsed_args.start_height / 2]),  # Default view
-            2: (2.0, 90, -30, [0, 0, parsed_args.start_height / 2]),  # Side view
-            3: (2.0, 180, -30, [0, 0, parsed_args.start_height / 2]),  # Back view
-            4: (2.0, 270, -30, [0, 0, parsed_args.start_height / 2]),  # Other side view
-            5: (2.0, 0, 0, [0, 0, parsed_args.start_height * 2]),  # Front level view
-            6: (2.0, 0, -80, [0, 0, parsed_args.start_height / 2]),  # Top-down view
-            7: (1.5, 45, -45, [0, 0, parsed_args.start_height / 2]),  # Closer angled view
-            8: (3.0, 30, -30, [0, 0, parsed_args.start_height / 2]),  # Further angled view
-            9: (2.0, 0, 30, [0, 0, parsed_args.start_height / 2]),  # Low angle view
+            1: (2.0, 0, -30, [0, 0, height]),  # Default view
+            2: (2.0, 90, -30, [0, 0, height]),  # Side view
+            3: (2.0, 180, -30, [0, 0, height]),  # Back view
+            4: (2.0, 270, -30, [0, 0, height]),  # Other side view
+            5: (2.0, 0, 0, [0, 0, height]),  # Front level view
+            6: (2.0, 0, -80, [0, 0, height]),  # Top-down view
+            7: (1.5, 45, -45, [0, 0, height]),  # Closer angled view
+            8: (3.0, 30, -30, [0, 0, height]),  # Further angled view
+            9: (2.0, 0, 30, [0, 0, height]),  # Low angle view
         }
 
         if position in camera_positions:
