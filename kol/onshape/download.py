@@ -410,8 +410,8 @@ def get_joint_list(
         if mate_feature.suppressed:
             continue
 
-        if len(mate_feature.featureData.matedEntities) == 1:
-            logger.warning("Mate feature %s has only one entity", mate_feature.featureData.name)
+        if (num_entities := len(mate_feature.featureData.matedEntities)) != 2:
+            logger.warning("Mate feature \"%s\" has %d entity", key_namer(joint_key, None, " : ", False), num_entities)
             continue
 
         lhs_entity, rhs_entity = mate_feature.featureData.matedEntities
