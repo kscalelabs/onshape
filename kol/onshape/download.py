@@ -856,7 +856,6 @@ def get_urdf_part(
     key: Key,
     mesh_dir_name: str,
     joint: Joint | None = None,
-    parent_stl_origin_to_part_tf: np.ndarray | None = None,
     *,
     config: DownloadConfig | None = None,
 ) -> tuple[urdf.Link, np.ndarray, str]:
@@ -868,8 +867,6 @@ def get_urdf_part(
         mesh_dir: The directory to save the mesh files.
         mesh_dir_name: The name of the mesh directory.
         joint: The joint to use.
-        parent_stl_origin_to_part_tf: The transformation matrix from the parent
-            STL origin to the parent part frame.
         config: The converter configuration.
 
     Returns:
@@ -1180,7 +1177,6 @@ async def save_urdf(
             key=joint.child,
             mesh_dir_name=mesh_dir_name,
             joint=joint,
-            parent_stl_origin_to_part_tf=joint_tf,
             config=config,
         )
         stl_origin_to_part_tfs[joint.child] = (stl_origin_to_part_tf, configuration)
