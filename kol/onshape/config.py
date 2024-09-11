@@ -61,6 +61,14 @@ class DownloadConfig:
         default=5.0,
         metadata={"help": "The default velocity limit for revolute joints."},
     )
+    default_revolute_joint_limits: tuple[float, float] | None = field(
+        default=None,
+        metadata={"help": "The default joint limits to use for joints without limits."},
+    )
+    default_prismatic_joint_limits: tuple[float, float] | None = field(
+        default=None,
+        metadata={"help": "The default joint limits to use for joints without limits."},
+    )
     suffix_to_joint_effort: dict[str, float] = field(
         default_factory=lambda: {},
         metadata={"help": "The suffix to joint effort mapping."},
