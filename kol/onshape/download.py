@@ -66,6 +66,7 @@ def clean_name(name: str) -> str:
     name = name.replace("<", "(").replace(">", ")")
     # name = re.sub(r"[<>]", "", name)
     name = re.sub(r"\s+", "_", name)
+    name = re.sub(r"[/\\]+", "_", name)
     return name
 
 
@@ -111,7 +112,7 @@ class FailedCheckError(ValueError):
         if self.extra_msgs:
             full_msg += "\n\n" + "\n".join(self.extra_msgs)
         if self.suggestions:
-            full_msg += "\n\nSuggestions:\n" + "".join(f" * {s}" for s in self.suggestions)
+            full_msg += "\n\nSuggestions:" + "".join(f"\n * {s}" for s in self.suggestions)
         if self.orig_errs:
             for orig_err in self.orig_errs:
                 full_msg += f"\n\nOriginal error:\n{orig_err}"
@@ -638,7 +639,12 @@ def has_valid_joint_limits(
     joint: Joint,
     joint_limits: dict[ElementUid, JointLimits],
     key_to_euid: dict[Key, ElementUid],
+    *,
+    config: DownloadConfig | None = None,
 ) -> bool:
+    if config is None:
+        config = DownloadConfig()
+
     joint_assembly_id, feature_id = key_to_euid[joint.joint_key[:-1]], joint.joint_key[-1]
     joint_info_key = ElementUid(
         document_id=joint_assembly_id.document_id,
@@ -649,10 +655,14 @@ def has_valid_joint_limits(
 
     match joint.mate_type:
         case MateType.REVOLUTE:
+            if config.default_revolute_joint_limits is not None:
+                return True
             if (limits := joint_limits.get(joint_info_key)) is None:
                 return False
             return limits.axial_z_min_expression is not None and limits.axial_z_max_expression is not None
         case MateType.SLIDER:
+            if config.default_prismatic_joint_limits is not None:
+                return True
             if (limits := joint_limits.get(joint_info_key)) is None:
                 return False
             return limits.z_min_expression is not None and limits.z_max_expression is not None
@@ -797,7 +807,16 @@ async def check_document(
     joint_limits = await get_joint_limits(assembly, api)
 
     # Checks that the joint limits are defined for all relevant joints.
-    missing_joint_limits = [joint for joint in joints if not has_valid_joint_limits(joint, joint_limits, key_to_euid)]
+    missing_joint_limits = [
+        joint
+        for joint in joints
+        if not has_valid_joint_limits(
+            joint,
+            joint_limits,
+            key_to_euid,
+            config=config,
+        )
+    ]
     if missing_joint_limits:
         missing_joint_names = "".join(
             f"\n * {key_namer(joint.joint_key, None, ' : ', False)}" for joint in missing_joint_limits
@@ -806,6 +825,7 @@ async def check_document(
             f"Missing joint limits for {len(missing_joint_limits)} joints: {missing_joint_names}",
             suggestions=[
                 "Check that the joint limits are defined for all relevant joints.",
+                "Replicating joints currently seems to be unsupported",
             ],
         )
 
@@ -1010,7 +1030,7 @@ def get_urdf_joint(
         element_id=joint_assembly_id.element_id,
         part_id=feature_id,
     )
-    joint_limits = doc.joint_limits[joint_info_key]
+    joint_limits = doc.joint_limits.get(joint_info_key)
     expression_resolver = ExpressionResolver(joint_assembly_id.configuration)
 
     def resolve(expression: str | None) -> float | None:
@@ -1047,8 +1067,15 @@ def get_urdf_joint(
             parent, child = doc.key_namer(joint.parent, "link"), doc.key_namer(joint.child, "link")
             mimic_joint = doc.mate_relations.get(joint.joint_key)
 
-            min_value = resolve(joint_limits.axial_z_min_expression)
-            max_value = resolve(joint_limits.axial_z_max_expression)
+            if joint_limits is None:
+                min_value, max_value = (
+                    (None, None)
+                    if config.default_revolute_joint_limits is None
+                    else config.default_revolute_joint_limits
+                )
+            else:
+                min_value = resolve(joint_limits.axial_z_min_expression)
+                max_value = resolve(joint_limits.axial_z_max_expression)
 
             if min_value is None or max_value is None:
                 raise ValueError(f"Revolute joint {name} ({parent} -> {child}) does not have limits defined.")
@@ -1086,8 +1113,15 @@ def get_urdf_joint(
             parent, child = doc.key_namer(joint.parent, "link"), doc.key_namer(joint.child, "link")
             mimic_joint = doc.mate_relations.get(joint.joint_key)
 
-            min_value = resolve(joint_limits.z_min_expression)
-            max_value = resolve(joint_limits.z_max_expression)
+            if joint_limits is None:
+                min_value, max_value = (
+                    (None, None)
+                    if config.default_prismatic_joint_limits is None
+                    else config.default_prismatic_joint_limits
+                )
+            else:
+                min_value = resolve(joint_limits.axial_z_min_expression)
+                max_value = resolve(joint_limits.axial_z_max_expression)
 
             if min_value is None or max_value is None:
                 raise ValueError(f"Slider joint {name} ({parent} -> {child}) does not have limits defined.")
