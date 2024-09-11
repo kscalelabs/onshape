@@ -112,7 +112,7 @@ class FailedCheckError(ValueError):
         if self.extra_msgs:
             full_msg += "\n\n" + "\n".join(self.extra_msgs)
         if self.suggestions:
-            full_msg += "\n\nSuggestions:\n" + "".join(f" * {s}" for s in self.suggestions)
+            full_msg += "\n\nSuggestions:" + "".join(f"\n * {s}" for s in self.suggestions)
         if self.orig_errs:
             for orig_err in self.orig_errs:
                 full_msg += f"\n\nOriginal error:\n{orig_err}"
@@ -1068,9 +1068,11 @@ def get_urdf_joint(
             mimic_joint = doc.mate_relations.get(joint.joint_key)
 
             if joint_limits is None:
-                if config.default_revolute_joint_limits is None:
-                    raise ValueError(f"Revolute joint {name} ({parent} -> {child}) does not have limits defined.")
-                min_value, max_value = config.default_revolute_joint_limits
+                min_value, max_value = (
+                    (None, None)
+                    if config.default_revolute_joint_limits is None
+                    else config.default_revolute_joint_limits
+                )
             else:
                 min_value = resolve(joint_limits.axial_z_min_expression)
                 max_value = resolve(joint_limits.axial_z_max_expression)
@@ -1112,9 +1114,11 @@ def get_urdf_joint(
             mimic_joint = doc.mate_relations.get(joint.joint_key)
 
             if joint_limits is None:
-                if config.default_prismatic_joint_limits is None:
-                    raise ValueError(f"Prismatic joint {name} ({parent} -> {child}) does not have limits defined.")
-                min_value, max_value = config.default_prismatic_joint_limits
+                min_value, max_value = (
+                    (None, None)
+                    if config.default_prismatic_joint_limits is None
+                    else config.default_prismatic_joint_limits
+                )
             else:
                 min_value = resolve(joint_limits.axial_z_min_expression)
                 max_value = resolve(joint_limits.axial_z_max_expression)
