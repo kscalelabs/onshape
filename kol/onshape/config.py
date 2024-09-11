@@ -55,11 +55,11 @@ class DownloadConfig:
     )
     default_revolute_joint_effort: float = field(
         default=80.0,
-        metadata={"help": "The default effort limit for revolute joints."},
+        metadata={"help": "The default effort limit for revolute joints, in Nm."},
     )
     default_revolute_joint_velocity: float = field(
         default=5.0,
-        metadata={"help": "The default velocity limit for revolute joints."},
+        metadata={"help": "The default velocity limit for revolute joints, in rad/s."},
     )
     default_revolute_joint_limits: tuple[float, float] | None = field(
         default=None,
