@@ -825,6 +825,7 @@ async def check_document(
             f"Missing joint limits for {len(missing_joint_limits)} joints: {missing_joint_names}",
             suggestions=[
                 "Check that the joint limits are defined for all relevant joints.",
+                "Replicating joints currently seems to be unsupported",
             ],
         )
 
