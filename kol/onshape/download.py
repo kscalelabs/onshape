@@ -1050,7 +1050,7 @@ def get_urdf_joint(
         return effort, velocity
 
     def get_joint_limits(
-        joint_limits: JointLimits,
+        joint_limits: JointLimits | None,
         default_limits: tuple[float, float] | None,
         is_axial: bool,
     ) -> tuple[float | None, float | None]:
