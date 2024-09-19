@@ -1049,6 +1049,28 @@ def get_urdf_joint(
                 break
         return effort, velocity
 
+    def get_joint_limits(
+        joint_limits: JointLimits,
+        default_limits: tuple[float, float] | None,
+        is_axial: bool,
+    ) -> tuple[float | None, float | None]:
+        min_value: float | None = None
+        max_value: float | None = None
+        if joint_limits is not None:
+            if is_axial:
+                min_value = resolve(joint_limits.axial_z_min_expression)
+                max_value = resolve(joint_limits.axial_z_max_expression)
+            else:
+                min_value = resolve(joint_limits.z_min_expression)
+                max_value = resolve(joint_limits.z_max_expression)
+        if min_value is None or max_value is None:
+            new_min_value, new_max_value = (None, None) if default_limits is None else default_limits
+            if min_value is None:
+                min_value = new_min_value
+            if max_value is None:
+                max_value = new_max_value
+        return min_value, max_value
+
     name = doc.key_namer(joint.joint_key, "joint")
     origin = urdf.Origin.from_matrix(parent_stl_origin_to_mate_tf)
     mate_type = joint.mate_type
@@ -1067,21 +1089,7 @@ def get_urdf_joint(
             parent, child = doc.key_namer(joint.parent, "link"), doc.key_namer(joint.child, "link")
             mimic_joint = doc.mate_relations.get(joint.joint_key)
 
-            min_value: float | None = None
-            max_value: float | None = None
-            if joint_limits is not None:
-                min_value = resolve(joint_limits.axial_z_min_expression)
-                max_value = resolve(joint_limits.axial_z_max_expression)
-            if min_value is None or max_value is None:
-                new_min_value, new_max_value = (
-                    (None, None)
-                    if config.default_revolute_joint_limits is None
-                    else config.default_revolute_joint_limits
-                )
-                if min_value is None:
-                    min_value = new_min_value
-                if max_value is None:
-                    max_value = new_max_value
+            min_value, max_value = get_joint_limits(joint_limits, config.default_revolute_joint_limits, is_axial=False)
 
             if min_value is None or max_value is None:
                 raise ValueError(f"Revolute joint {name} ({parent} -> {child}) does not have limits defined.")
@@ -1119,21 +1127,7 @@ def get_urdf_joint(
             parent, child = doc.key_namer(joint.parent, "link"), doc.key_namer(joint.child, "link")
             mimic_joint = doc.mate_relations.get(joint.joint_key)
 
-            min_value: float | None = None
-            max_value: float | None = None
-            if joint_limits is not None:
-                min_value = resolve(joint_limits.axial_z_min_expression)
-                max_value = resolve(joint_limits.axial_z_max_expression)
-            if min_value is None or max_value is None:
-                new_min_value, new_max_value = (
-                    (None, None)
-                    if config.default_prismatic_joint_limits is None
-                    else config.default_prismatic_joint_limits
-                )
-                if min_value is None:
-                    min_value = new_min_value
-                if max_value is None:
-                    max_value = new_max_value
+            min_value, max_value = get_joint_limits(joint_limits, config.default_prismatic_joint_limits, is_axial=True)
 
             if min_value is None or max_value is None:
                 raise ValueError(f"Slider joint {name} ({parent} -> {child}) does not have limits defined.")
