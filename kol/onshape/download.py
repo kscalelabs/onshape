@@ -1067,15 +1067,21 @@ def get_urdf_joint(
             parent, child = doc.key_namer(joint.parent, "link"), doc.key_namer(joint.child, "link")
             mimic_joint = doc.mate_relations.get(joint.joint_key)
 
-            if joint_limits is None:
-                min_value, max_value = (
+            min_value: float | None = None
+            max_value: float | None = None
+            if joint_limits is not None:
+                min_value = resolve(joint_limits.axial_z_min_expression)
+                max_value = resolve(joint_limits.axial_z_max_expression)
+            if min_value is None or max_value is None:
+                new_min_value, new_max_value = (
                     (None, None)
                     if config.default_revolute_joint_limits is None
                     else config.default_revolute_joint_limits
                 )
-            else:
-                min_value = resolve(joint_limits.axial_z_min_expression)
-                max_value = resolve(joint_limits.axial_z_max_expression)
+                if min_value is None:
+                    min_value = new_min_value
+                if max_value is None:
+                    max_value = new_max_value
 
             if min_value is None or max_value is None:
                 raise ValueError(f"Revolute joint {name} ({parent} -> {child}) does not have limits defined.")
@@ -1113,15 +1119,21 @@ def get_urdf_joint(
             parent, child = doc.key_namer(joint.parent, "link"), doc.key_namer(joint.child, "link")
             mimic_joint = doc.mate_relations.get(joint.joint_key)
 
-            if joint_limits is None:
-                min_value, max_value = (
+            min_value: float | None = None
+            max_value: float | None = None
+            if joint_limits is not None:
+                min_value = resolve(joint_limits.axial_z_min_expression)
+                max_value = resolve(joint_limits.axial_z_max_expression)
+            if min_value is None or max_value is None:
+                new_min_value, new_max_value = (
                     (None, None)
                     if config.default_prismatic_joint_limits is None
                     else config.default_prismatic_joint_limits
                 )
-            else:
-                min_value = resolve(joint_limits.axial_z_min_expression)
-                max_value = resolve(joint_limits.axial_z_max_expression)
+                if min_value is None:
+                    min_value = new_min_value
+                if max_value is None:
+                    max_value = new_max_value
 
             if min_value is None or max_value is None:
                 raise ValueError(f"Slider joint {name} ({parent} -> {child}) does not have limits defined.")
