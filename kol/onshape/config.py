@@ -109,6 +109,10 @@ class DownloadConfig:
         default=None,
         metadata={"help": "The default mass to use for parts, if mass is missing."},
     )
+    min_inertia_value: float = field(
+        default=1e-6,
+        metadata={"help": "The minimum value to use for the inertia matrix."},
+    )
     debug: bool = field(
         default=False,
         metadata={"help": "Enables debug mode."},
@@ -183,6 +187,14 @@ class PostprocessConfig:
     remove_collision_meshes: bool = field(
         default=False,
         metadata={"help": "Removes collision meshes from the URDF."},
+    )
+    fix_inertias: bool = field(
+        default=True,
+        metadata={"help": "Fixes the inertias in the URDF."},
+    )
+    min_inertia_eigval: float = field(
+        default=1e-7,
+        metadata={"help": "The minimum value to use for the inertia matrix."},
     )
     add_mjcf: bool = field(
         default=True,
