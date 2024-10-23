@@ -72,7 +72,7 @@ async def postprocess(
 
     # Fixes the inertias in the URDF.
     if config.fix_inertias:
-        fix_inertias(urdf_path, epsilon=config.min_inertia_value)
+        fix_inertias(urdf_path, epsilon=config.min_inertia_eigval)
 
     # Adds the MJCF XML to the package.
     paths = [urdf_path]
