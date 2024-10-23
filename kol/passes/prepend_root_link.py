@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_ORIGIN = {"rpy": "0 0 0", "xyz": "0 0 0"}
 DEFAULT_MASS = {"value": "0.001"}
-DEFAULT_INERTIA = {"ixx": "0.0001", "ixy": "0", "ixz": "0", "iyy": "0.0001", "iyz": "0", "izz": "0.0001"}
+DEFAULT_INERTIA = {"ixx": "0.000001", "ixy": "0", "ixz": "0", "iyy": "0.000001", "iyz": "0", "izz": "0.000001"}
 
 
 def prepend_root_link(urdf_path: Path) -> None:

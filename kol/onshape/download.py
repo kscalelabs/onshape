@@ -947,6 +947,9 @@ def get_urdf_part(
         inertia = part_dynamic.inertia_matrix
         inertia_transformed = transform_inertia_tensor(inertia, np.matrix(stl_origin_to_link_tf[:3, :3]))
 
+    # Ensures that the inertia tensor is positive definite.
+    np.fill_diagonal(inertia_transformed, np.maximum(np.diagonal(inertia_transformed), config.min_inertia_value))
+
     # Since we are already transforming the inertia tensor so that the
     # principal axes are aligned with the link frame, we can just use the
     # identity matrix for the principal axes.

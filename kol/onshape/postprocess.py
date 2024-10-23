@@ -11,6 +11,7 @@ from typing import Sequence
 from kol.onshape.config import ConverterConfig, PostprocessConfig
 from kol.onshape.download import download
 from kol.passes.add_mjcf import convert_urdf_to_mjcf
+from kol.passes.fix_inertias import fix_inertias
 from kol.passes.make_convex_collision_mesh import get_convex_collision_meshes
 from kol.passes.merge_fixed_joints import get_merged_urdf
 from kol.passes.prepend_root_link import prepend_root_link
@@ -68,6 +69,10 @@ async def postprocess(
     # Removes collision meshes.
     if config.remove_collision_meshes:
         remove_collision_meshes(urdf_path)
+
+    # Fixes the inertias in the URDF.
+    if config.fix_inertias:
+        fix_inertias(urdf_path, epsilon=config.min_inertia_value)
 
     # Adds the MJCF XML to the package.
     paths = [urdf_path]
