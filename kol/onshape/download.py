@@ -1092,7 +1092,7 @@ def get_urdf_joint(
             parent, child = doc.key_namer(joint.parent, "link"), doc.key_namer(joint.child, "link")
             mimic_joint = doc.mate_relations.get(joint.joint_key)
 
-            min_value, max_value = get_joint_limits(joint_limits, config.default_revolute_joint_limits, is_axial=False)
+            min_value, max_value = get_joint_limits(joint_limits, config.default_revolute_joint_limits, is_axial=True)
 
             if min_value is None or max_value is None:
                 raise ValueError(f"Revolute joint {name} ({parent} -> {child}) does not have limits defined.")
@@ -1130,7 +1130,7 @@ def get_urdf_joint(
             parent, child = doc.key_namer(joint.parent, "link"), doc.key_namer(joint.child, "link")
             mimic_joint = doc.mate_relations.get(joint.joint_key)
 
-            min_value, max_value = get_joint_limits(joint_limits, config.default_prismatic_joint_limits, is_axial=True)
+            min_value, max_value = get_joint_limits(joint_limits, config.default_prismatic_joint_limits, is_axial=False)
 
             if min_value is None or max_value is None:
                 raise ValueError(f"Slider joint {name} ({parent} -> {child}) does not have limits defined.")
