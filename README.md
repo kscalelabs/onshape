@@ -22,4 +22,4 @@
 
 # K-Scale OnShape Library
 
-Welcome to the K-Scale OnShape Library! For more information, see the [documentation](https://docs.kscale.dev/software/utils/onshape).
+Welcome to the K-Scale OnShape Library! For more information, see the [documentation](https://docs.kscale.dev/utils/onshape).
