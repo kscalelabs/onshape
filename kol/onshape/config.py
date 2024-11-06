@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Self, Sequence, cast
 
-from omegaconf import MISSING, OmegaConf
+from omegaconf import MISSING, ConfigKeyError, OmegaConf
 
 from kol.onshape.schema.assembly import Key, MatedEntity, MateType
 
@@ -139,8 +139,14 @@ class DownloadConfig:
             with config_path.open("r") as f:
                 file_cfg = OmegaConf.load(f)
                 cfg = cast(Self, OmegaConf.merge(cfg, file_cfg))
-        cli_cfg = OmegaConf.from_cli(remaining_args)
-        cfg = cast(Self, OmegaConf.merge(cfg, cli_cfg))
+        try:
+            cli_cfg = OmegaConf.from_cli(remaining_args)
+            cfg = cast(Self, OmegaConf.merge(cfg, cli_cfg))
+        except ConfigKeyError as e:
+            raise ValueError(
+                "You tried to supply config override arguments that are not valid for this config. If you meant to "
+                "specify the output directory, use `-o <output_dir>` or `--output-dir <output_dir>` instead."
+            ) from e
         if cfg.invalidate_cache_after_n_minutes is None and parsed_args.no_cache:
             cfg.invalidate_cache_after_n_minutes = 0.0
         return cfg
@@ -226,8 +232,14 @@ class PostprocessConfig:
             with config_path.open("r") as f:
                 file_cfg = OmegaConf.load(f)
                 cfg = cast(Self, OmegaConf.merge(cfg, file_cfg))
-        cli_cfg = OmegaConf.from_cli(remaining_args)
-        cfg = cast(Self, OmegaConf.merge(cfg, cli_cfg))
+        try:
+            cli_cfg = OmegaConf.from_cli(remaining_args)
+            cfg = cast(Self, OmegaConf.merge(cfg, cli_cfg))
+        except ConfigKeyError as e:
+            raise ValueError(
+                "You tried to supply config override arguments that are not valid for this config. If you meant to "
+                "specify the output directory, use `-o <output_dir>` or `--output-dir <output_dir>` instead."
+            ) from e
         return cfg
 
 
@@ -254,8 +266,14 @@ class ConverterConfig(DownloadConfig, PostprocessConfig):
             with config_path.open("r") as f:
                 file_cfg = OmegaConf.load(f)
                 cfg = cast(Self, OmegaConf.merge(cfg, file_cfg))
-        cli_cfg = OmegaConf.from_cli(remaining_args)
-        cfg = cast(Self, OmegaConf.merge(cfg, cli_cfg))
+        try:
+            cli_cfg = OmegaConf.from_cli(remaining_args)
+            cfg = cast(Self, OmegaConf.merge(cfg, cli_cfg))
+        except ConfigKeyError as e:
+            raise ValueError(
+                "You tried to supply config override arguments that are not valid for this config. If you meant to "
+                "specify the output directory, use `-o <output_dir>` or `--output-dir <output_dir>` instead."
+            ) from e
         if cfg.invalidate_cache_after_n_minutes is None and parsed_args.no_cache:
             cfg.invalidate_cache_after_n_minutes = 0.0
         return cfg
