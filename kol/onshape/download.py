@@ -471,7 +471,7 @@ async def get_joint_limits(assembly: Assembly, api: OnshapeApi) -> dict[ElementU
     for assembly_key, assembly_feature in assembly_features.items():
         for feature_state in assembly_feature.featureStates:
             if feature_state.value.message.featureStatus != FeatureStatus.OK:
-                logging.warn(
+                logger.warning(
                     "Feature %s has status %s",
                     feature_state.key,
                     feature_state.value.message.featureStatus,

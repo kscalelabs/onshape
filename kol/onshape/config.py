@@ -5,7 +5,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Self, Sequence, cast
 
-from omegaconf import MISSING, ConfigKeyError, OmegaConf
+from omegaconf import MISSING, OmegaConf
+from omegaconf.errors import ConfigKeyError
 
 from kol.onshape.schema.assembly import Key, MatedEntity, MateType
 
