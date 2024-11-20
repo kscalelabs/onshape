@@ -10,7 +10,7 @@ class ElementType(str, Enum):
     ASSEMBLY = "ASSEMBLY"
     PARTSTUDIO = "PARTSTUDIO"
     DRAWING = "DRAWING"
-    BLOG = "BLOB"
+    BLOB = "BLOB"
 
 
 class Element(BaseModel):
