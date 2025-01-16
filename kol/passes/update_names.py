@@ -80,9 +80,10 @@ def update_urdf_names(
             link.attrib["name"] = new_name
 
     # Cleans up material names.
-    for material in root.findall(".//material"):
-        if "name" in material.attrib:
-            material.attrib["name"] = get_unique_name(material.attrib["name"], name_set)
+    for tag_name in ("material", "geometry", "visual", "inertial", "collision"):
+        for tag in root.findall(f".//{tag_name}"):
+            if "name" in tag.attrib:
+                tag.attrib["name"] = get_unique_name(tag.attrib["name"], name_set)
 
     # Cleans up mesh STL names (note, this requires renaming the mesh files).
     new_mesh_paths: dict[str, Path] = {}
