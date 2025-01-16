@@ -257,6 +257,7 @@ class AssemblyMetadata(BaseModel):
 
 
 class PartBodyType(str, Enum):
+    sheet = "sheet"
     solid = "solid"
 
 
