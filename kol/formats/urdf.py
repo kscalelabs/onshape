@@ -244,12 +244,15 @@ class InertialLink:
     mass: float
     inertia: Inertia
     origin: Origin
+    name: str | None = None
 
     def to_xml(self, root: ET.Element | None = None) -> ET.Element:
         inertial = ET.Element("inertial") if root is None else ET.SubElement(root, "inertial")
         ET.SubElement(inertial, "mass", value=format_number(self.mass))
         self.inertia.to_xml(inertial)
         self.origin.to_xml(inertial)
+        if self.name is not None:
+            inertial.set("name", self.name)
         return inertial
 
 
@@ -298,9 +301,12 @@ class SphereGeometry(BaseGeometry):
 @dataclass
 class MeshGeometry(BaseGeometry):
     filename: str
+    name: str | None = None
 
     def to_xml(self, root: ET.Element | None = None) -> ET.Element:
         geometry = ET.Element("geometry") if root is None else ET.SubElement(root, "geometry")
+        if self.name is not None:
+            geometry.set("name", self.name)
         ET.SubElement(geometry, "mesh", filename=self.filename)
         return geometry
 
@@ -343,9 +349,12 @@ class VisualLink:
     origin: Origin
     geometry: BaseGeometry
     material: Material
+    name: str | None = None
 
     def to_xml(self, root: ET.Element | None = None) -> ET.Element:
         visual = ET.Element("visual") if root is None else ET.SubElement(root, "visual")
+        if self.name is not None:
+            visual.set("name", self.name)
         self.origin.to_xml(visual)
         self.geometry.to_xml(visual)
         self.material.to_xml(visual)
@@ -356,9 +365,12 @@ class VisualLink:
 class CollisionLink:
     origin: Origin
     geometry: BaseGeometry
+    name: str | None = None
 
     def to_xml(self, root: ET.Element | None = None) -> ET.Element:
         collision = ET.Element("collision") if root is None else ET.SubElement(root, "collision")
+        if self.name is not None:
+            collision.set("name", self.name)
         self.origin.to_xml(collision)
         self.geometry.to_xml(collision)
         return collision

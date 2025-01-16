@@ -55,6 +55,8 @@ from kol.utils.resolvers import ExpressionResolver
 
 logger = logging.getLogger(__name__)
 
+EPSILON = 1e-6
+
 T = TypeVar("T")
 Tk = TypeVar("Tk")
 Tv = TypeVar("Tv")
@@ -967,11 +969,15 @@ def get_urdf_part(
         name=urdf_link_name,
         visual=urdf.VisualLink(
             origin=mesh_origin,
-            geometry=urdf.MeshGeometry(filename=urdf_file_path),
+            geometry=urdf.MeshGeometry(
+                name=f"{urdf_link_name}_geometry",
+                filename=urdf_file_path,
+            ),
             material=urdf.Material(
                 name=f"{urdf_link_name}_material",
                 color=[c / 255.0 for c in part_color],
             ),
+            name=f"{urdf_link_name}_visual",
         ),
         inertial=urdf.InertialLink(
             origin=urdf.Origin(
@@ -987,10 +993,15 @@ def get_urdf_part(
                 iyz=float(inertia_transformed[1, 2]),
                 izz=float(inertia_transformed[2, 2]),
             ),
+            name=f"{urdf_link_name}_inertial",
         ),
         collision=urdf.CollisionLink(
             origin=mesh_origin,
-            geometry=urdf.MeshGeometry(filename=urdf_file_path),
+            geometry=urdf.MeshGeometry(
+                name=f"{urdf_link_name}_collision_geometry",
+                filename=urdf_file_path,
+            ),
+            name=f"{urdf_link_name}_collision",
         ),
     )
 
@@ -1096,6 +1107,8 @@ def get_urdf_joint(
 
             if min_value is None or max_value is None:
                 raise ValueError(f"Revolute joint {name} ({parent} -> {child}) does not have limits defined.")
+            if min_value >= max_value - EPSILON:
+                raise ValueError(f"Revolute joint {name} ({parent} -> {child}) has range [{min_value}, {max_value}].")
 
             effort, velocity = get_effort_and_velocity(
                 name,
@@ -1134,6 +1147,8 @@ def get_urdf_joint(
 
             if min_value is None or max_value is None:
                 raise ValueError(f"Slider joint {name} ({parent} -> {child}) does not have limits defined.")
+            if min_value >= max_value - EPSILON:
+                raise ValueError(f"Slider joint {name} ({parent} -> {child}) has range [{min_value}, {max_value}].")
 
             effort, velocity = get_effort_and_velocity(
                 name,

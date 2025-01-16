@@ -39,7 +39,7 @@ def prepend_root_link(urdf_path: Path) -> None:
     root_link.append(inertial)
 
     # Create the floating base joint
-    floating_base_joint = ET.Element("joint", {"name": "floating_base", "type": "fixed"})
+    floating_base_joint = ET.Element("joint", {"name": "floating_base", "type": "floating"})
     origin = ET.Element("origin", {"rpy": "0 0 0", "xyz": "0 0 0"})
     parent = ET.Element("parent", {"link": "base"})
     child = ET.Element("child", {"link": first_link_name})

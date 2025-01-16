@@ -12,6 +12,7 @@ class FeatureType(str, Enum):
     mate = "mate"
     mateRelation = "mateRelation"
     relation = "replicate"
+    empty = ""  # This is required when the assembly includes folders.
 
 
 class InferenceType(str, Enum):
