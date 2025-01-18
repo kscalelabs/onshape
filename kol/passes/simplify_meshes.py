@@ -13,11 +13,10 @@ def simplify_mesh(mesh_path: Path, voxel_size: float) -> tuple[int, int]:
     try:
         import open3d as o3d
     except ImportError:
-        logger.error(
+        raise ImportError(
             "Open3D is required to run this script. Install it with `pip install "
             "'kscale-onshape-library[open3d]'` to install the required dependencies."
         )
-        raise
 
     mesh = o3d.io.read_triangle_mesh(str(mesh_path))
     simple_mesh = mesh.simplify_vertex_clustering(

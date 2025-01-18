@@ -56,7 +56,7 @@ async def postprocess(
 
     # Prepends the root link to the URDF.
     if config.prepend_root_link:
-        prepend_root_link(urdf_path)
+        prepend_root_link(urdf_path, config.base_quaternion)
 
     # Updates the names in the URDF.
     if config.update_names:

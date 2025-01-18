@@ -99,8 +99,7 @@ class OnshapeApi:
 
     async def get_assembly(self, document: DocumentInfo, configuration: str = "default") -> Assembly:
         path = (
-            f"/api/assemblies/d/{document.document_id}/"
-            f"{document.item_kind}/{document.item_id}/e/{document.element_id}"
+            f"/api/assemblies/d/{document.document_id}/{document.item_kind}/{document.item_id}/e/{document.element_id}"
         )
         data = await self._request(
             "get",

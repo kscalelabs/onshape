@@ -14,11 +14,10 @@ def make_convex_collision_mesh(mesh_path: Path, output_mesh_path: Path) -> tuple
     try:
         import open3d as o3d
     except ImportError:
-        logger.error(
+        raise ImportError(
             "Open3D is required to run this script. Install it with `pip install "
             "'kscale-onshape-library[open3d]'` to install the required dependencies."
         )
-        raise
 
     mesh = o3d.io.read_triangle_mesh(str(mesh_path))
     hull, _ = mesh.compute_convex_hull()

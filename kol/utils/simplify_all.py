@@ -27,11 +27,10 @@ def simplify_all(urdf_path: Path, voxel_size: float, stats: Stats | None = None)
     try:
         import open3d as o3d
     except ImportError:
-        logger.error(
+        raise ImportError(
             "Open3D is required to run this script. Install it with `pip install "
             "'kscale-onshape-library[open3d]'` to install the required dependencies."
         )
-        raise
 
     def simplify_mesh(filepath: str, voxel_size: float) -> tuple[str, o3d.geometry.TriangleMesh, int, int]:
         """Simplifies a single mesh by clustering vertices."""
