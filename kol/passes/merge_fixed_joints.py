@@ -250,7 +250,11 @@ def fuse_child_into_parent(root: ET.Element, joint: ET.Element, urdf_dir: Path) 
         set_origin(grandchild_origin_element, grandchild_origin)
 
 
-def process_fixed_joints(urdf_etree: ET.ElementTree, urdf_path: Path) -> ET.ElementTree:
+def process_fixed_joints(
+    urdf_etree: ET.ElementTree,
+    urdf_path: Path,
+    ignore_merging_fixed_joints: list[str] | None = None,
+) -> ET.ElementTree:
     """Iteratively fuses all fixed joints until none remain.
 
     This greedily fuses all child links into their parent links at fixed joints,
@@ -259,26 +263,41 @@ def process_fixed_joints(urdf_etree: ET.ElementTree, urdf_path: Path) -> ET.Elem
     Args:
         urdf_etree: The URDF element tree.
         urdf_path: The path to the URDF file.
+        ignore_merging_fixed_joints: The names of the fixed joints to ignore
+            when merging.
 
     Returns:
         The URDF element tree with all fixed joints fused.
     """
     root = urdf_etree.getroot()
 
+    ignore_set = set([] if ignore_merging_fixed_joints is None else ignore_merging_fixed_joints)
+    visited_set: set[str] = set()
+
     while True:
-        joint = urdf_etree.find(".//joint[@type='fixed']")
-        if joint is None:
+        joints = [j for j in urdf_etree.findall(".//joint[@type='fixed']") if j.attrib["name"] not in visited_set]
+        if not joints:
             break
-        fuse_child_into_parent(root, joint, urdf_path.parent)
+        for joint in joints:
+            if joint.attrib["name"] in ignore_set:
+                visited_set.add(joint.attrib["name"])
+                continue
+            fuse_child_into_parent(root, joint, urdf_path.parent)
+
+    missed_ignored_joints = ignore_set - visited_set
+    if missed_ignored_joints:
+        raise ValueError(f"The following fixed joints were not processed: {missed_ignored_joints}")
 
     return urdf_etree
 
 
-def get_merged_urdf(urdf_path: Path) -> None:
+def get_merged_urdf(urdf_path: Path, ignore_merging_fixed_joints: list[str] | None = None) -> None:
     """Merges meshes at each fixed joints to avoid collision issues.
 
     Args:
         urdf_path: The path to the urdf file.
+        ignore_merging_fixed_joints: The names of the fixed joints to ignore
+            when merging.
 
     Returns:
         The path to the merged urdf file.
@@ -287,7 +306,7 @@ def get_merged_urdf(urdf_path: Path) -> None:
 
     # Process the fixed joints
     starting_joint_count = len(urdf_tree.findall(".//joint"))
-    merged_urdf = process_fixed_joints(urdf_tree, urdf_path)
+    merged_urdf = process_fixed_joints(urdf_tree, urdf_path, ignore_merging_fixed_joints)
     ending_joint_count = len(merged_urdf.findall(".//joint"))
     logger.info(
         "Removed %d / %d fixed joints (%.4f%% reduction).",

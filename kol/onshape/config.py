@@ -175,6 +175,10 @@ class PostprocessConfig:
         default=True,
         metadata={"help": "Merges fixed joints in the URDF."},
     )
+    ignore_merging_fixed_joints: list[str] = field(
+        default_factory=lambda: [],
+        metadata={"help": "The names of the fixed joints to ignore when merging (for example, IMU joints)."},
+    )
     simplify_meshes: bool = field(
         default=True,
         metadata={"help": "Simplifies the meshes when converting the URDF."},
