@@ -48,7 +48,7 @@ async def postprocess(
 
     # Merges all fixed joints in the URDF.
     if config.merge_fixed_joints:
-        get_merged_urdf(urdf_path)
+        get_merged_urdf(urdf_path, ignore_merging_fixed_joints=config.ignore_merging_fixed_joints)
 
     # Simplifies the meshes in the URDF.
     if config.simplify_meshes:
