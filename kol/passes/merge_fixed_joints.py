@@ -5,12 +5,13 @@ import logging
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Literal, get_args
+from typing import Literal, get_args
 
 import numpy as np
 from scipy.spatial.transform import Rotation as R
 
 from kol.formats.common import save_xml
+from kol.passes.utils import string_to_nparray
 from kol.utils.geometry import (
     Dynamics,
     apply_transform,
@@ -58,20 +59,6 @@ def get_part_mesh_path(element: ET.Element, urdf_dir: Path, kind: MeshKind | Non
     mesh_elem = find_not_null(geometry_elem, "mesh")
     filename = mesh_elem.attrib["filename"]
     return (urdf_dir / filename).resolve()
-
-
-def string_to_nparray(string: str | bytes | Any) -> np.ndarray:  # noqa: ANN401
-    """Converts a string to a numpy array.
-
-    Args:
-        string: The string to convert.
-
-    Returns:
-        The numpy array.
-    """
-    if isinstance(string, bytes):
-        string = string.decode("utf-8")
-    return np.array([float(item) for item in string.split(" ")])
 
 
 def get_new_rpy(
