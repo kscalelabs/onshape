@@ -17,6 +17,7 @@ from kol.passes.make_convex_collision_mesh import get_convex_collision_meshes
 from kol.passes.merge_fixed_joints import get_merged_urdf
 from kol.passes.prepend_root_link import prepend_root_link
 from kol.passes.remove_collision_meshes import remove_collision_meshes
+from kol.passes.remove_internal_geometries import remove_internal_geometries_from_urdf
 from kol.passes.simplify_meshes import get_simplified_urdf
 from kol.passes.update_names import update_urdf_names
 from kol.passes.utils import iter_meshes
@@ -78,6 +79,10 @@ async def postprocess(
     # Fixes the inertias in the URDF.
     if config.fix_inertias:
         fix_inertias(urdf_path, epsilon=config.min_inertia_eigval)
+
+    # Remove internal geometries from meshes.
+    if config.remove_internal_geometries:
+        remove_internal_geometries_from_urdf(urdf_path)
 
     # Adds the MJCF XML to the package.
     paths = [urdf_path]

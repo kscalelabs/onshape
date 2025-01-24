@@ -183,6 +183,10 @@ class PostprocessConfig:
         default=True,
         metadata={"help": "Simplifies the meshes when converting the URDF."},
     )
+    remove_internal_geometries: bool = field(
+        default=True,
+        metadata={"help": "Remove the internal geometries from meshes as a clean-up step."},
+    )
     joint_separation_distance: float | None = field(
         default=None,
         metadata={"help": "If set, separate adjacent joints by this distance, to prevent collisions."},
