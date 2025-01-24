@@ -10,6 +10,7 @@ from typing import Sequence
 
 from kol.onshape.config import ConverterConfig, PostprocessConfig
 from kol.onshape.download import download
+from kol.passes.add_joint_separation import add_joint_separation
 from kol.passes.add_mjcf import convert_urdf_to_mjcf
 from kol.passes.fix_inertias import fix_inertias
 from kol.passes.make_convex_collision_mesh import get_convex_collision_meshes
@@ -61,6 +62,10 @@ async def postprocess(
     # Updates the names in the URDF.
     if config.update_names:
         update_urdf_names(urdf_path, joint_name_map=config.joint_name_map, link_name_map=config.link_name_map)
+
+    # Add a small separation between adjacent joints.
+    if config.joint_separation_distance is not None:
+        add_joint_separation(urdf_path, config.joint_separation_distance)
 
     # Creates separate convex hulls for collision geomtries.
     if config.convex_collision_meshes:

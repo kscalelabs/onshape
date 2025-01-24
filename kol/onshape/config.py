@@ -183,6 +183,10 @@ class PostprocessConfig:
         default=True,
         metadata={"help": "Simplifies the meshes when converting the URDF."},
     )
+    joint_separation_distance: float | None = field(
+        default=None,
+        metadata={"help": "If set, separate adjacent joints by this distance, to prevent collisions."},
+    )
     prepend_root_link: bool = field(
         default=True,
         metadata={"help": "Prepends the root link to the URDF."},
