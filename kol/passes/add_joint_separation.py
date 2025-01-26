@@ -38,6 +38,15 @@ def add_joint_separation(urdf_path: Path, joint_separation_distance: float) -> N
             origin.attrib["xyz"] = "0 0 0"
             origin.attrib["rpy"] = "0 0 0"
 
+        # Get the joint axis, defaulting to z-axis if not specified
+        axis_elem = joint.find("axis")
+        if axis_elem is not None:
+            axis = string_to_nparray(axis_elem.attrib.get("xyz", "0 0 1"))
+            # Normalize the axis vector
+            axis = axis / np.linalg.norm(axis)
+        else:
+            axis = np.array([0, 0, 1])
+
         # Get current xyz and rpy
         xyz = string_to_nparray(origin.attrib.get("xyz", "0 0 0"))
         rpy = string_to_nparray(origin.attrib.get("rpy", "0 0 0"))
@@ -45,13 +54,12 @@ def add_joint_separation(urdf_path: Path, joint_separation_distance: float) -> N
         # Create rotation matrix from rpy
         rotation = R.from_euler("xyz", rpy)
 
-        # Transform the z-axis vector by the rotation
-        z_axis = np.array([0, 0, 1])
-        transformed_z = rotation.apply(z_axis)
+        # Transform the axis vector by the rotation
+        transformed_axis = rotation.apply(axis)
 
         # Scale to desired length and add to current position
-        separation_vector = transformed_z * joint_separation_distance
-        new_xyz = xyz - separation_vector
+        separation_vector = transformed_axis * -joint_separation_distance
+        new_xyz = xyz + separation_vector
 
         # Update the origin xyz
         origin.attrib["xyz"] = " ".join(str(x) for x in new_xyz)
