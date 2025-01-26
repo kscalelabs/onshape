@@ -1111,8 +1111,11 @@ def get_urdf_joint(
             if min_value >= max_value - EPSILON:
                 raise ValueError(f"Revolute joint {name} ({parent} -> {child}) has range [{min_value}, {max_value}].")
 
-            if joint.lhs_is_first:
-                min_value, max_value = -max_value, -min_value
+            # We tried this approach at one point, but it was better to modify
+            # the axis orientation instead, because it makes it easier to
+            # offset the joints in the model.
+            # if joint.lhs_is_first:
+            #     min_value, max_value = -max_value, -min_value
 
             effort, velocity = get_effort_and_velocity(
                 name,
@@ -1125,7 +1128,7 @@ def get_urdf_joint(
                 parent=parent,
                 child=child,
                 origin=origin,
-                axis=urdf.Axis((0.0, 0.0, 1.0)),
+                axis=urdf.Axis((0.0, 0.0, -1.0)) if joint.lhs_is_first else urdf.Axis((0.0, 0.0, 1.0)),
                 limits=urdf.JointLimits(
                     effort=effort,
                     velocity=velocity,
@@ -1154,8 +1157,8 @@ def get_urdf_joint(
             if min_value >= max_value - EPSILON:
                 raise ValueError(f"Slider joint {name} ({parent} -> {child}) has range [{min_value}, {max_value}].")
 
-            if joint.lhs_is_first:
-                min_value, max_value = -max_value, -min_value
+            # if joint.lhs_is_first:
+            #     min_value, max_value = -max_value, -min_value
 
             effort, velocity = get_effort_and_velocity(
                 name,
@@ -1168,7 +1171,7 @@ def get_urdf_joint(
                 parent=parent,
                 child=child,
                 origin=origin,
-                axis=urdf.Axis((0.0, 0.0, 1.0)),
+                axis=urdf.Axis((0.0, 0.0, -1.0)) if joint.lhs_is_first else urdf.Axis((0.0, 0.0, 1.0)),
                 limits=urdf.JointLimits(
                     effort=effort,
                     velocity=velocity,
