@@ -61,10 +61,6 @@ async def postprocess(
     if config.merge_fixed_joints:
         get_merged_urdf(urdf_path, ignore_merging_fixed_joints=config.ignore_merging_fixed_joints)
 
-    # Creates separate convex hulls for collision geomtries.
-    if config.convex_collision_meshes:
-        get_convex_collision_meshes(urdf_path)
-
     # Creates separate collision meshes for each link in the URDF.
     if config.separate_collision_meshes:
         separate_collision_meshes_in_urdf(urdf_path)
@@ -76,6 +72,10 @@ async def postprocess(
     # Moves some of the collision meshes.
     if config.move_collision_meshes is not None:
         move_collision_meshes(urdf_path, config.move_collision_meshes)
+
+    # Creates separate convex hulls for collision geomtries.
+    if config.convex_collision_meshes:
+        get_convex_collision_meshes(urdf_path)
 
     # Simplifies the meshes in the URDF.
     if config.simplify_meshes:
