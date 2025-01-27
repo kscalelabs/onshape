@@ -44,7 +44,7 @@ jobs:
 
       - name: Install package
         run: |
-          pip install --upgrade --upgrade-strategy eager --extra-index-url https://download.pytorch.org/whl/cpu -e '.[all]'
+          pip install --upgrade --upgrade-strategy eager -e '.[all]'
 
       - name: Run static checks
         run: |

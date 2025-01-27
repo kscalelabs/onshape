@@ -18,7 +18,7 @@ with open("kol/requirements-dev.txt", "r", encoding="utf-8") as f:
     requirements_dev: list[str] = f.read().splitlines()
 
 
-requirements_mujoco = ["mujoco", "urdf2mjcf"]
+requirements_mujoco = ["mujoco", "urdf2mjcf", "mujoco-python-viewer"]
 requirements_open3d = ["open3d"]
 requirements_all = requirements_dev + requirements_mujoco + requirements_open3d
 

@@ -10,7 +10,14 @@ import numpy as np
 def iter_meshes(
     urdf_path: Path,
     no_collision_mesh: bool = False,
-) -> Iterator[tuple[tuple[ET.Element, Path] | tuple[None, None], tuple[ET.Element, Path] | tuple[None, None]]]:
+    save_when_done: bool = False,
+) -> Iterator[
+    tuple[
+        ET.Element,
+        tuple[ET.Element, Path] | tuple[None, None],
+        tuple[ET.Element, Path] | tuple[None, None],
+    ]
+]:
     urdf_tree = ET.parse(urdf_path)
 
     def get_mesh(visual_or_collision: ET.Element | None) -> tuple[ET.Element, Path] | tuple[None, None]:
@@ -30,7 +37,7 @@ def iter_meshes(
             if collision_link is not None:
                 raise ValueError("Collision links should not exist.")
             visual_mesh = get_mesh(visual_link)
-            yield visual_mesh, (None, None)
+            yield link, visual_mesh, (None, None)
 
         else:
             if visual_link is None or collision_link is None:
@@ -40,12 +47,15 @@ def iter_meshes(
             visual_mesh = get_mesh(visual_link)
             collision_mesh = get_mesh(collision_link)
 
-            if visual_mesh is None or collision_mesh is None:
-                if visual_mesh is not None or collision_mesh is not None:
+            if visual_mesh[0] is None or collision_mesh[0] is None:
+                if visual_mesh[0] is not None or collision_mesh[0] is not None:
                     raise ValueError("Visual and collision meshes must be present together.")
                 continue
 
-            yield visual_mesh, collision_mesh
+            yield link, visual_mesh, collision_mesh
+
+    if save_when_done:
+        urdf_tree.write(urdf_path, encoding="utf-8", xml_declaration=True)
 
 
 def string_to_nparray(string: str | bytes | Any) -> np.ndarray:  # noqa: ANN401

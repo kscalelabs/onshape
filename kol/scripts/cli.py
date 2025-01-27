@@ -6,6 +6,7 @@ from typing import Literal, Sequence, get_args
 
 from kol.onshape.download import main as download_main
 from kol.onshape.postprocess import download_and_postprocess_main, postprocess_main
+from kol.scripts.mujoco import mujoco_main
 from kol.scripts.pybullet import pybullet_main
 
 Subcommand = Literal[
@@ -13,6 +14,7 @@ Subcommand = Literal[
     "download",
     "postprocess",
     "pybullet",
+    "mujoco",
 ]
 
 
@@ -31,6 +33,8 @@ async def main(args: Sequence[str] | None = None) -> None:
             await postprocess_main(remaining_args)
         case "pybullet":
             pybullet_main(remaining_args)
+        case "mujoco":
+            mujoco_main(remaining_args)
         case _:
             raise ValueError(f"Unknown subcommand: {parsed_args.subcommand}")
 

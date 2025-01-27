@@ -261,6 +261,8 @@ def process_fixed_joints(
     ignore_set = set([] if ignore_merging_fixed_joints is None else ignore_merging_fixed_joints)
     visited_set: set[str] = set()
 
+    starting_fixed_joint_names = [j.attrib["name"] for j in urdf_etree.findall(".//joint[@type='fixed']")]
+
     while True:
         joints = [j for j in urdf_etree.findall(".//joint[@type='fixed']") if j.attrib["name"] not in visited_set]
         if not joints:
@@ -273,7 +275,10 @@ def process_fixed_joints(
 
     missed_ignored_joints = ignore_set - visited_set
     if missed_ignored_joints:
-        raise ValueError(f"The following fixed joints were not processed: {missed_ignored_joints}")
+        raise ValueError(
+            f"The following fixed joints were not processed: {missed_ignored_joints}. "
+            f"The available fixed joints in the URDF are {starting_fixed_joint_names}"
+        )
 
     return urdf_etree
 

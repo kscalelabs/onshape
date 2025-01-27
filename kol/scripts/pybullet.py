@@ -24,7 +24,6 @@ def pybullet_main(args: Sequence[str] | None = None) -> None:
     parser.add_argument("--hide-origin", action="store_true", help="Do not show the origin")
     parser.add_argument("--show-inertia", action="store_true", help="Visualizes the inertia frames")
     parser.add_argument("--see-thru", action="store_true", help="Use see-through mode")
-    parser.add_argument("--show-collision", action="store_true", help="Show collision meshes")
     parser.add_argument("--fixed-base", action="store_true", help="Fix the base linkage in place")
     parser.add_argument("--cycle-duration", type=float, default=10, help="Duration of the joint cycling")
     parser.add_argument("--start-height", type=float, default=1.0, help="Initial height of the robot")
@@ -33,7 +32,7 @@ def pybullet_main(args: Sequence[str] | None = None) -> None:
     try:
         import pybullet as p
     except ImportError:
-        raise ImportError("pybullet is required to run this script")
+        raise ImportError("pybullet is required to run this script; install it with `pip install pybullet`")
 
     # Connect to PyBullet.
     p.connect(p.GUI)
@@ -66,6 +65,7 @@ def pybullet_main(args: Sequence[str] | None = None) -> None:
     start_position = [0.0, 0.0, parsed_args.start_height]  # Use the start_height argument
     start_orientation = p.getQuaternionFromEuler([0.0, 0.0, 0.0])
     flags = p.URDF_USE_INERTIA_FROM_FILE
+    flags |= p.URDF_USE_SELF_COLLISION_EXCLUDE_PARENT
     if not parsed_args.no_merge:
         flags |= p.URDF_MERGE_FIXED_LINKS
 
@@ -76,22 +76,6 @@ def pybullet_main(args: Sequence[str] | None = None) -> None:
         flags=flags,
         useFixedBase=parsed_args.fixed_base,
     )
-
-    # Display collision meshes as separate object.
-    if parsed_args.show_collision:
-        collision_flags = p.URDF_USE_INERTIA_FROM_FILE | p.URDF_USE_SELF_COLLISION_EXCLUDE_ALL_PARENTS
-        collision = p.loadURDF(
-            str(urdf_path.resolve().absolute()),
-            start_position,
-            start_orientation,
-            flags=collision_flags,
-            useFixedBase=0,
-        )
-
-        # Make collision shapes semi-transparent.
-        joint_ids = [i for i in range(p.getNumJoints(collision))] + [-1]
-        for i in joint_ids:
-            p.changeVisualShape(collision, i, rgbaColor=[1, 0, 0, 0.5])
 
     # Initializes physics parameters.
     p.changeDynamics(floor, -1, lateralFriction=1, spinningFriction=-1, rollingFriction=-1)
