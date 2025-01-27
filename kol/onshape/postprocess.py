@@ -23,7 +23,9 @@ from kol.passes.separate_collision_meshes import separate_collision_meshes_in_ur
 from kol.passes.shrink_collision_meshes import shrink_collision_meshes
 from kol.passes.simplify_meshes import get_simplified_urdf
 from kol.passes.update_names import update_urdf_names
-from kol.passes.use_collision_meshes_as_visual_meshes import use_collision_meshes_as_visual_meshes
+from kol.passes.use_collision_meshes_as_visual_meshes import (
+    use_collision_meshes_as_visual_meshes,
+)
 from kol.passes.utils import iter_meshes
 from kol.utils.logging import configure_logging
 
