@@ -219,10 +219,6 @@ class PostprocessConfig:
         default=None,
         metadata={"help": "Moves the named collision meshes by this offset."},
     )
-    remove_collision_meshes: bool = field(
-        default=False,
-        metadata={"help": "Removes collision meshes from the URDF."},
-    )
     use_collision_meshes_as_visual_meshes: bool = field(
         default=False,
         metadata={"help": "Uses collision meshes as visual meshes - mainly used for debugging."},
