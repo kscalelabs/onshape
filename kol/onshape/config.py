@@ -207,9 +207,25 @@ class PostprocessConfig:
         default=False,
         metadata={"help": "Creates separate convex hulls for collision geometries."},
     )
+    separate_collision_meshes: bool = field(
+        default=False,
+        metadata={"help": "Creates separate collision meshes for each link in the URDF."},
+    )
+    shrink_collision_meshes: dict[str, float] | None = field(
+        default=None,
+        metadata={"help": "Shrinks the named collision meshes by this factor."},
+    )
+    move_collision_meshes: dict[str, list[float]] | None = field(
+        default=None,
+        metadata={"help": "Moves the named collision meshes by this offset."},
+    )
     remove_collision_meshes: bool = field(
         default=False,
         metadata={"help": "Removes collision meshes from the URDF."},
+    )
+    use_collision_meshes_as_visual_meshes: bool = field(
+        default=False,
+        metadata={"help": "Uses collision meshes as visual meshes - mainly used for debugging."},
     )
     fix_inertias: bool = field(
         default=True,

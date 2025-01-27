@@ -4,17 +4,16 @@ import argparse
 import logging
 import xml.etree.ElementTree as ET
 from pathlib import Path
-from typing import List, Optional
 
 logger = logging.getLogger(__name__)
 
 
-def remove_collision_meshes(urdf_path: Path | str, keep_collisions: Optional[List[str]] = None) -> None:
+def remove_collision_meshes(urdf_path: Path | str, keep_collisions: list[str] | None = None) -> None:
     """Removes collision meshes from the URDF file, except for specified parts.
 
     Args:
-        urdf_path (str): Path to the URDF file.
-        keep_collisions (Optional[List[str]]): List of link names where collisions should be kept.
+        urdf_path: Path to the URDF file.
+        keep_collisions: List of link names where collisions should be kept.
     """
     if keep_collisions is None:
         keep_collisions = []

@@ -10,7 +10,14 @@ import numpy as np
 def iter_meshes(
     urdf_path: Path,
     no_collision_mesh: bool = False,
-) -> Iterator[tuple[tuple[ET.Element, Path] | tuple[None, None], tuple[ET.Element, Path] | tuple[None, None]]]:
+    save_when_done: bool = False,
+) -> Iterator[
+    tuple[
+        ET.Element,
+        tuple[ET.Element, Path] | tuple[None, None],
+        tuple[ET.Element, Path] | tuple[None, None],
+    ]
+]:
     urdf_tree = ET.parse(urdf_path)
 
     def get_mesh(visual_or_collision: ET.Element | None) -> tuple[ET.Element, Path] | tuple[None, None]:
@@ -45,7 +52,10 @@ def iter_meshes(
                     raise ValueError("Visual and collision meshes must be present together.")
                 continue
 
-            yield visual_mesh, collision_mesh
+            yield link, visual_mesh, collision_mesh
+
+    if save_when_done:
+        urdf_tree.write(urdf_path, encoding="utf-8", xml_declaration=True)
 
 
 def string_to_nparray(string: str | bytes | Any) -> np.ndarray:  # noqa: ANN401

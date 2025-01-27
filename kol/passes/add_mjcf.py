@@ -20,7 +20,11 @@ def parse_xyz(xyz_str: str) -> str:
     return " ".join([str(float(x)) for x in xyz_str.split()])
 
 
-def convert_urdf_to_mjcf(urdf_file: str | Path, mjcf_file: str | Path) -> None:
+def convert_urdf_to_mjcf(urdf_file: str | Path, mjcf_file: str | Path | None = None) -> list[Path]:
+    urdf_file = Path(urdf_file)
+    if mjcf_file is None:
+        mjcf_file = urdf_file.with_suffix(".mjcf")
+
     try:
         from urdf2mjcf.convert import convert_urdf_to_mjcf
     except ImportError as e:
@@ -30,6 +34,8 @@ def convert_urdf_to_mjcf(urdf_file: str | Path, mjcf_file: str | Path) -> None:
         ) from e
 
     convert_urdf_to_mjcf(urdf_file, mjcf_file)
+
+    return mjcf_file
 
 
 def main() -> None:

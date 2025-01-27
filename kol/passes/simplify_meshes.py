@@ -54,7 +54,7 @@ def get_simplified_urdf(
     # Iterates through each link in the URDF and simplifies the meshes.
     total_pre_num_vertices = 0
     total_post_num_vertices = 0
-    for (_, visual_mesh_path), (_, collision_mesh_path) in iter_meshes(urdf_path):
+    for _, (_, visual_mesh_path), (_, collision_mesh_path) in iter_meshes(urdf_path):
         for mesh_path in list({visual_mesh_path, collision_mesh_path}):
             if mesh_path is not None:
                 pre_num_vertices, post_num_vertices = simplify_mesh(mesh_path, voxel_size=voxel_size)

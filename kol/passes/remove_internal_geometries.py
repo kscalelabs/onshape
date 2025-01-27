@@ -65,7 +65,7 @@ def remove_internal_geometries_from_urdf(urdf_path: Path) -> None:
         urdf_path: The path to the URDF file.
     """
     # Iterate through each link in the URDF and process the meshes
-    for (_, visual_mesh_path), (_, collision_mesh_path) in iter_meshes(urdf_path):
+    for _, (_, visual_mesh_path), (_, collision_mesh_path) in iter_meshes(urdf_path):
         for mesh_path in list({visual_mesh_path, collision_mesh_path}):
             if mesh_path is not None:
                 remove_internal_geometry(mesh_path)

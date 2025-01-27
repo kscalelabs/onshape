@@ -15,11 +15,15 @@ from kol.passes.add_mjcf import convert_urdf_to_mjcf
 from kol.passes.fix_inertias import fix_inertias
 from kol.passes.make_convex_collision_mesh import get_convex_collision_meshes
 from kol.passes.merge_fixed_joints import get_merged_urdf
+from kol.passes.move_collision_meshes import move_collision_meshes
 from kol.passes.prepend_root_link import prepend_root_link
 from kol.passes.remove_collision_meshes import remove_collision_meshes
 from kol.passes.remove_internal_geometries import remove_internal_geometries_from_urdf
+from kol.passes.separate_collision_meshes import separate_collision_meshes_in_urdf
+from kol.passes.shrink_collision_meshes import shrink_collision_meshes
 from kol.passes.simplify_meshes import get_simplified_urdf
 from kol.passes.update_names import update_urdf_names
+from kol.passes.use_collision_meshes_as_visual_meshes import use_collision_meshes_as_visual_meshes
 from kol.passes.utils import iter_meshes
 from kol.utils.logging import configure_logging
 
@@ -48,9 +52,33 @@ async def postprocess(
     if config is None:
         config = PostprocessConfig()
 
+    # Updates the names in the URDF.
+    if config.update_names:
+        update_urdf_names(urdf_path, joint_name_map=config.joint_name_map, link_name_map=config.link_name_map)
+
     # Merges all fixed joints in the URDF.
     if config.merge_fixed_joints:
         get_merged_urdf(urdf_path, ignore_merging_fixed_joints=config.ignore_merging_fixed_joints)
+
+    # Creates separate convex hulls for collision geomtries.
+    if config.convex_collision_meshes:
+        get_convex_collision_meshes(urdf_path)
+
+    # Creates separate collision meshes for each link in the URDF.
+    if config.separate_collision_meshes:
+        separate_collision_meshes_in_urdf(urdf_path)
+
+    # Shrinks some of the collision meshes.
+    if config.shrink_collision_meshes is not None:
+        shrink_collision_meshes(urdf_path, config.shrink_collision_meshes)
+
+    # Moves some of the collision meshes.
+    if config.move_collision_meshes is not None:
+        move_collision_meshes(urdf_path, config.move_collision_meshes)
+
+    # Removes collision meshes.
+    if config.remove_collision_meshes:
+        remove_collision_meshes(urdf_path)
 
     # Simplifies the meshes in the URDF.
     if config.simplify_meshes:
@@ -60,21 +88,9 @@ async def postprocess(
     if config.prepend_root_link:
         prepend_root_link(urdf_path, config.base_quaternion)
 
-    # Updates the names in the URDF.
-    if config.update_names:
-        update_urdf_names(urdf_path, joint_name_map=config.joint_name_map, link_name_map=config.link_name_map)
-
     # Add a small separation between adjacent joints.
     if config.joint_separation_distance is not None:
         add_joint_separation(urdf_path, config.joint_separation_distance)
-
-    # Creates separate convex hulls for collision geomtries.
-    if config.convex_collision_meshes:
-        get_convex_collision_meshes(urdf_path)
-
-    # Removes collision meshes.
-    if config.remove_collision_meshes:
-        remove_collision_meshes(urdf_path)
 
     # Fixes the inertias in the URDF.
     if config.fix_inertias:
@@ -84,15 +100,17 @@ async def postprocess(
     if config.remove_internal_geometries:
         remove_internal_geometries_from_urdf(urdf_path)
 
+    # Use collision meshes as visual meshes.
+    if config.use_collision_meshes_as_visual_meshes:
+        use_collision_meshes_as_visual_meshes(urdf_path)
+
     # Adds the MJCF XML to the package.
     paths = [urdf_path]
     if config.add_mjcf:
-        mjcf_path = urdf_path.with_suffix(".mjcf")
-        convert_urdf_to_mjcf(urdf_path, mjcf_path)
-        paths.append(mjcf_path)
+        paths.append(convert_urdf_to_mjcf(urdf_path))
 
     # Combines everything to a single TAR file.
-    for (_, visual_mesh_path), (_, collision_mesh_path) in iter_meshes(urdf_path, config.remove_collision_meshes):
+    for _, (_, visual_mesh_path), (_, collision_mesh_path) in iter_meshes(urdf_path, config.remove_collision_meshes):
         for path in list({visual_mesh_path, collision_mesh_path}):
             if path is not None:
                 paths.append(path)
