@@ -15,15 +15,17 @@ def use_collision_meshes_as_visual_meshes(urdf_path: Path) -> None:
     Args:
         urdf_path: The path to the URDF file.
     """
-    for link, (visual_link, visual_mesh_path), (col_link, col_mesh_path) in iter_meshes(
+    for link, (visual_mesh, visual_mesh_path), (col_mesh, col_mesh_path) in iter_meshes(
         urdf_path,
         save_when_done=True,
     ):
         name = link.attrib["name"]
         if col_mesh_path is None:
             raise ValueError(f"No collision mesh found for {name}")
+        if visual_mesh is None or col_mesh is None:
+            raise ValueError(f"Missing visual or collision mesh for {name}")
         if visual_mesh_path != col_mesh_path:
-            visual_link.attrib["filename"] = col_link.attrib["filename"]
+            visual_mesh.attrib["filename"] = col_mesh.attrib["filename"]
 
 
 def main() -> None:

@@ -39,7 +39,7 @@ def move_collision_mesh(collision_mesh_path: Path, translation: Sequence[float])
     """
     mesh = trimesh.load(collision_mesh_path)
     translation = np.array(translation, dtype=np.float64)
-    mesh.vertices += translation
+    mesh.apply_translation(translation)
     mesh.export(collision_mesh_path)
 
 
