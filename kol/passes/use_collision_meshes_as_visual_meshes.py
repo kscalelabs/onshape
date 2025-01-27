@@ -33,7 +33,7 @@ def main() -> None:
     parser.add_argument("urdf_path", type=Path, help="The path to the URDF file.")
     args = parser.parse_args()
 
-    use_collision_meshes_as_visual_meshes(args.urdf_path, args.link_names)
+    use_collision_meshes_as_visual_meshes(args.urdf_path)
 
 
 if __name__ == "__main__":

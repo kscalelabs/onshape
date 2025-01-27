@@ -22,6 +22,8 @@ def separate_collision_mesh(visual_mesh_path: Path) -> Path:
 
 def shrink_collision_mesh(collision_mesh_path: Path, shrink_factor: float) -> None:
     mesh = trimesh.load(collision_mesh_path)
+    if not isinstance(mesh, trimesh.Trimesh):
+        raise ValueError(f"Loaded mesh {collision_mesh_path} is not a Trimesh")
     mesh.apply_scale(shrink_factor)
     mesh.export(collision_mesh_path)
 
@@ -37,7 +39,7 @@ def shrink_collision_meshes(
         shrink_factors: A dictionary mapping link names to shrink factors.
     """
     # Make a copy that we can use to keep track of which links have been processed.
-    shrink_factors = shrink_factors.copy()
+    shrink_factors = {k: v for k, v in shrink_factors.items()}
 
     num_separated = 0
     for link, (_, visual_mesh_path), (col_link, col_mesh_path) in iter_meshes(
@@ -49,7 +51,7 @@ def shrink_collision_meshes(
         if name not in shrink_factors:
             continue
 
-        if col_mesh_path is None:
+        if col_link is None or col_mesh_path is None:
             raise ValueError(f"No collision mesh found for {name}")
 
         # If the collision mesh is the same as the visual mesh, we need to make

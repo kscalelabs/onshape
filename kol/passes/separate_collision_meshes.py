@@ -32,12 +32,14 @@ def separate_collision_meshes_in_urdf(urdf_path: Path) -> None:
         urdf_path,
         save_when_done=True,
     ):
-        if visual_mesh_path is not None and collision_mesh_path is not None:
-            if visual_mesh_path == collision_mesh_path:
-                new_collision_path = separate_collision_mesh(visual_mesh_path)
-                rel_filename = new_collision_path.relative_to(urdf_path.parent).as_posix()
-                collision_link_elem.attrib["filename"] = rel_filename
-                num_separated += 1
+        if visual_mesh_path is None or collision_link_elem is None or collision_mesh_path is None:
+            continue
+
+        if visual_mesh_path == collision_mesh_path:
+            new_collision_path = separate_collision_mesh(visual_mesh_path)
+            rel_filename = new_collision_path.relative_to(urdf_path.parent).as_posix()
+            collision_link_elem.attrib["filename"] = rel_filename
+            num_separated += 1
 
     if num_separated > 0:
         logger.info(

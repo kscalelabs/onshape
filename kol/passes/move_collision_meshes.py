@@ -4,7 +4,7 @@ import logging
 import shutil
 import xml.etree.ElementTree as ET
 from pathlib import Path
-from typing import Sequence
+from typing import Mapping, Sequence
 
 import numpy as np
 import trimesh
@@ -38,6 +38,8 @@ def move_collision_mesh(collision_mesh_path: Path, translation: Sequence[float])
         translation: [x, y, z] translation to apply to the mesh.
     """
     mesh = trimesh.load(collision_mesh_path)
+    if not isinstance(mesh, trimesh.Trimesh):
+        raise ValueError(f"Loaded mesh {collision_mesh_path} is not a Trimesh")
     translation = np.array(translation, dtype=np.float64)
     mesh.apply_translation(translation)
     mesh.export(collision_mesh_path)
@@ -45,7 +47,7 @@ def move_collision_mesh(collision_mesh_path: Path, translation: Sequence[float])
 
 def move_collision_meshes(
     urdf_path: Path,
-    translations: dict[str, Sequence[float]],
+    translations: Mapping[str, Sequence[float]],
 ) -> None:
     """Moves collision meshes in the URDF by specified translations.
 
@@ -54,7 +56,7 @@ def move_collision_meshes(
         translations: A dictionary mapping link names to [x, y, z] translations.
     """
     # Make a copy that we can use to keep track of which links have been processed
-    translations = translations.copy()
+    translations = {k: v for k, v in translations.items()}
 
     num_separated = 0
     for link, (_, visual_mesh_path), (col_link, col_mesh_path) in iter_meshes(
@@ -66,7 +68,7 @@ def move_collision_meshes(
         if name not in translations:
             continue
 
-        if col_mesh_path is None:
+        if col_link is None or col_mesh_path is None:
             raise ValueError(f"No collision mesh found for {name}")
 
         # If the collision mesh is the same as the visual mesh, we need to make
