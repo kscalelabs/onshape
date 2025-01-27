@@ -21,7 +21,8 @@ def use_collision_meshes_as_visual_meshes(urdf_path: Path) -> None:
     ):
         name = link.attrib["name"]
         if col_mesh_path is None:
-            raise ValueError(f"No collision mesh found for {name}")
+            logger.warning("No collision mesh found for %s", name)
+            continue
         if visual_mesh is None or col_mesh is None:
             raise ValueError(f"Missing visual or collision mesh for {name}")
         if visual_mesh_path != col_mesh_path:

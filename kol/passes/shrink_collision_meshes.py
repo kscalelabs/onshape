@@ -37,6 +37,7 @@ def shrink_collision_meshes(
     Args:
         urdf_path: The path to the URDF file.
         shrink_factors: A dictionary mapping link names to shrink factors.
+            If the shrink factor is <= 0, the collision mesh will be removed entirely.
     """
     # Make a copy that we can use to keep track of which links have been processed.
     shrink_factors = {k: v for k, v in shrink_factors.items()}
@@ -54,6 +55,17 @@ def shrink_collision_meshes(
         if col_link is None or col_mesh_path is None:
             raise ValueError(f"No collision mesh found for {name}")
 
+        shrink_factor = shrink_factors.pop(name)
+
+        # If shrink factor is <= 0, remove the collision mesh
+        if shrink_factor <= 0:
+            logger.info("Removing collision mesh for %s", name)
+            col_link_parent = link.find(".//collision")
+            if col_link_parent is None:
+                raise ValueError(f"No collision link found for {name}")
+            link.remove(col_link_parent)
+            continue
+
         # If the collision mesh is the same as the visual mesh, we need to make
         # a new collision mesh.
         if visual_mesh_path is not None and visual_mesh_path == col_mesh_path:
@@ -63,7 +75,6 @@ def shrink_collision_meshes(
             num_separated += 1
 
         # After doing this, we can shrink the collision mesh geometry.
-        shrink_factor = shrink_factors.pop(name)
         logger.info("Shrinking collision mesh %s by %.2f", col_mesh_path, shrink_factor)
         shrink_collision_mesh(col_mesh_path, shrink_factor)
 

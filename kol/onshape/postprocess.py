@@ -17,7 +17,6 @@ from kol.passes.make_convex_collision_mesh import get_convex_collision_meshes
 from kol.passes.merge_fixed_joints import get_merged_urdf
 from kol.passes.move_collision_meshes import move_collision_meshes
 from kol.passes.prepend_root_link import prepend_root_link
-from kol.passes.remove_collision_meshes import remove_collision_meshes
 from kol.passes.remove_internal_geometries import remove_internal_geometries_from_urdf
 from kol.passes.separate_collision_meshes import separate_collision_meshes_in_urdf
 from kol.passes.shrink_collision_meshes import shrink_collision_meshes
@@ -78,10 +77,6 @@ async def postprocess(
     if config.move_collision_meshes is not None:
         move_collision_meshes(urdf_path, config.move_collision_meshes)
 
-    # Removes collision meshes.
-    if config.remove_collision_meshes:
-        remove_collision_meshes(urdf_path)
-
     # Simplifies the meshes in the URDF.
     if config.simplify_meshes:
         get_simplified_urdf(urdf_path, voxel_size=config.voxel_size)
@@ -112,7 +107,7 @@ async def postprocess(
         paths.append(convert_urdf_to_mjcf(urdf_path))
 
     # Combines everything to a single TAR file.
-    for _, (_, visual_mesh_path), (_, collision_mesh_path) in iter_meshes(urdf_path, config.remove_collision_meshes):
+    for _, (_, visual_mesh_path), (_, collision_mesh_path) in iter_meshes(urdf_path):
         for path in list({visual_mesh_path, collision_mesh_path}):
             if path is not None:
                 paths.append(path)
