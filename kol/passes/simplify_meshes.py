@@ -9,7 +9,11 @@ from kol.passes.utils import iter_meshes
 logger = logging.getLogger(__name__)
 
 
-def simplify_mesh(mesh_path: Path, voxel_size: float) -> tuple[int, int]:
+def simplify_mesh(
+    mesh_path: Path,
+    voxel_size: float,
+    max_triangles: int | None = None,
+) -> tuple[int, int]:
     try:
         import open3d as o3d
     except ImportError:
@@ -26,6 +30,13 @@ def simplify_mesh(mesh_path: Path, voxel_size: float) -> tuple[int, int]:
     pre_num_vertices = len(mesh.vertices)
     post_num_vertices = len(simple_mesh.vertices)
 
+    # Remove triangles in order to greatly simplify the mesh.
+    if max_triangles is not None and len(simple_mesh.triangles) > max_triangles:
+        simple_mesh = simple_mesh.simplify_quadric_decimation(target_number_of_triangles=max_triangles)
+        simple_mesh = simple_mesh.remove_duplicated_vertices()
+        simple_mesh = simple_mesh.remove_degenerate_triangles()
+        simple_mesh = simple_mesh.remove_duplicated_triangles()
+
     match mesh_path.suffix.lower():
         case ".ply":
             o3d.io.write_triangle_mesh(str(mesh_path), simple_mesh, write_ascii=True)
@@ -41,12 +52,15 @@ def simplify_mesh(mesh_path: Path, voxel_size: float) -> tuple[int, int]:
 def get_simplified_urdf(
     urdf_path: Path,
     voxel_size: float = 0.002,
+    max_triangles: int | None = None,
 ) -> None:
     """Merges meshes at each fixed joints to avoid collision issues.
 
     Args:
         urdf_path: The path to the urdf file.
         voxel_size: The voxel size to use for simplifying the meshes.
+        max_triangles: The maximum number of triangles to use for simplifying
+            the collision meshes.
 
     Returns:
         The path to the merged urdf file.
@@ -57,7 +71,11 @@ def get_simplified_urdf(
     for _, (_, visual_mesh_path), (_, collision_mesh_path) in iter_meshes(urdf_path):
         for mesh_path in list({visual_mesh_path, collision_mesh_path}):
             if mesh_path is not None:
-                pre_num_vertices, post_num_vertices = simplify_mesh(mesh_path, voxel_size=voxel_size)
+                pre_num_vertices, post_num_vertices = simplify_mesh(
+                    mesh_path,
+                    voxel_size=voxel_size,
+                    max_triangles=max_triangles,
+                )
                 total_pre_num_vertices += pre_num_vertices
                 total_post_num_vertices += post_num_vertices
 

@@ -207,6 +207,10 @@ class PostprocessConfig:
         default=False,
         metadata={"help": "Creates separate convex hulls for collision geometries."},
     )
+    max_mesh_triangles: int | None = field(
+        default=None,
+        metadata={"help": "The maximum number of triangles to use for meshes."},
+    )
     max_convex_collision_mesh_triangles: int | None = field(
         default=None,
         metadata={"help": "The maximum number of triangles to use for convex collision meshes."},
