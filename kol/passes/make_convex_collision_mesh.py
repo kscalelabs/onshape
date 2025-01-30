@@ -10,7 +10,11 @@ from kol.formats.common import save_xml
 logger = logging.getLogger(__name__)
 
 
-def make_convex_collision_mesh(mesh_path: Path, output_mesh_path: Path) -> tuple[int, int]:
+def make_convex_collision_mesh(
+    mesh_path: Path,
+    output_mesh_path: Path,
+    max_triangles: int | None = None,
+) -> tuple[int, int]:
     try:
         import open3d as o3d
     except ImportError:
@@ -24,6 +28,14 @@ def make_convex_collision_mesh(mesh_path: Path, output_mesh_path: Path) -> tuple
     hull = hull.remove_duplicated_vertices()
     hull = hull.remove_degenerate_triangles()
     hull = hull.remove_duplicated_triangles()
+
+    # Remove triangles in order to greatly simplify the mesh.
+    if max_triangles is not None and len(hull.triangles) > max_triangles:
+        hull = hull.simplify_quadric_decimation(target_number_of_triangles=max_triangles)
+        hull = hull.remove_duplicated_vertices()
+        hull = hull.remove_degenerate_triangles()
+        hull = hull.remove_duplicated_triangles()
+
     pre_num_vertices = len(mesh.vertices)
     post_num_vertices = len(hull.vertices)
 
@@ -39,11 +51,13 @@ def make_convex_collision_mesh(mesh_path: Path, output_mesh_path: Path) -> tuple
     return pre_num_vertices, post_num_vertices
 
 
-def get_convex_collision_meshes(urdf_path: Path) -> None:
+def get_convex_collision_meshes(urdf_path: Path, max_triangles: int | None = None) -> None:
     """Converts the collision mesh into convex hulls.
 
     Args:
         urdf_path: The path to the urdf file.
+        max_triangles: The maximum number of triangles to use for simplifying
+            the collision meshes.
 
     Returns:
         The path to the merged urdf file.
@@ -79,7 +93,11 @@ def get_convex_collision_meshes(urdf_path: Path) -> None:
         else:
             collision_output_mesh_path = collision_mesh_path
 
-        pre_vertices, post_vertices = make_convex_collision_mesh(collision_mesh_path, collision_output_mesh_path)
+        pre_vertices, post_vertices = make_convex_collision_mesh(
+            collision_mesh_path,
+            collision_output_mesh_path,
+            max_triangles=max_triangles,
+        )
         total_pre_num_vertices += pre_vertices
         total_post_num_vertices += post_vertices
 

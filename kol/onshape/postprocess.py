@@ -75,7 +75,10 @@ async def postprocess(
 
     # Creates separate convex hulls for collision geomtries.
     if config.convex_collision_meshes:
-        get_convex_collision_meshes(urdf_path)
+        get_convex_collision_meshes(
+            urdf_path,
+            max_triangles=config.max_convex_collision_mesh_triangles,
+        )
 
     # Simplifies the meshes in the URDF.
     if config.simplify_meshes:
