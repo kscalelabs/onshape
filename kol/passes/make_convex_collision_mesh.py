@@ -48,6 +48,15 @@ def make_convex_collision_mesh(
         case _:
             o3d.io.write_triangle_mesh(str(output_mesh_path), hull)
 
+    if post_num_vertices < pre_num_vertices:
+        logger.info(
+            "Convex hull reduces meshes from %d to %d vertices (%.2f%% reduction) for %s",
+            pre_num_vertices,
+            post_num_vertices,
+            (1 - post_num_vertices / pre_num_vertices) * 100,
+            output_mesh_path,
+        )
+
     return pre_num_vertices, post_num_vertices
 
 
