@@ -37,6 +37,12 @@ class JointLimits:
 
 
 @dataclass
+class JointPDParams:
+    kp: float
+    kd: float
+
+
+@dataclass
 class DownloadConfig:
     document_url: str = field(
         default=MISSING,
@@ -242,6 +248,14 @@ class PostprocessConfig:
     add_mjcf: bool = field(
         default=True,
         metadata={"help": "Adds the MJCF XML to the package."},
+    )
+    default_joint_pd_params: JointPDParams | None = field(
+        default=None,
+        metadata={"help": "The default joint PD params to use for joints without PD params."},
+    )
+    suffix_to_joint_pd_params: dict[str, JointPDParams] = field(
+        default_factory=lambda: {},
+        metadata={"help": "The suffix to joint PD params mapping."},
     )
     package_tgz: bool = field(
         default=True,
