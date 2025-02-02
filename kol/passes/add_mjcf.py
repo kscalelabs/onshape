@@ -66,7 +66,7 @@ def convert_urdf_to_mjcf(
             )
             for name, param in suffix_to_joint_pd_params.items()
         },
-        default=default_joint_pd_params,
+        default=JointPDParams() if default_joint_pd_params is None else default_joint_pd_params,
     )
     convert_urdf_to_mjcf(urdf_file, mjcf_file, joint_params_metadata=metadata)
     return mjcf_file
