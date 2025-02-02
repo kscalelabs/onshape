@@ -47,7 +47,11 @@ def convert_urdf_to_mjcf(
         mjcf_file = Path(mjcf_file)
 
     try:
-        from urdf2mjcf.convert import JointParam, JointParamsMetadata, convert_urdf_to_mjcf
+        from urdf2mjcf.convert import (
+            JointParam,
+            JointParamsMetadata,
+            convert_urdf_to_mjcf,
+        )
     except ImportError as e:
         raise ImportError(
             "Please install the package with `urdf2mjcf` as a dependency, using "
