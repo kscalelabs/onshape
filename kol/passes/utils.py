@@ -7,7 +7,10 @@ from typing import Any, Iterator
 import numpy as np
 
 
-def iter_meshes(urdf_path: Path, save_when_done: bool = False) -> Iterator[
+def iter_meshes(
+    urdf_path: Path,
+    save_when_done: bool = False,
+) -> Iterator[
     tuple[
         ET.Element,
         tuple[ET.Element, Path] | tuple[None, None],
