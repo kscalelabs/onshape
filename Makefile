@@ -49,6 +49,7 @@ clean:
 
 format:
 	@black kol
+	@ruff check --fix kol
 	@ruff format kol
 .PHONY: format
 
