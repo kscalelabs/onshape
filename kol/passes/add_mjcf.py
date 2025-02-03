@@ -32,9 +32,7 @@ def convert_urdf_to_mjcf(
     Args:
         urdf_file: Path to input URDF file
         mjcf_file: Optional path for output MJCF file
-        default_joint_pd_params: Default joint PD params to use for joints
-            without PD params.
-        suffix_to_joint_pd_params: Suffix to joint PD params mapping.
+        metadata: Optional metadata for the conversion
 
     Returns:
         Path to the generated MJCF file

@@ -4,7 +4,9 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from urdf2mjcf.convert import ConversionMetadata as ConversionMetadataRef
+    from urdf2mjcf.convert import (
+        ConversionMetadata as ConversionMetadataRef,
+    )
 
 
 @dataclass
@@ -37,10 +39,12 @@ class ConversionMetadata:
 
 def convert_to_mjcf_metadata(metadata: ConversionMetadata) -> "ConversionMetadataRef":
     try:
-        from urdf2mjcf.convert import ConversionMetadata as ConversionMetadataRef
-        from urdf2mjcf.convert import ImuSensor as ImuSensorRef
-        from urdf2mjcf.convert import JointParam as JointParamRef
-        from urdf2mjcf.convert import JointParamsMetadata as JointParamsMetadataRef
+        from urdf2mjcf.convert import (
+            ConversionMetadata as ConversionMetadataRef,
+            ImuSensor as ImuSensorRef,
+            JointParam as JointParamRef,
+            JointParamsMetadata as JointParamsMetadataRef,
+        )
 
     except ImportError as e:
         raise ImportError(
@@ -50,16 +54,20 @@ def convert_to_mjcf_metadata(metadata: ConversionMetadata) -> "ConversionMetadat
 
     return ConversionMetadataRef(
         joint_params=JointParamsMetadataRef(
-            suffix_to_pd_params={
-                name: JointParamRef(
-                    kp=param.kp,
-                    kd=param.kd,
-                )
-                for name, param in metadata.joint_params.suffix_to_pd_params.items()
-            },
+            suffix_to_pd_params=(
+                {}
+                if metadata.joint_params is None
+                else {
+                    name: JointParamRef(
+                        kp=param.kp,
+                        kd=param.kd,
+                    )
+                    for name, param in metadata.joint_params.suffix_to_pd_params.items()
+                }
+            ),
             default=(
                 None
-                if metadata.joint_params.default is None
+                if metadata.joint_params is None or metadata.joint_params.default is None
                 else JointParamRef(
                     kp=metadata.joint_params.default.kp,
                     kd=metadata.joint_params.default.kd,

@@ -48,14 +48,11 @@ clean:
 
 
 format:
-	@isort --profile black kol
 	@black kol
 	@ruff format kol
-	@isort kol
 .PHONY: format
 
 static-checks:
-	@isort --profile black --check --diff kol
 	@black --diff --check kol
 	@ruff check kol
 	@mypy --install-types --non-interactive kol
