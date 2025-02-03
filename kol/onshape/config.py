@@ -8,6 +8,7 @@ from typing import Self, Sequence, cast
 from omegaconf import MISSING, OmegaConf
 from omegaconf.errors import ConfigKeyError
 
+from kol.formats.mjcf import ConversionMetadata
 from kol.onshape.schema.assembly import Key, MatedEntity, MateType
 
 
@@ -30,16 +31,10 @@ class Joint:
 
 @dataclass
 class JointLimits:
-    z_min_expression: str | None = None
-    z_max_expression: str | None = None
-    axial_z_min_expression: str | None = None
-    axial_z_max_expression: str | None = None
-
-
-@dataclass
-class JointPDParams:
-    kp: float
-    kd: float
+    z_min_expression: str | None = field(default=None)
+    z_max_expression: str | None = field(default=None)
+    axial_z_min_expression: str | None = field(default=None)
+    axial_z_max_expression: str | None = field(default=None)
 
 
 @dataclass
@@ -249,13 +244,9 @@ class PostprocessConfig:
         default=True,
         metadata={"help": "Adds the MJCF XML to the package."},
     )
-    default_joint_pd_params: JointPDParams | None = field(
+    mjcf_metadata: ConversionMetadata | None = field(
         default=None,
-        metadata={"help": "The default joint PD params to use for joints without PD params."},
-    )
-    suffix_to_joint_pd_params: dict[str, JointPDParams] = field(
-        default_factory=lambda: {},
-        metadata={"help": "The suffix to joint PD params mapping."},
+        metadata={"help": "The MJCF metadata to use for the URDF."},
     )
     package_tgz: bool = field(
         default=True,
