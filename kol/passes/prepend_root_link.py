@@ -59,7 +59,7 @@ def prepend_root_link(
     root_link.append(inertial)
 
     # Create the floating base joint
-    floating_base_joint = ET.Element("joint", {"name": "floating_base", "type": "fixed"})
+    floating_base_joint = ET.Element("joint", {"name": "floating_base", "type": "floating"})
     origin = ET.Element("origin", {"rpy": " ".join(f"{r:.2f}" for r in rpy), "xyz": "0 0 0"})
     parent = ET.Element("parent", {"link": "base"})
     child = ET.Element("child", {"link": first_link_name})
