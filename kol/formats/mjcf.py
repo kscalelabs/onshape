@@ -1,6 +1,6 @@
 """Defines helper functions for MJCF accessors."""
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, MISSING
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -23,7 +23,7 @@ class JointParamsMetadata:
 
 @dataclass
 class ImuSensor:
-    link_name: str = field(default="")
+    site_name: str = field(default=MISSING)
     pos: list[float] = field(default_factory=lambda: [0.0, 0.0, 0.0])
     quat: list[float] = field(default_factory=lambda: [1.0, 0.0, 0.0, 0.0])
     acc_noise: float | None = field(default=None)
@@ -35,6 +35,9 @@ class ImuSensor:
 class ConversionMetadata:
     joint_params: JointParamsMetadata | None = field(default=None)
     imus: list[ImuSensor] = field(default_factory=lambda: [])
+    merge_fixed: bool = field(default=False)
+    floating_base: bool = field(default=True)
+    remove_base_inertial: bool = field(default=False)
 
 
 def convert_to_mjcf_metadata(metadata: ConversionMetadata) -> "ConversionMetadataRef":
@@ -76,7 +79,7 @@ def convert_to_mjcf_metadata(metadata: ConversionMetadata) -> "ConversionMetadat
         ),
         imus=[
             ImuSensorRef(
-                link_name=imu.link_name,
+                site_name=imu.site_name,
                 pos=imu.pos,
                 quat=imu.quat,
                 acc_noise=imu.acc_noise,
@@ -85,4 +88,7 @@ def convert_to_mjcf_metadata(metadata: ConversionMetadata) -> "ConversionMetadat
             )
             for imu in metadata.imus
         ],
+        merge_fixed=metadata.merge_fixed,
+        floating_base=metadata.floating_base,
+        remove_base_inertial=metadata.remove_base_inertial,
     )
