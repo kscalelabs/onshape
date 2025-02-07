@@ -35,9 +35,8 @@ class ImuSensor:
 class ConversionMetadata:
     joint_params: JointParamsMetadata | None = field(default=None)
     imus: list[ImuSensor] = field(default_factory=lambda: [])
-    merge_fixed: bool = field(default=False)
+    remove_fixed_joints: bool = field(default=False)
     floating_base: bool = field(default=True)
-    remove_base_inertial: bool = field(default=False)
 
 
 def convert_to_mjcf_metadata(metadata: ConversionMetadata) -> "ConversionMetadataRef":
@@ -88,7 +87,6 @@ def convert_to_mjcf_metadata(metadata: ConversionMetadata) -> "ConversionMetadat
             )
             for imu in metadata.imus
         ],
-        merge_fixed=metadata.merge_fixed,
+        remove_fixed_joints=metadata.remove_fixed_joints,
         floating_base=metadata.floating_base,
-        remove_base_inertial=metadata.remove_base_inertial,
     )
