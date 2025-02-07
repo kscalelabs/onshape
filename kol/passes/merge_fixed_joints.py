@@ -277,7 +277,7 @@ def process_fixed_joints(
     if missed_ignored_joints:
         raise ValueError(
             f"The following fixed joints were not processed: {missed_ignored_joints}. "
-            f"The available fixed joints in the URDF are {starting_fixed_joint_names}"
+            f"The available fixed joints in the URDF are {sorted(starting_fixed_joint_names)}"
         )
 
     return urdf_etree
