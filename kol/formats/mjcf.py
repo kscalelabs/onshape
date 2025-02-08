@@ -23,7 +23,7 @@ class JointParamsMetadata:
 
 @dataclass
 class ImuSensor:
-    site_name: str = field(default=MISSING)
+    site_name: str = field()
     pos: list[float] = field(default_factory=lambda: [0.0, 0.0, 0.0])
     quat: list[float] = field(default_factory=lambda: [1.0, 0.0, 0.0, 0.0])
     acc_noise: float | None = field(default=None)
