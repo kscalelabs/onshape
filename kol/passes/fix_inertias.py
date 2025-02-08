@@ -6,10 +6,10 @@ from pathlib import Path
 
 import numpy as np
 
-EPSILON = 1e-7  # kg m^2
+DEFAULT_EPSILON = 1e-7  # kg m^2
 
 
-def fix_inertias(urdf_path: Path, epsilon: float = EPSILON) -> None:
+def fix_inertias(urdf_path: Path, epsilon: float = DEFAULT_EPSILON) -> None:
     urdf_tree = ET.parse(urdf_path)
 
     # Ensure that all inertia matrices are positive definite by thresholding the diagonal.
@@ -32,8 +32,17 @@ def fix_inertias(urdf_path: Path, epsilon: float = EPSILON) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Fix inertias in an URDF file.")
-    parser.add_argument("urdf_path", type=Path, help="The path to the URDF file.")
-    parser.add_argument("--epsilon", type=float, default=EPSILON, help="The epsilon value to use for thresholding.")
+    parser.add_argument(
+        "urdf_path",
+        type=Path,
+        help="The path to the URDF file.",
+    )
+    parser.add_argument(
+        "--epsilon",
+        type=float,
+        default=DEFAULT_EPSILON,
+        help="The epsilon value to use for thresholding.",
+    )
     args = parser.parse_args()
 
     fix_inertias(args.urdf_path, epsilon=args.epsilon)

@@ -234,11 +234,19 @@ class PostprocessConfig:
     )
     fix_inertias: bool = field(
         default=True,
-        metadata={"help": "Fixes the inertias in the URDF."},
+        metadata={"help": "Ensures that the inertias are positive definite."},
     )
     min_inertia_eigval: float = field(
         default=1e-7,
         metadata={"help": "The minimum value to use for the inertia matrix."},
+    )
+    flip_joints: list[str] | None = field(
+        default=None,
+        metadata={"help": "The names of the joints to flip."},
+    )
+    sort_sections: bool = field(
+        default=True,
+        metadata={"help": "Sorts the sections in the URDF, putting the joints at the end."},
     )
     add_mjcf: bool = field(
         default=True,
