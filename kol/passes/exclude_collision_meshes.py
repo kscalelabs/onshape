@@ -20,26 +20,26 @@ def exclude_collision_meshes(urdf_path: Path, exclude_names: list[str]) -> None:
     if not exclude_names:
         return
 
+
     urdf_tree = ET.parse(urdf_path)
     root = urdf_tree.getroot()
 
-    num_excluded = 0
+    excluded = []
     for link in root.findall(".//link"):
         for collision in link.findall("collision"):
-            if "name" in collision.attrib and collision.attrib["name"] in exclude_names:
+            if "name" in collision.attrib and collision.attrib["name"].strip("_collision") in exclude_names:
                 link.remove(collision)
-                num_excluded += 1
+                excluded.append(collision.attrib["name"].strip("_collision"))
                 logger.info(
                     "Removed collision mesh '%s' from link '%s'",
                     collision.attrib["name"],
                     link.attrib.get("name", "unknown"),
                 )
 
-    if num_excluded > 0:
-        logger.info("Excluded %d collision meshes from %s", num_excluded, urdf_path.name)
-        save_xml(urdf_path, urdf_tree)
-    else:
-        logger.warning("No collision meshes matched the provided names: %s", exclude_names)
+    for not_excluded in set(exclude_names) - set(excluded):
+        logger.warning("Collision mesh '%s' not found in URDF", not_excluded)
+
+    save_xml(urdf_path, urdf_tree)
 
 
 def main() -> None:
