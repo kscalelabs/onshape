@@ -25,15 +25,17 @@ def flip_joints(urdf_path: Path, joint_names: Collection[str]) -> None:
             new_xyz = [-float(i) for i in axis.attrib["xyz"].strip().split()]
             axis.attrib["xyz"] = " ".join([_str(i) for i in new_xyz])
             if (limit := joint.find("limit")) is not None:
-                if "lower" in limit.attrib:
-                    lower = float(limit.attrib["lower"])
-                    limit.attrib["upper"] = _str(-lower)
-                if "upper" in limit.attrib:
-                    upper = float(limit.attrib["upper"])
-                    limit.attrib["lower"] = _str(-upper)
+                lower, upper = limit.attrib.get("lower"), limit.attrib.get("upper")
+                if lower is not None and upper is not None:
+                    limit.attrib["upper"] = _str(-float(lower))
+                    limit.attrib["lower"] = _str(-float(upper))
+                elif lower is not None or upper is not None:
+                    raise ValueError(f"Joint {joint_name} has only one limit.")
+
             joint_names.remove(joint_name)
     if joint_names:
-        raise ValueError(f"Joints not found: {joint_names}")
+        options = "\n".join([joint.attrib["name"] for joint in urdf_tree.findall("joint") if "name" in joint.attrib])
+        raise ValueError(f"Joints not found: {joint_names} Options are: {options}")
     save_xml(urdf_path, urdf_tree)
 
 
