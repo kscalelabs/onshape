@@ -164,6 +164,10 @@ class PostprocessConfig:
         default_factory=lambda: {},
         metadata={"help": "The mapping from old joint names to new joint names."},
     )
+    exclude_collision_meshes: list[str] = field(
+        default_factory=lambda: [],
+        metadata={"help": "The names of the collision meshes to exclude."},
+    )
     link_name_map: dict[str, str] = field(
         default_factory=lambda: {},
         metadata={"help": "The mapping from old link names to new link names."},
