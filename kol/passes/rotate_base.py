@@ -14,9 +14,9 @@ def rotate_base(urdf_path: Path, quaternion: tuple[float, float, float, float]) 
 
     Args:
         urdf_path: The path to the URDF file.
-        quaternion: The quaternion to rotate the base by (w, x, y, z).
+        quaternion: The quaternion to rotate the base by (x, y, z, w).
     """
-    if quaternion == (1.0, 0.0, 0.0, 0.0):
+    if quaternion == (0.0, 0.0, 0.0, 1.0):
         return
 
     # Parse the URDF file
