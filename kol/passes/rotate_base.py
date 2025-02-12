@@ -66,7 +66,7 @@ def rotate_base(urdf_path: Path, quaternion: tuple[float, float, float, float]) 
 
     # Save the modified URDF
     tree.write(urdf_path, encoding="utf-8", xml_declaration=True)
-    logger.info(f"Updated base link rotation in {urdf_path}")
+    logger.info("Updated base link rotation in %s", urdf_path)
 
 
 def main() -> None:
