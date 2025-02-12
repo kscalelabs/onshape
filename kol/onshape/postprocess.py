@@ -120,7 +120,7 @@ async def postprocess(
     # Adds the MJCF XML to the package.
     paths = [urdf_path]
     if config.add_mjcf:
-        paths.append(convert_urdf_to_mjcf(urdf_path, metadata=config.mjcf_metadata))
+        paths.extend(convert_urdf_to_mjcf(urdf_path, metadata=config.mjcf_metadata))
 
     # Combines everything to a single TAR file.
     for _, (_, visual_mesh_path), (_, collision_mesh_path) in iter_meshes(urdf_path):
