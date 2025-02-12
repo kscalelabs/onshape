@@ -43,6 +43,10 @@ class DownloadConfig:
         default=MISSING,
         metadata={"help": "The URL of the OnShape document."},
     )
+    use_assembly_name: bool = field(
+        default=False,
+        metadata={"help": "Uses the assembly name as the file name, instead of the default name."},
+    )
     output_dir: str = field(
         default=MISSING,
         metadata={"help": "The output directory."},
