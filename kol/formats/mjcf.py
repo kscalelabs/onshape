@@ -37,6 +37,7 @@ class ConversionMetadata:
     imus: list[ImuSensor] = field(default_factory=lambda: [])
     remove_fixed_joints: bool = field(default=False)
     floating_base: bool = field(default=True)
+    add_mjcf_scene: bool = field(default=True)
 
 
 def convert_to_mjcf_metadata(metadata: ConversionMetadata) -> "ConversionMetadataRef":

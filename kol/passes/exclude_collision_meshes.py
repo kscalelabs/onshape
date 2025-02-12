@@ -4,39 +4,48 @@ import argparse
 import logging
 import xml.etree.ElementTree as ET
 from pathlib import Path
+from typing import Collection
 
 from kol.formats.common import save_xml
 
 logger = logging.getLogger(__name__)
 
 
-def exclude_collision_meshes(urdf_path: Path, exclude_names: list[str]) -> None:
+def exclude_collision_meshes(urdf_path: Path, exclude_names: Collection[str]) -> None:
     """Removes collision meshes with specified names from the URDF.
 
     Args:
         urdf_path: The path to the URDF file.
         exclude_names: List of collision mesh names to exclude.
     """
-    if not exclude_names:
+    if len(exclude_names) == 0:
         return
+
+    exclude_names = set(exclude_names)
 
     urdf_tree = ET.parse(urdf_path)
     root = urdf_tree.getroot()
 
-    excluded = []
+    all_names: set[str] = set()
+    processed: set[str] = set()
     for link in root.findall(".//link"):
+        if (name := link.attrib.get("name")) is None:
+            continue
+        all_names.add(name)
+        if name not in exclude_names:
+            continue
         for collision in link.findall("collision"):
-            if "name" in collision.attrib and collision.attrib["name"].strip("_collision") in exclude_names:
-                link.remove(collision)
-                excluded.append(collision.attrib["name"].strip("_collision"))
-                logger.info(
-                    "Removed collision mesh '%s' from link '%s'",
-                    collision.attrib["name"],
-                    link.attrib.get("name", "unknown"),
-                )
+            link.remove(collision)
+            processed.add(name)
+            logger.info("Removed collision mesh from link '%s'", name)
 
-    for not_excluded in set(exclude_names) - set(excluded):
-        logger.warning("Collision mesh '%s' not found in URDF", not_excluded)
+    not_processed = exclude_names - processed
+    if not_processed:
+        all_possible_names_str = "\n".join(sorted(all_names))
+        raise ValueError(
+            f"Collision meshes not found in URDF: {not_processed}\n"
+            f"Here are the possible names:\n{all_possible_names_str}"
+        )
 
     save_xml(urdf_path, urdf_tree)
 
