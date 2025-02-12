@@ -196,10 +196,6 @@ class PostprocessConfig:
         default=None,
         metadata={"help": "If set, separate adjacent joints by this distance, to prevent collisions."},
     )
-    prepend_root_link: bool = field(
-        default=True,
-        metadata={"help": "Prepends the root link to the URDF."},
-    )
     base_quaternion: tuple[float, float, float, float] = field(
         default=(0.0, 0.0, 0.0, 1.0),
         metadata={"help": "Quaternion to apply to the base linkage to orient the robot, in (x, y, z, w) format."},

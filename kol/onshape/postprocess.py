@@ -18,8 +18,8 @@ from kol.passes.flip_joints import flip_joints
 from kol.passes.make_convex_collision_mesh import get_convex_collision_meshes
 from kol.passes.merge_fixed_joints import get_merged_urdf
 from kol.passes.move_collision_meshes import move_collision_meshes
-from kol.passes.prepend_root_link import prepend_root_link
 from kol.passes.remove_internal_geometries import remove_internal_geometries_from_urdf
+from kol.passes.rotate_base import rotate_base
 from kol.passes.separate_collision_meshes import separate_collision_meshes_in_urdf
 from kol.passes.shrink_collision_meshes import shrink_collision_meshes
 from kol.passes.simplify_meshes import get_simplified_urdf
@@ -85,9 +85,9 @@ async def postprocess(
     if config.simplify_meshes:
         get_simplified_urdf(urdf_path, voxel_size=config.voxel_size)
 
-    # Prepends the root link to the URDF.
-    if config.prepend_root_link:
-        prepend_root_link(urdf_path, config.base_quaternion)
+    # Rotates the base of the URDF.
+    if config.base_quaternion is not None:
+        rotate_base(urdf_path, config.base_quaternion)
 
     # Add a small separation between adjacent joints.
     if config.joint_separation_distance is not None:
