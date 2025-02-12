@@ -12,6 +12,7 @@ from kol.onshape.config import ConverterConfig, PostprocessConfig
 from kol.onshape.download import download
 from kol.passes.add_joint_separation import add_joint_separation
 from kol.passes.add_mjcf import convert_urdf_to_mjcf
+from kol.passes.convert_floats_to_consistent_types import convert_floats_to_consistent_types
 from kol.passes.exclude_collision_meshes import exclude_collision_meshes
 from kol.passes.fix_inertias import fix_inertias
 from kol.passes.flip_joints import flip_joints
@@ -100,6 +101,10 @@ async def postprocess(
     # Fixes the inertias in the URDF.
     if config.fix_inertias:
         fix_inertias(urdf_path, epsilon=config.min_inertia_eigval)
+
+    # Converts floating point numbers to consistent types.
+    if config.convert_floats_to_consistent_types:
+        convert_floats_to_consistent_types(urdf_path)
 
     # Sorts the sections in the URDF, putting the joints at the end.
     if config.sort_sections:

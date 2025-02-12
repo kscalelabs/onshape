@@ -240,6 +240,10 @@ class PostprocessConfig:
         default=True,
         metadata={"help": "Ensures that the inertias are positive definite."},
     )
+    convert_floats_to_consistent_types: bool = field(
+        default=True,
+        metadata={"help": "Converts floating point numbers to consistent types."},
+    )
     min_inertia_eigval: float = field(
         default=1e-7,
         metadata={"help": "The minimum value to use for the inertia matrix."},
