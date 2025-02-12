@@ -54,6 +54,9 @@ def convert_floats_to_consistent_types(urdf_path: Path) -> None:
                 if (rpy := origin.get("rpy")) is not None:
                     origin.set("rpy", flstrs(rpy))
         if (inertial := link.find("inertial")) is not None:
+            if (mass := inertial.find("mass")) is not None:
+                if (value := mass.get("value")) is not None:
+                    mass.set("value", flstr(float(value)))
             if (origin := inertial.find("origin")) is not None:
                 if (xyz := origin.get("xyz")) is not None:
                     origin.set("xyz", flstrs(xyz))
