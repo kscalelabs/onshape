@@ -75,7 +75,7 @@ def convert_urdf_to_mjcf(
     """
     urdf_file = Path(urdf_file)
     if mjcf_file is None:
-        mjcf_file = urdf_file.with_suffix(".xml")
+        mjcf_file = urdf_file.with_suffix(".mjcf")
     else:
         mjcf_file = Path(mjcf_file)
 
@@ -96,7 +96,7 @@ def convert_urdf_to_mjcf(
     # Adds a scene file to the package.
     files = [mjcf_file]
     if metadata.add_mjcf_scene:
-        scene_file = mjcf_file.with_suffix(".scene.xml")
+        scene_file = mjcf_file.with_suffix(f".scene{mjcf_file.suffix}")
         write_scene_file(scene_file, mjcf_file)
         files.append(scene_file)
 
@@ -108,7 +108,7 @@ def main() -> None:
     parser.add_argument("urdf_path", type=Path, help="The path to the URDF file.")
     args = parser.parse_args()
 
-    convert_urdf_to_mjcf(args.urdf_path, args.urdf_path.with_suffix(".mjcf"))
+    convert_urdf_to_mjcf(args.urdf_path)
 
 
 if __name__ == "__main__":

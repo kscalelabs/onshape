@@ -6,6 +6,7 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 
 from kol.formats.common import save_xml
+from kol.utils.mesh import COLLISION_SUFFIX
 
 logger = logging.getLogger(__name__)
 
@@ -96,7 +97,8 @@ def get_convex_collision_meshes(urdf_path: Path, max_triangles: int | None = Non
         # make a new mesh for the collision mesh. Otherwise, we can just
         # overwrite the existing collision mesh.
         if visual_mesh_path == collision_mesh_path:
-            collision_output_mesh_path = collision_mesh_path.with_suffix(".convex.stl")
+            new_suffix = f"{COLLISION_SUFFIX}{collision_mesh_path.suffix}"
+            collision_output_mesh_path = collision_mesh_path.with_suffix(new_suffix)
             collision_mesh_elem.attrib["filename"] = collision_output_mesh_path.relative_to(urdf_path.parent).as_posix()
             has_change = True
         else:

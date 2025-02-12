@@ -10,6 +10,7 @@ import numpy as np
 import trimesh
 
 from kol.passes.utils import iter_meshes
+from kol.utils.mesh import COLLISION_SUFFIX
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +24,8 @@ def separate_collision_mesh(visual_mesh_path: Path) -> Path:
     Returns:
         Path to the new collision mesh file.
     """
-    collision_mesh_path = visual_mesh_path.parent / f"{visual_mesh_path.stem}_collision{visual_mesh_path.suffix}"
+    collision_mesh_name = f"{visual_mesh_path.stem}{COLLISION_SUFFIX}{visual_mesh_path.suffix}"
+    collision_mesh_path = visual_mesh_path.parent / collision_mesh_name
     if collision_mesh_path.exists():
         logger.warning("Collision mesh %s already exists for %s", collision_mesh_path, visual_mesh_path)
     shutil.copy2(visual_mesh_path, collision_mesh_path)

@@ -51,6 +51,7 @@ from kol.onshape.schema.part import PartDynamics, PartMetadata
 from kol.utils.errors import catch_error
 from kol.utils.geometry import apply_matrix_, inv_tf, transform_inertia_tensor
 from kol.utils.logging import configure_logging
+from kol.utils.mesh import COLLISION_SUFFIX
 from kol.utils.resolvers import ExpressionResolver
 
 logger = logging.getLogger(__name__)
@@ -1002,7 +1003,7 @@ def get_urdf_part(
                 name=f"{urdf_link_name}_collision_geometry",
                 filename=urdf_file_path,
             ),
-            name=f"{urdf_link_name}_collision",
+            name=f"{urdf_link_name}{COLLISION_SUFFIX}",
         ),
     )
 
