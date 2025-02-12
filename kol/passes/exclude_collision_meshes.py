@@ -7,7 +7,6 @@ from pathlib import Path
 from typing import Collection
 
 from kol.formats.common import save_xml
-from kol.utils.mesh import COLLISION_SUFFIX
 
 logger = logging.getLogger(__name__)
 
