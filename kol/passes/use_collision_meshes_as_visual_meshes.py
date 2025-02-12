@@ -11,6 +11,7 @@ logger = logging.getLogger(__name__)
 
 def use_collision_meshes_as_visual_meshes(urdf_path: Path) -> None:
     """Updates specified links to use their collision meshes as visual meshes.
+
     If a link has no collision mesh, its visual mesh will be removed.
 
     Args:

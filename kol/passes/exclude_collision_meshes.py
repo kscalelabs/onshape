@@ -20,7 +20,6 @@ def exclude_collision_meshes(urdf_path: Path, exclude_names: list[str]) -> None:
     if not exclude_names:
         return
 
-
     urdf_tree = ET.parse(urdf_path)
     root = urdf_tree.getroot()
 
