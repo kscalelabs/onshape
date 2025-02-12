@@ -95,7 +95,7 @@ def convert_urdf_to_mjcf(
 
     # Adds a scene file to the package.
     files = [mjcf_file]
-    if metadata.add_mjcf_scene:
+    if metadata is not None and metadata.add_mjcf_scene:
         scene_file = mjcf_file.with_suffix(f".scene{mjcf_file.suffix}")
         write_scene_file(scene_file, mjcf_file)
         files.append(scene_file)
