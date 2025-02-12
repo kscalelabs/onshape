@@ -12,6 +12,8 @@ logger = logging.getLogger(__name__)
 def flstr(value: float) -> str:
     if abs(value) < 1e-6:
         return "0"
+    if abs(value - 1) < 1e-6:
+        return "1"
     return f"{value:.6f}"
 
 
@@ -47,6 +49,10 @@ def convert_floats_to_consistent_types(urdf_path: Path) -> None:
                     origin.set("xyz", flstrs(xyz))
                 if (rpy := origin.get("rpy")) is not None:
                     origin.set("rpy", flstrs(rpy))
+            if (material := visual.find("material")) is not None:
+                if (color := material.find("color")) is not None:
+                    if (rgba := color.get("rgba")) is not None:
+                        color.set("rgba", flstrs(rgba))
         if (collision := link.find("collision")) is not None:
             if (origin := collision.find("origin")) is not None:
                 if (xyz := origin.get("xyz")) is not None:
