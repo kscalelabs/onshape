@@ -12,6 +12,7 @@ from kol.onshape.config import ConverterConfig, PostprocessConfig
 from kol.onshape.download import download
 from kol.passes.add_joint_separation import add_joint_separation
 from kol.passes.add_mjcf import convert_urdf_to_mjcf
+from kol.passes.exclude_collision_meshes import exclude_collision_meshes
 from kol.passes.fix_inertias import fix_inertias
 from kol.passes.flip_joints import flip_joints
 from kol.passes.make_convex_collision_mesh import get_convex_collision_meshes
@@ -107,6 +108,10 @@ async def postprocess(
     # Remove internal geometries from meshes.
     if config.remove_internal_geometries:
         remove_internal_geometries_from_urdf(urdf_path)
+
+    # Excludes collision meshes from the URDF.
+    if config.exclude_collision_meshes:
+        exclude_collision_meshes(urdf_path, config.exclude_collision_meshes)
 
     # Use collision meshes as visual meshes.
     if config.use_collision_meshes_as_visual_meshes:
