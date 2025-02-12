@@ -1265,7 +1265,7 @@ async def save_urdf(
         urdf_parts.extend([urdf_joint, urdf_link])
 
     robot_name = clean_name(str(doc.assembly_metadata.property_map.get("Name", "robot"))).lower()
-    urdf_path = output_dir / f"{robot_name}.urdf"
+    urdf_path = output_dir / f"{robot_name if config.use_assembly_name else 'robot'}.urdf"
     urdf_robot = urdf.Robot(name=robot_name, parts=urdf_parts)
     urdf_robot.save(urdf_path)
 
