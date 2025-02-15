@@ -4,21 +4,18 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from urdf2mjcf.convert import (
-        ConversionMetadata as ConversionMetadataRef,
-    )
+    from urdf2mjcf.convert import ConversionMetadata as ConversionMetadataRef
 
 
 @dataclass
 class JointParam:
+    name: str = field()
+    suffixes: list[str] = field(default_factory=lambda: [])
+    armature: float | None = field(default=None)
+    frictionloss: float | None = field(default=None)
+    actuatorfrc: float | None = field(default=None)
     kp: float = field(default=0.0)
     kd: float = field(default=0.0)
-
-
-@dataclass
-class JointParamsMetadata:
-    suffix_to_pd_params: dict[str, JointParam] = field(default_factory=lambda: {})
-    default: JointParam | None = field(default=None)
 
 
 @dataclass
@@ -33,7 +30,7 @@ class ImuSensor:
 
 @dataclass
 class ConversionMetadata:
-    joint_params: JointParamsMetadata | None = field(default=None)
+    joint_params: list[JointParam] = field(default_factory=lambda: [])
     imus: list[ImuSensor] = field(default_factory=lambda: [])
     remove_fixed_joints: bool = field(default=False)
     floating_base: bool = field(default=True)
@@ -42,12 +39,9 @@ class ConversionMetadata:
 
 def convert_to_mjcf_metadata(metadata: ConversionMetadata) -> "ConversionMetadataRef":
     try:
-        from urdf2mjcf.model import (
-            ConversionMetadata as ConversionMetadataRef,
-            ImuSensor as ImuSensorRef,
-            JointParam as JointParamRef,
-            JointParamsMetadata as JointParamsMetadataRef,
-        )
+        from urdf2mjcf.model import ConversionMetadata as ConversionMetadataRef
+        from urdf2mjcf.model import ImuSensor as ImuSensorRef
+        from urdf2mjcf.model import JointParam as JointParamRef
 
     except ImportError as e:
         raise ImportError(
@@ -56,27 +50,18 @@ def convert_to_mjcf_metadata(metadata: ConversionMetadata) -> "ConversionMetadat
         ) from e
 
     return ConversionMetadataRef(
-        joint_params=JointParamsMetadataRef(
-            suffix_to_pd_params=(
-                {}
-                if metadata.joint_params is None
-                else {
-                    name: JointParamRef(
-                        kp=param.kp,
-                        kd=param.kd,
-                    )
-                    for name, param in metadata.joint_params.suffix_to_pd_params.items()
-                }
-            ),
-            default=(
-                None
-                if metadata.joint_params is None or metadata.joint_params.default is None
-                else JointParamRef(
-                    kp=metadata.joint_params.default.kp,
-                    kd=metadata.joint_params.default.kd,
-                )
-            ),
-        ),
+        joint_params=[
+            JointParamRef(
+                name=param.name,
+                suffixes=param.suffixes,
+                armature=param.armature,
+                frictionloss=param.frictionloss,
+                actuatorfrc=param.actuatorfrc,
+                kp=param.kp,
+                kd=param.kd,
+            )
+            for param in metadata.joint_params
+        ],
         imus=[
             ImuSensorRef(
                 site_name=imu.site_name,
