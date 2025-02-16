@@ -15,7 +15,7 @@ class JointParam:
     frictionloss: float | None = field(default=None)
     actuatorfrc: float | None = field(default=None)
     kp: float = field(default=0.0)
-    kd: float = field(default=0.0)
+    dampratio: float = field(default=1.0)
 
 
 @dataclass
@@ -59,7 +59,7 @@ def convert_to_mjcf_metadata(metadata: ConversionMetadata) -> "ConversionMetadat
                 frictionloss=param.frictionloss,
                 actuatorfrc=param.actuatorfrc,
                 kp=param.kp,
-                kd=param.kd,
+                dampratio=param.dampratio,
             )
             for param in metadata.joint_params
         ],
