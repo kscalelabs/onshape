@@ -27,8 +27,6 @@ def simplify_mesh(
         voxel_size=voxel_size,
         contraction=o3d.geometry.SimplificationContraction.Average,
     )
-    pre_num_vertices = len(mesh.vertices)
-    post_num_vertices = len(simple_mesh.vertices)
 
     # Remove triangles in order to greatly simplify the mesh.
     if max_triangles is not None and len(simple_mesh.triangles) > max_triangles:
@@ -36,6 +34,9 @@ def simplify_mesh(
         simple_mesh = simple_mesh.remove_duplicated_vertices()
         simple_mesh = simple_mesh.remove_degenerate_triangles()
         simple_mesh = simple_mesh.remove_duplicated_triangles()
+
+    pre_num_vertices = len(mesh.vertices)
+    post_num_vertices = len(simple_mesh.vertices)
 
     match mesh_path.suffix.lower():
         case ".ply":
@@ -66,8 +67,6 @@ def get_simplified_urdf(
         The path to the merged urdf file.
     """
     # Iterates through each link in the URDF and simplifies the meshes.
-    total_pre_num_vertices = 0
-    total_post_num_vertices = 0
     for _, (_, visual_mesh_path), (_, collision_mesh_path) in iter_meshes(urdf_path):
         for mesh_path in list({visual_mesh_path, collision_mesh_path}):
             if mesh_path is not None:
@@ -76,17 +75,16 @@ def get_simplified_urdf(
                     voxel_size=voxel_size,
                     max_triangles=max_triangles,
                 )
-                total_pre_num_vertices += pre_num_vertices
-                total_post_num_vertices += post_num_vertices
 
-    if total_pre_num_vertices > 0:
-        percent_reduction = (1 - total_post_num_vertices / total_pre_num_vertices) * 100
-        logger.info(
-            "Simplified meshes from %d to %d vertices (%.2f%% reduction)",
-            total_pre_num_vertices,
-            total_post_num_vertices,
-            percent_reduction,
-        )
+                if pre_num_vertices > post_num_vertices:
+                    percent_reduction = (1 - post_num_vertices / pre_num_vertices) * 100
+                    logger.info(
+                        "Simplified meshes from %d to %d vertices (%.2f%% reduction) for %s",
+                        pre_num_vertices,
+                        post_num_vertices,
+                        percent_reduction,
+                        mesh_path,
+                    )
 
 
 def main() -> None:
