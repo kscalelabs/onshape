@@ -84,7 +84,11 @@ async def postprocess(
 
     # Simplifies the meshes in the URDF.
     if config.simplify_meshes:
-        get_simplified_urdf(urdf_path, voxel_size=config.voxel_size)
+        get_simplified_urdf(
+            urdf_path,
+            voxel_size=config.voxel_size,
+            max_triangles=config.max_mesh_triangles,
+        )
 
     # Rotates the base of the URDF.
     if config.base_quaternion is not None:
