@@ -14,7 +14,7 @@ def add_base_linkage(
     base_rpy: tuple[float, float, float] = (0.0, 0.0, 0.0),
     link_name: str = "floating_base_link",
     joint_name: str = "floating_base_joint",
-    joint_type: str = "fixed",
+    joint_type: str = "floating",
 ) -> None:
     """Adds a new base linkage to the URDF.
 
@@ -74,7 +74,7 @@ def main() -> None:
     parser.add_argument(
         "--joint_type",
         type=str,
-        default="fixed",
+        default="floating",
         help="The type of the joint (default is 'fixed')",
     )
     args = parser.parse_args()
