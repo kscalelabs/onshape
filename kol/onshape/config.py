@@ -200,9 +200,13 @@ class PostprocessConfig:
         default=None,
         metadata={"help": "If set, separate adjacent joints by this distance, to prevent collisions."},
     )
-    base_quaternion: tuple[float, float, float, float] = field(
-        default=(0.0, 0.0, 0.0, 1.0),
-        metadata={"help": "Quaternion to apply to the base linkage to orient the robot, in (x, y, z, w) format."},
+    add_base_linkage: bool = field(
+        default=True,
+        metadata={"help": "Adds a base linkage to the URDF."},
+    )
+    base_rpy: tuple[float, float, float] = field(
+        default=(0.0, 0.0, 0.0),
+        metadata={"help": "The RPY to apply to the base linkage to orient the robot."},
     )
     voxel_size: float = field(
         default=0.00002,

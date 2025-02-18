@@ -14,13 +14,11 @@ class JointParam:
     armature: float | None = field(default=None)
     frictionloss: float | None = field(default=None)
     actuatorfrc: float | None = field(default=None)
-    kp: float = field(default=0.0)
-    dampratio: float = field(default=1.0)
 
 
 @dataclass
 class ImuSensor:
-    site_name: str = field()
+    body_name: str = field()
     pos: list[float] = field(default_factory=lambda: [0.0, 0.0, 0.0])  # (x, y, z)
     quat: list[float] = field(default_factory=lambda: [1.0, 0.0, 0.0, 0.0])  # (w, x, y, z)
     acc_noise: float | None = field(default=None)
@@ -32,7 +30,6 @@ class ImuSensor:
 class ConversionMetadata:
     joint_params: list[JointParam] = field(default_factory=lambda: [])
     imus: list[ImuSensor] = field(default_factory=lambda: [])
-    remove_fixed_joints: bool = field(default=False)
     floating_base: bool = field(default=True)
 
 
@@ -58,14 +55,12 @@ def convert_to_mjcf_metadata(metadata: ConversionMetadata) -> "ConversionMetadat
                 armature=param.armature,
                 frictionloss=param.frictionloss,
                 actuatorfrc=param.actuatorfrc,
-                kp=param.kp,
-                dampratio=param.dampratio,
             )
             for param in metadata.joint_params
         ],
         imus=[
             ImuSensorRef(
-                site_name=imu.site_name,
+                body_name=imu.body_name,
                 pos=imu.pos,
                 quat=imu.quat,
                 acc_noise=imu.acc_noise,
@@ -74,6 +69,5 @@ def convert_to_mjcf_metadata(metadata: ConversionMetadata) -> "ConversionMetadat
             )
             for imu in metadata.imus
         ],
-        remove_fixed_joints=metadata.remove_fixed_joints,
         floating_base=metadata.floating_base,
     )

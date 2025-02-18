@@ -20,7 +20,7 @@ def pybullet_main(args: Sequence[str] | None = None) -> None:
     parser.add_argument("urdf", nargs="?", help="Path to the URDF file")
     parser.add_argument("--dt", type=float, default=0.01, help="Time step")
     parser.add_argument("-n", "--hide-gui", action="store_true", help="Hide the GUI")
-    parser.add_argument("--no-merge", action="store_true", help="Do not merge fixed links")
+    parser.add_argument("--merge-fixed", action="store_true", help="Merge fixed links")
     parser.add_argument("--hide-origin", action="store_true", help="Do not show the origin")
     parser.add_argument("--show-inertia", action="store_true", help="Visualizes the inertia frames")
     parser.add_argument("--see-thru", action="store_true", help="Use see-through mode")
@@ -66,7 +66,7 @@ def pybullet_main(args: Sequence[str] | None = None) -> None:
     start_orientation = p.getQuaternionFromEuler([0.0, 0.0, 0.0])
     flags = p.URDF_USE_INERTIA_FROM_FILE
     flags |= p.URDF_USE_SELF_COLLISION_EXCLUDE_PARENT
-    if not parsed_args.no_merge:
+    if parsed_args.merge_fixed:
         flags |= p.URDF_MERGE_FIXED_LINKS
 
     robot = p.loadURDF(

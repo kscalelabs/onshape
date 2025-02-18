@@ -10,6 +10,7 @@ from typing import Sequence
 
 from kol.onshape.config import ConverterConfig, PostprocessConfig
 from kol.onshape.download import download
+from kol.passes.add_base_linkage import add_base_linkage
 from kol.passes.add_joint_separation import add_joint_separation
 from kol.passes.add_mjcf import convert_urdf_to_mjcf
 from kol.passes.convert_floats_to_consistent_types import convert_floats_to_consistent_types
@@ -20,7 +21,6 @@ from kol.passes.make_convex_collision_mesh import get_convex_collision_meshes
 from kol.passes.merge_fixed_joints import get_merged_urdf
 from kol.passes.move_collision_meshes import move_collision_meshes
 from kol.passes.remove_internal_geometries import remove_internal_geometries_from_urdf
-from kol.passes.rotate_base import rotate_base
 from kol.passes.separate_collision_meshes import separate_collision_meshes_in_urdf
 from kol.passes.shrink_collision_meshes import shrink_collision_meshes
 from kol.passes.simplify_meshes import get_simplified_urdf
@@ -90,10 +90,6 @@ async def postprocess(
             max_triangles=config.max_mesh_triangles,
         )
 
-    # Rotates the base of the URDF.
-    if config.base_quaternion is not None:
-        rotate_base(urdf_path, config.base_quaternion)
-
     # Add a small separation between adjacent joints.
     if config.joint_separation_distance is not None:
         add_joint_separation(urdf_path, config.joint_separation_distance)
@@ -114,7 +110,11 @@ async def postprocess(
     if config.sort_sections:
         sort_sections(urdf_path)
 
-    # Remove internal geometries from meshes.
+    # Adds a base linkage.
+    if config.add_base_linkage:
+        add_base_linkage(urdf_path, base_rpy=config.base_rpy)
+
+    # Remove internal triangles from the meshes in the URDF.
     if config.remove_internal_geometries:
         remove_internal_geometries_from_urdf(urdf_path)
 
