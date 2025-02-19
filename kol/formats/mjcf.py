@@ -42,10 +42,12 @@ class ConversionMetadata:
 
 def convert_to_mjcf_metadata(metadata: ConversionMetadata) -> "ConversionMetadataRef":
     try:
-        from urdf2mjcf.model import ConversionMetadata as ConversionMetadataRef
-        from urdf2mjcf.model import FeetSpheresParams as FeetSpheresParamsRef
-        from urdf2mjcf.model import ImuSensor as ImuSensorRef
-        from urdf2mjcf.model import JointParam as JointParamRef
+        from urdf2mjcf.model import (
+            ConversionMetadata as ConversionMetadataRef,
+            FeetSpheresParams as FeetSpheresParamsRef,
+            ImuSensor as ImuSensorRef,
+            JointParam as JointParamRef,
+        )
 
     except ImportError as e:
         raise ImportError(
