@@ -53,6 +53,7 @@ def update_urdf_names(
     def cleanup_name(name: str) -> str:
         base_name = name.split(":")[-1]
         base_name = re.sub(r"_\(\d+\)", "", base_name)
+        base_name = re.sub(r"-", "_", base_name)
         return base_name
 
     def get_unique_name(name: str, name_set: set[str]) -> str:
