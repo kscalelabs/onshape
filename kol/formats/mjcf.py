@@ -20,7 +20,7 @@ class JointParam:
 class ImuSensor:
     body_name: str = field()
     pos: list[float] = field(default_factory=lambda: [0.0, 0.0, 0.0])  # (x, y, z)
-    quat: list[float] = field(default_factory=lambda: [1.0, 0.0, 0.0, 0.0])  # (w, x, y, z)
+    rpy: list[float] = field(default_factory=lambda: [0.0, 0.0, 0.0])  # (roll, pitch, yaw)
     acc_noise: float | None = field(default=None)
     gyro_noise: float | None = field(default=None)
     mag_noise: float | None = field(default=None)
@@ -70,7 +70,7 @@ def convert_to_mjcf_metadata(metadata: ConversionMetadata) -> "ConversionMetadat
             ImuSensorRef(
                 body_name=imu.body_name,
                 pos=imu.pos,
-                quat=imu.quat,
+                rpy=imu.rpy,
                 acc_noise=imu.acc_noise,
                 gyro_noise=imu.gyro_noise,
                 mag_noise=imu.mag_noise,
