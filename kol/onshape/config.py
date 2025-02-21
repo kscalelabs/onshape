@@ -184,6 +184,10 @@ class PostprocessConfig:
         default=True,
         metadata={"help": "Merges fixed joints in the URDF."},
     )
+    rotate_joints: dict[str, list[float]] | None = field(
+        default=None,
+        metadata={"help": "The joints to rotate, and the RPY values to rotate them by."},
+    )
     ignore_merging_fixed_joints: list[str] = field(
         default_factory=lambda: [],
         metadata={"help": "The names of the fixed joints to ignore when merging (for example, IMU joints)."},
