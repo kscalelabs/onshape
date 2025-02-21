@@ -19,8 +19,8 @@ class JointParam:
 @dataclass
 class ImuSensor:
     body_name: str = field()
-    pos: list[float] = field(default_factory=lambda: [0.0, 0.0, 0.0])  # (x, y, z)
-    rpy: list[float] = field(default_factory=lambda: [0.0, 0.0, 0.0])  # (roll, pitch, yaw)
+    pos: list[float] | None = field(default=None)  # (x, y, z)
+    rpy: list[float] | None = field(default=None)  # (roll, pitch, yaw)
     acc_noise: float | None = field(default=None)
     gyro_noise: float | None = field(default=None)
     mag_noise: float | None = field(default=None)

@@ -21,6 +21,7 @@ from kol.passes.make_convex_collision_mesh import get_convex_collision_meshes
 from kol.passes.merge_fixed_joints import get_merged_urdf
 from kol.passes.move_collision_meshes import move_collision_meshes
 from kol.passes.remove_internal_geometries import remove_internal_geometries_from_urdf
+from kol.passes.rotate_joints import rotate_joints
 from kol.passes.separate_collision_meshes import separate_collision_meshes_in_urdf
 from kol.passes.shrink_collision_meshes import shrink_collision_meshes
 from kol.passes.simplify_meshes import get_simplified_urdf
@@ -62,6 +63,10 @@ async def postprocess(
     # Merges all fixed joints in the URDF.
     if config.merge_fixed_joints:
         get_merged_urdf(urdf_path, ignore_merging_fixed_joints=config.ignore_merging_fixed_joints)
+
+    # Applies rotations to some joints.
+    if config.rotate_joints is not None:
+        rotate_joints(urdf_path, config.rotate_joints)
 
     # Creates separate collision meshes for each link in the URDF.
     if config.separate_collision_meshes:
