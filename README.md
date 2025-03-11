@@ -16,7 +16,7 @@
 
 # K-Scale OnShape Library
 
-Welcome to the K-Scale OnShape Library! For more information, see the [documentation](https://docs.kscale.dev/utils/onshape).
+Welcome to the K-Scale OnShape Library! For more information, see the [documentation](https://docs.kscale.dev/docs/onshape-to-urdf-converter).
 
 # Quick Start
 
