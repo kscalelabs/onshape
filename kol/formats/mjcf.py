@@ -27,27 +27,18 @@ class ImuSensor:
 
 
 @dataclass
-class FeetSpheresParams:
-    foot_links: list[str] = field(default_factory=lambda: [])
-    sphere_radius: float = field(default=0.01)
-
-
-@dataclass
 class ConversionMetadata:
     joint_params: list[JointParam] = field(default_factory=lambda: [])
     imus: list[ImuSensor] = field(default_factory=lambda: [])
-    feet_spheres: FeetSpheresParams | None = field(default=None)
+    flat_feet_links: list[str] = field(default_factory=lambda: [])
     floating_base: bool = field(default=True)
 
 
 def convert_to_mjcf_metadata(metadata: ConversionMetadata) -> "ConversionMetadataRef":
     try:
-        from urdf2mjcf.model import (
-            ConversionMetadata as ConversionMetadataRef,
-            FeetSpheresParams as FeetSpheresParamsRef,
-            ImuSensor as ImuSensorRef,
-            JointParam as JointParamRef,
-        )
+        from urdf2mjcf.model import ConversionMetadata as ConversionMetadataRef
+        from urdf2mjcf.model import ImuSensor as ImuSensorRef
+        from urdf2mjcf.model import JointParam as JointParamRef
 
     except ImportError as e:
         raise ImportError(
@@ -77,13 +68,6 @@ def convert_to_mjcf_metadata(metadata: ConversionMetadata) -> "ConversionMetadat
             )
             for imu in metadata.imus
         ],
-        feet_spheres=(
-            None
-            if metadata.feet_spheres is None
-            else FeetSpheresParamsRef(
-                foot_links=metadata.feet_spheres.foot_links,
-                sphere_radius=metadata.feet_spheres.sphere_radius,
-            )
-        ),
+        flat_feet_links=metadata.flat_feet_links,
         floating_base=metadata.floating_base,
     )
