@@ -20,6 +20,7 @@ from kol.passes.flip_joints import flip_joints
 from kol.passes.make_convex_collision_mesh import get_convex_collision_meshes
 from kol.passes.merge_fixed_joints import get_merged_urdf
 from kol.passes.move_collision_meshes import move_collision_meshes
+from kol.passes.remove_extra_meshes import remove_extra_meshes
 from kol.passes.remove_internal_geometries import remove_internal_geometries_from_urdf
 from kol.passes.rotate_joints import rotate_joints
 from kol.passes.separate_collision_meshes import separate_collision_meshes_in_urdf
@@ -135,6 +136,9 @@ async def postprocess(
     paths = [urdf_path]
     if config.add_mjcf:
         paths.extend(convert_urdf_to_mjcf(urdf_path, metadata=config.mjcf_metadata))
+
+    if config.remove_extra_meshes:
+        remove_extra_meshes(urdf_path)
 
     # Combines everything to a single TAR file.
     for _, (_, visual_mesh_path), (_, collision_mesh_path) in iter_meshes(urdf_path):

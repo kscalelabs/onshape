@@ -200,6 +200,10 @@ class PostprocessConfig:
         default=True,
         metadata={"help": "Remove the internal geometries from meshes as a clean-up step."},
     )
+    remove_extra_meshes: bool = field(
+        default=True,
+        metadata={"help": "Removes any extra mesh files in the URDF directory."},
+    )
     joint_separation_distance: float | None = field(
         default=None,
         metadata={"help": "If set, separate adjacent joints by this distance, to prevent collisions."},
