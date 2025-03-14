@@ -31,6 +31,7 @@ class ConversionMetadata:
     joint_params: list[JointParam] = field(default_factory=lambda: [])
     imus: list[ImuSensor] = field(default_factory=lambda: [])
     flat_feet_links: list[str] = field(default_factory=lambda: [])
+    explicit_floor_contacts: list[str] = field(default_factory=lambda: [])
     floating_base: bool = field(default=True)
 
 
@@ -71,5 +72,6 @@ def convert_to_mjcf_metadata(metadata: ConversionMetadata) -> "ConversionMetadat
             for imu in metadata.imus
         ],
         flat_feet_links=metadata.flat_feet_links,
+        explicit_floor_contacts=metadata.explicit_floor_contacts,
         floating_base=metadata.floating_base,
     )
