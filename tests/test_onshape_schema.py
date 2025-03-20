@@ -2,8 +2,8 @@
 
 import json
 
-from kol.onshape.schema.assembly import Assembly
-from kol.onshape.schema.features import Features
+from onshape.onshape.schema.assembly import Assembly
+from onshape.onshape.schema.features import Features
 
 
 def test_assembly_schema() -> None:

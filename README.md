@@ -21,5 +21,5 @@ Welcome to the K-Scale OnShape Library! For more information, see the [documenta
 # Quick Start
 
 ```
-kol run -o "output_dir" -f "config_path" onshape_url
+onshape run -o "output_dir" -f "config_path" onshape_url
 ```
