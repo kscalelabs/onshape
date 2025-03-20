@@ -1,1 +1,1 @@
-recursive-include kol/ *.py *.txt py.typed MANIFEST.in
+recursive-include onshape/ *.py *.txt py.typed MANIFEST.in

@@ -5,10 +5,10 @@ from pathlib import Path
 
 import pytest
 
-from kol.onshape.config import ConverterConfig
-from kol.onshape.download import download
-from kol.onshape.postprocess import postprocess
-from kol.utils.logging import configure_logging
+from onshape.onshape.config import ConverterConfig
+from onshape.onshape.download import download
+from onshape.onshape.postprocess import postprocess
+from onshape.utils.logging import configure_logging
 
 # STOMPY_ONSHAPE_URL = (
 #     "https://cad.onshape.com/documents/71f793a23ab7562fb9dec82d/w/"

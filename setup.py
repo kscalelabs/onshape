@@ -10,11 +10,11 @@ with open("README.md", "r", encoding="utf-8") as f:
     long_description: str = f.read()
 
 
-with open("kol/requirements.txt", "r", encoding="utf-8") as f:
+with open("onshape/requirements.txt", "r", encoding="utf-8") as f:
     requirements: list[str] = f.read().splitlines()
 
 
-with open("kol/requirements-dev.txt", "r", encoding="utf-8") as f:
+with open("onshape/requirements-dev.txt", "r", encoding="utf-8") as f:
     requirements_dev: list[str] = f.read().splitlines()
 
 
@@ -23,14 +23,14 @@ requirements_open3d = ["open3d"]
 requirements_all = requirements_dev + requirements_mujoco + requirements_open3d
 
 
-with open("kol/__init__.py", "r", encoding="utf-8") as fh:
+with open("onshape/__init__.py", "r", encoding="utf-8") as fh:
     version_re = re.search(r"^__version__ = \"([^\"]*)\"", fh.read(), re.MULTILINE)
-assert version_re is not None, "Could not find version in kol/__init__.py"
+assert version_re is not None, "Could not find version in onshape/__init__.py"
 version: str = version_re.group(1)
 
 
 setup(
-    name="kscale-onshape-library",
+    name="onshape",
     version=version,
     description="K-Scale's library for programmatically interacting with OnShape",
     author="Benjamin Bolte",
@@ -48,7 +48,7 @@ setup(
         "all": requirements_all,
     },
     package_data={
-        "kol": [
+        "onshape": [
             "py.typed",
             "requirements*.txt",
             "scripts/bullet/*.obj",

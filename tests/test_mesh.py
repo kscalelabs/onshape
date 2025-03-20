@@ -5,7 +5,7 @@ from typing import get_args
 
 import pytest
 
-from kol.utils.mesh import MeshType, load_file, save_file, stl_to_fmt
+from onshape.utils.mesh import MeshType, load_file, save_file, stl_to_fmt
 
 
 @pytest.mark.parametrize("mesh_type", get_args(MeshType))

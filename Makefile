@@ -48,15 +48,15 @@ clean:
 
 
 format:
-	@black kol
-	@ruff check --fix kol
-	@ruff format kol
+	@black onshape
+	@ruff check --fix onshape
+	@ruff format onshape
 .PHONY: format
 
 static-checks:
-	@black --diff --check kol
-	@ruff check kol
-	@mypy --install-types --non-interactive kol
+	@black --diff --check onshape
+	@ruff check onshape
+	@mypy --install-types --non-interactive onshape
 .PHONY: lint
 
 mypy-daemon:
