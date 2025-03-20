@@ -33,6 +33,7 @@ class ConversionMetadata:
     flat_feet_links: list[str] = field(default_factory=lambda: [])
     explicit_floor_contacts: list[str] = field(default_factory=lambda: [])
     floating_base: bool = field(default=True)
+    maxhullvert: int = field(default=64)
 
 
 def convert_to_mjcf_metadata(metadata: ConversionMetadata) -> "ConversionMetadataRef":
@@ -45,8 +46,8 @@ def convert_to_mjcf_metadata(metadata: ConversionMetadata) -> "ConversionMetadat
 
     except ImportError as e:
         raise ImportError(
-            "Please install the package with `urdf2mjcf` as a dependency, using "
-            "`pip install kscale-onshape-library[mujoco]`"
+            "urdf2mjcf is required to run this script. Install it with `pip install "
+            "'kscale-onshape-library[mujoco]'` to install the required dependencies."
         ) from e
 
     return ConversionMetadataRef(
@@ -74,4 +75,5 @@ def convert_to_mjcf_metadata(metadata: ConversionMetadata) -> "ConversionMetadat
         flat_feet_links=metadata.flat_feet_links,
         explicit_floor_contacts=metadata.explicit_floor_contacts,
         floating_base=metadata.floating_base,
+        maxhullvert=metadata.maxhullvert,
     )
