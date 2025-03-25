@@ -21,6 +21,8 @@ from onshape.onshape.schema.part import PartDynamics, PartMetadata, ThumbnailInf
 
 logger = logging.getLogger(__name__)
 
+RETRY_STATUS_CODES = (429, 500, 502, 503, 504)
+
 
 def escape_url(s: str) -> str:
     return s.replace("/", "%2f").replace("+", "%2b")
@@ -159,6 +161,7 @@ class OnshapeApi:
         units: str = "meter",
         min_facet_width: float | None = None,
         max_facet_width: float | None = None,
+        retries: int = 3,
     ) -> None:
         path = (
             f"/api/parts/d/{part.documentId}/m/{part.documentMicroversion}"
@@ -175,19 +178,26 @@ class OnshapeApi:
         if max_facet_width is not None:
             query["maxFacetWidth"] = max_facet_width
 
-        async with self.semaphore:
-            async with self.client.request(
-                "get",
-                path,
-                query=query,
-                headers={"Accept": "*/*"},
-            ) as response:
-                data = await response.aread()
-                response.raise_for_status()
-                fp.write(data)
+        for _ in range(retries):
+            async with self.semaphore:
+                async with self.client.request(
+                    "get",
+                    path,
+                    query=query,
+                    headers={"Accept": "*/*"},
+                ) as response:
+                    data = await response.aread()
+                    if response.status_code in RETRY_STATUS_CODES:
+                        logger.warning("Retrying download for %s (status code %d)", part.partId, response.status_code)
+                        continue
+                    response.raise_for_status()
+                    fp.write(data)
 
-        if self.post_wait > 0.0:
-            await asyncio.sleep(self.post_wait)
+            if self.post_wait > 0.0:
+                await asyncio.sleep(self.post_wait)
+            break
+        else:
+            raise RuntimeError(f"Failed to download STL for part {part.partId} after {retries} retries")
 
     async def list_thumbnails(self, document: DocumentInfo) -> ThumbnailInfo:
         path = f"/api/thumbnails/d/{document.document_id}/{document.item_kind}/{document.item_id}"
