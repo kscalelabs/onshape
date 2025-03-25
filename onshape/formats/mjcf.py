@@ -1,7 +1,10 @@
 """Defines helper functions for MJCF accessors."""
 
+import logging
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from urdf2mjcf.convert import ConversionMetadata as ConversionMetadataRef
@@ -38,17 +41,21 @@ class ConversionMetadata:
 
 def convert_to_mjcf_metadata(metadata: ConversionMetadata) -> "ConversionMetadataRef":
     try:
-        from urdf2mjcf.model import (
-            ConversionMetadata as ConversionMetadataRef,
-            ImuSensor as ImuSensorRef,
-            JointParam as JointParamRef,
-        )
+        import urdf2mjcf
+
+        logger.debug("urdf2mjcf version: %s", urdf2mjcf.__version__)
 
     except ImportError as e:
         raise ImportError(
             "urdf2mjcf is required to run this script. Install it with `pip install "
             "'onshape[mujoco]'` to install the required dependencies."
         ) from e
+
+    from urdf2mjcf.model import (
+        ConversionMetadata as ConversionMetadataRef,
+        ImuSensor as ImuSensorRef,
+        JointParam as JointParamRef,
+    )
 
     return ConversionMetadataRef(
         joint_params=[

@@ -874,12 +874,13 @@ async def download_stl(
     api: OnshapeApi,
     stl_origin_to_part_tf: np.ndarray,
     min_facet_width: float | None = None,
+    retries: int = 3,
 ) -> Path:
     part_instance = doc.key_to_part_instance[key]
     part = doc.euid_to_part[part_instance.euid]
 
     buffer = io.BytesIO()
-    await api.download_stl(part, buffer, min_facet_width=min_facet_width)
+    await api.download_stl(part, buffer, min_facet_width=min_facet_width, retries=retries)
     buffer.seek(0)
     mesh_obj = stl.mesh.Mesh.from_file(None, fh=buffer)
     mesh_obj = apply_matrix_(mesh_obj, stl_origin_to_part_tf)
