@@ -122,6 +122,7 @@ class CachedOnshapeApi(OnshapeApi):
         units: str = "meter",
         min_facet_width: float | None = None,
         max_facet_width: float | None = None,
+        retries: int = 3,
     ) -> None:
         # Each part needs its own lock. We use a master lock to avoid double
         # inserting the same lock.
@@ -141,6 +142,7 @@ class CachedOnshapeApi(OnshapeApi):
                         units=units,
                         min_facet_width=min_facet_width,
                         max_facet_width=max_facet_width,
+                        retries=retries,
                     )
 
         with open(cache_path, "rb") as f:
