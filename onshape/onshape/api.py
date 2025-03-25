@@ -197,7 +197,10 @@ class OnshapeApi:
                 await asyncio.sleep(self.post_wait)
             break
         else:
-            raise RuntimeError(f"Failed to download STL for part {part.partId} after {retries} retries")
+            raise RuntimeError(
+                f"Failed to download STL for part {part.partId} after {retries} retries; "
+                "are you connected to the internet, and is the Onshape API accessible?"
+            )
 
     async def list_thumbnails(self, document: DocumentInfo) -> ThumbnailInfo:
         path = f"/api/thumbnails/d/{document.document_id}/{document.item_kind}/{document.item_id}"
