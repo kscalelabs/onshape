@@ -1,12 +1,12 @@
 # Makefile
 
 define HELP_MESSAGE
-kscale-onshape-library
+onshape
 
 # Installing
 
-1. Create a new Conda environment: `conda create --name kscale-onshape-library python=3.11`
-2. Activate the environment: `conda activate kscale-onshape-library`
+1. Create a new Conda environment: `conda create --name onshape python=3.11`
+2. Activate the environment: `conda activate onshape`
 3. Install the package: `make install-dev`
 
 # Running Tests

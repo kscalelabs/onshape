@@ -1,7 +1,7 @@
 <div align="center">
 
 [![License](https://img.shields.io/badge/license-MIT-green)](https://github.com/kscalelabs/onshape/blob/main/LICENSE)
-[![Version](https://img.shields.io/pypi/v/kscale-onshape-library)](https://pypi.org/project/kscale-onshape-library/)
+[![Version](https://img.shields.io/pypi/v/onshape)](https://pypi.org/project/onshape/)
 [![Discord](https://img.shields.io/discord/1224056091017478166)](https://discord.gg/k5mSvCkYQh)
 [![Wiki](https://img.shields.io/badge/wiki-humanoids-black)](https://humanoids.wiki)
 <br />
