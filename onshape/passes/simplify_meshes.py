@@ -19,7 +19,7 @@ def simplify_mesh(
     except ImportError:
         raise ImportError(
             "Open3D is required to run this script. Install it with `pip install "
-            "'kscale-onshape-library[open3d]'` to install the required dependencies."
+            "'onshape[open3d]'` to install the required dependencies."
         )
 
     mesh = o3d.io.read_triangle_mesh(str(mesh_path))

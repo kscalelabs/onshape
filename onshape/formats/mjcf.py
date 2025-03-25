@@ -47,7 +47,7 @@ def convert_to_mjcf_metadata(metadata: ConversionMetadata) -> "ConversionMetadat
     except ImportError as e:
         raise ImportError(
             "urdf2mjcf is required to run this script. Install it with `pip install "
-            "'kscale-onshape-library[mujoco]'` to install the required dependencies."
+            "'onshape[mujoco]'` to install the required dependencies."
         ) from e
 
     return ConversionMetadataRef(

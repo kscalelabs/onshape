@@ -48,7 +48,7 @@ def convert_urdf_to_mjcf(
     except ImportError as e:
         raise ImportError(
             "Please install the package with `urdf2mjcf` as a dependency, using "
-            "`pip install kscale-onshape-library[mujoco]`"
+            "`pip install 'onshape[mujoco]'`"
         ) from e
 
     convert_urdf_to_mjcf(
