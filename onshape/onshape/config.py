@@ -272,9 +272,9 @@ class PostprocessConfig:
         default=True,
         metadata={"help": "Adds the MJCF XML to the package."},
     )
-    mjcf_metadata: ConversionMetadata | None = field(
+    mjcf_metadata: list[ConversionMetadata] | None = field(
         default=None,
-        metadata={"help": "The MJCF metadata to use for the URDF."},
+        metadata={"help": "The MJCF metadata(s) to use for the URDF."},
     )
     package_tgz: bool = field(
         default=True,
