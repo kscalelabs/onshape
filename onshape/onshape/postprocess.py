@@ -135,7 +135,17 @@ async def postprocess(
     # Adds the MJCF XML to the package.
     paths = [urdf_path]
     if config.add_mjcf:
-        paths.extend(convert_urdf_to_mjcf(urdf_path, metadata=config.mjcf_metadata))
+        for metadata in config.mjcf_metadata or []:
+            if metadata.suffix is not None:
+                paths.extend(
+                    convert_urdf_to_mjcf(
+                        urdf_file=urdf_path,
+                        mjcf_file=urdf_path.with_suffix(f".{metadata.suffix}.mjcf"),
+                        metadata=metadata,
+                    )
+                )
+            else:
+                paths.extend(convert_urdf_to_mjcf(urdf_path, metadata=metadata))
 
     if config.remove_extra_meshes:
         remove_extra_meshes(urdf_path)

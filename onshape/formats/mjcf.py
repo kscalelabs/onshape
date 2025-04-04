@@ -31,6 +31,8 @@ class ImuSensor:
 
 @dataclass
 class ConversionMetadata:
+    suffix: str | None = field(default=None)
+    freejoint: bool = field(default=True)
     joint_params: list[JointParam] = field(default_factory=lambda: [])
     imus: list[ImuSensor] = field(default_factory=lambda: [])
     flat_feet_links: list[str] = field(default_factory=lambda: [])
@@ -83,4 +85,5 @@ def convert_to_mjcf_metadata(metadata: ConversionMetadata) -> "ConversionMetadat
         explicit_floor_contacts=metadata.explicit_floor_contacts,
         floating_base=metadata.floating_base,
         maxhullvert=metadata.maxhullvert,
+        freejoint=metadata.freejoint,
     )
