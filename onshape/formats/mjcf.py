@@ -1,4 +1,4 @@
-"""Defines helper functions for MJCF accessors."""
+"""Defines helper functions for MJCF accessors.""" 
 
 import logging
 from dataclasses import dataclass, field
