@@ -30,11 +30,20 @@ class ImuSensor:
 
 
 @dataclass
+class ForceSensor:
+    body_name: str = field()
+    site_name: str = field()
+    name: str | None = field(default=None)
+    noise: float | None = field(default=None)
+
+
+@dataclass
 class ConversionMetadata:
     suffix: str | None = field(default=None)
     freejoint: bool = field(default=True)
     joint_params: list[JointParam] = field(default_factory=lambda: [])
     imus: list[ImuSensor] = field(default_factory=lambda: [])
+    force_sensors: list[ForceSensor] = field(default_factory=lambda: [])
     flat_feet_links: list[str] = field(default_factory=lambda: [])
     explicit_floor_contacts: list[str] = field(default_factory=lambda: [])
     floating_base: bool = field(default=True)
@@ -55,6 +64,7 @@ def convert_to_mjcf_metadata(metadata: ConversionMetadata) -> "ConversionMetadat
 
     from urdf2mjcf.model import (
         ConversionMetadata as ConversionMetadataRef,
+        ForceSensor as ForceSensorRef,
         ImuSensor as ImuSensorRef,
         JointParam as JointParamRef,
     )
@@ -80,6 +90,15 @@ def convert_to_mjcf_metadata(metadata: ConversionMetadata) -> "ConversionMetadat
                 mag_noise=imu.mag_noise,
             )
             for imu in metadata.imus
+        ],
+        force_sensors=[
+            ForceSensorRef(
+                body_name=fs.body_name,
+                site_name=fs.site_name,
+                name=fs.name,
+                noise=fs.noise,
+            )
+            for fs in metadata.force_sensors
         ],
         flat_feet_links=metadata.flat_feet_links,
         explicit_floor_contacts=metadata.explicit_floor_contacts,
