@@ -2,7 +2,7 @@
 
 import logging
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast, get_args
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +48,7 @@ class ConversionMetadata:
     explicit_floor_contacts: list[str] = field(default_factory=lambda: [])
     floating_base: bool = field(default=True)
     maxhullvert: int = field(default=64)
+    angle: str = field(default="radian")
 
 
 def convert_to_mjcf_metadata(metadata: ConversionMetadata) -> "ConversionMetadataRef":
@@ -63,11 +64,15 @@ def convert_to_mjcf_metadata(metadata: ConversionMetadata) -> "ConversionMetadat
         ) from e
 
     from urdf2mjcf.model import (
+        Angle,
         ConversionMetadata as ConversionMetadataRef,
         ForceSensor as ForceSensorRef,
         ImuSensor as ImuSensorRef,
         JointParam as JointParamRef,
     )
+
+    if metadata.angle not in get_args(Angle):
+        raise ValueError(f"Invalid angle type: {metadata.angle}. Must be one of {get_args(Angle)}")
 
     return ConversionMetadataRef(
         joint_params=[
@@ -105,4 +110,5 @@ def convert_to_mjcf_metadata(metadata: ConversionMetadata) -> "ConversionMetadat
         floating_base=metadata.floating_base,
         maxhullvert=metadata.maxhullvert,
         freejoint=metadata.freejoint,
+        angle=cast(Angle, metadata.angle),
     )
