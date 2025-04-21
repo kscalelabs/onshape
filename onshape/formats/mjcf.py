@@ -38,6 +38,12 @@ class ForceSensor:
 
 
 @dataclass
+class ExplicitFloorContacts:
+    contact_links: list[str] = field(default_factory=lambda: [])
+    class_name: str = field(default="collision")
+
+
+@dataclass
 class ConversionMetadata:
     suffix: str | None = field(default=None)
     freejoint: bool = field(default=True)
@@ -45,10 +51,15 @@ class ConversionMetadata:
     imus: list[ImuSensor] = field(default_factory=lambda: [])
     force_sensors: list[ForceSensor] = field(default_factory=lambda: [])
     flat_feet_links: list[str] = field(default_factory=lambda: [])
-    explicit_floor_contacts: list[str] = field(default_factory=lambda: [])
+    explicit_contacts: ExplicitFloorContacts | None = field(default_factory=ExplicitFloorContacts)
+    remove_redundancies: bool = field(default=True)
     floating_base: bool = field(default=True)
     maxhullvert: int = field(default=64)
     angle: str = field(default="radian")
+    floor_name: str = field(default="floor")
+    add_floor: bool = field(default=True)
+    backlash: float | None = field(default=None)
+    backlash_damping: float = field(default=0.01)
 
 
 def convert_to_mjcf_metadata(metadata: ConversionMetadata) -> "ConversionMetadataRef":
@@ -66,6 +77,7 @@ def convert_to_mjcf_metadata(metadata: ConversionMetadata) -> "ConversionMetadat
     from urdf2mjcf.model import (
         Angle,
         ConversionMetadata as ConversionMetadataRef,
+        ExplicitFloorContacts as ExplicitFloorContactsRef,
         ForceSensor as ForceSensorRef,
         ImuSensor as ImuSensorRef,
         JointParam as JointParamRef,
@@ -75,6 +87,7 @@ def convert_to_mjcf_metadata(metadata: ConversionMetadata) -> "ConversionMetadat
         raise ValueError(f"Invalid angle type: {metadata.angle}. Must be one of {get_args(Angle)}")
 
     return ConversionMetadataRef(
+        freejoint=metadata.freejoint,
         joint_params=[
             JointParamRef(
                 name=param.name,
@@ -106,9 +119,20 @@ def convert_to_mjcf_metadata(metadata: ConversionMetadata) -> "ConversionMetadat
             for fs in metadata.force_sensors
         ],
         flat_feet_links=metadata.flat_feet_links,
-        explicit_floor_contacts=metadata.explicit_floor_contacts,
+        explicit_contacts=(
+            None
+            if metadata.explicit_contacts is None
+            else ExplicitFloorContactsRef(
+                contact_links=metadata.explicit_contacts.contact_links,
+                class_name=metadata.explicit_contacts.class_name,
+            )
+        ),
+        remove_redundancies=metadata.remove_redundancies,
         floating_base=metadata.floating_base,
         maxhullvert=metadata.maxhullvert,
-        freejoint=metadata.freejoint,
         angle=cast(Angle, metadata.angle),
+        floor_name=metadata.floor_name,
+        add_floor=metadata.add_floor,
+        backlash=metadata.backlash,
+        backlash_damping=metadata.backlash_damping,
     )
