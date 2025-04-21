@@ -45,6 +45,7 @@ class ExplicitFloorContacts:
 
 @dataclass
 class ConversionMetadata:
+    suffix: str | None = field(default=None)
     freejoint: bool = field(default=True)
     joint_params: list[JointParam] = field(default_factory=lambda: [])
     imus: list[ImuSensor] = field(default_factory=lambda: [])
