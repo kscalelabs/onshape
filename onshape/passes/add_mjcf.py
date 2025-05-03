@@ -68,5 +68,5 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    # python -m onshape.passes.simplify_meshes
+    # python -m onshape.passes.add_mjcf
     main()

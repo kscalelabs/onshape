@@ -50,7 +50,7 @@ class ConversionMetadata:
     joint_params: list[JointParam] = field(default_factory=lambda: [])
     imus: list[ImuSensor] = field(default_factory=lambda: [])
     force_sensors: list[ForceSensor] = field(default_factory=lambda: [])
-    flat_feet_links: list[str] = field(default_factory=lambda: [])
+    feet_links: list[str] = field(default_factory=lambda: [])
     explicit_contacts: ExplicitFloorContacts | None = field(default_factory=ExplicitFloorContacts)
     remove_redundancies: bool = field(default=True)
     floating_base: bool = field(default=True)
@@ -118,7 +118,7 @@ def convert_to_mjcf_metadata(metadata: ConversionMetadata) -> "ConversionMetadat
             )
             for fs in metadata.force_sensors
         ],
-        flat_feet_links=metadata.flat_feet_links,
+        feet_links=metadata.feet_links,
         explicit_contacts=(
             None
             if metadata.explicit_contacts is None
