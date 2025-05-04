@@ -83,14 +83,16 @@ def convert_to_mjcf_metadata(metadata: ConversionMetadata) -> "ConversionMetadat
             "'onshape[mujoco]'` to install the required dependencies."
         ) from e
 
-    from urdf2mjcf.model import Angle
-    from urdf2mjcf.model import CollisionGeometry as CollisionGeometryRef
-    from urdf2mjcf.model import CollisionType
-    from urdf2mjcf.model import ConversionMetadata as ConversionMetadataRef
-    from urdf2mjcf.model import ExplicitFloorContacts as ExplicitFloorContactsRef
-    from urdf2mjcf.model import ForceSensor as ForceSensorRef
-    from urdf2mjcf.model import ImuSensor as ImuSensorRef
-    from urdf2mjcf.model import JointParam as JointParamRef
+    from urdf2mjcf.model import (
+        Angle,
+        CollisionGeometry as CollisionGeometryRef,
+        CollisionType,
+        ConversionMetadata as ConversionMetadataRef,
+        ExplicitFloorContacts as ExplicitFloorContactsRef,
+        ForceSensor as ForceSensorRef,
+        ImuSensor as ImuSensorRef,
+        JointParam as JointParamRef,
+    )
 
     if metadata.angle not in get_args(Angle):
         raise ValueError(f"Invalid angle type: {metadata.angle}. Must be one of {get_args(Angle)}")
