@@ -11,6 +11,16 @@ if TYPE_CHECKING:
 
 
 @dataclass
+class CollisionParams:
+    condim: int = field(default=6)
+    contype: int = field(default=0)
+    conaffinity: int = field(default=1)
+    solref: list[float] = field(default_factory=lambda: [0.005, 1.0])
+    solimp: list[float] = field(default_factory=lambda: [0.99, 0.999, 0.00001])
+    friction: list[float] = field(default_factory=lambda: [0.8, 0.02, 0.01])
+
+
+@dataclass
 class JointParam:
     name: str = field()
     suffixes: list[str] = field(default_factory=lambda: [])
@@ -56,6 +66,7 @@ class CollisionGeometry:
 class ConversionMetadata:
     suffix: str | None = field(default=None)
     freejoint: bool = field(default=True)
+    collision_params: CollisionParams = field(default_factory=lambda: CollisionParams())
     joint_params: list[JointParam] = field(default_factory=lambda: [])
     imus: list[ImuSensor] = field(default_factory=lambda: [])
     force_sensors: list[ForceSensor] = field(default_factory=lambda: [])
@@ -86,6 +97,7 @@ def convert_to_mjcf_metadata(metadata: ConversionMetadata) -> "ConversionMetadat
     from urdf2mjcf.model import (
         Angle,
         CollisionGeometry as CollisionGeometryRef,
+        CollisionParams as CollisionParamsRef,
         CollisionType,
         ConversionMetadata as ConversionMetadataRef,
         ExplicitFloorContacts as ExplicitFloorContactsRef,
@@ -103,6 +115,12 @@ def convert_to_mjcf_metadata(metadata: ConversionMetadata) -> "ConversionMetadat
 
     return ConversionMetadataRef(
         freejoint=metadata.freejoint,
+        collision_params=CollisionParamsRef(
+            condim=metadata.collision_params.condim,
+            contype=metadata.collision_params.contype,
+            solref=metadata.collision_params.solref,
+            friction=metadata.collision_params.friction,
+        ),
         joint_params=[
             JointParamRef(
                 name=param.name,
