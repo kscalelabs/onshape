@@ -44,13 +44,19 @@ class ExplicitFloorContacts:
 
 
 @dataclass
+class CollisionGeometry:
+    name: str
+    collision_type: str
+
+
+@dataclass
 class ConversionMetadata:
     suffix: str | None = field(default=None)
     freejoint: bool = field(default=True)
     joint_params: list[JointParam] = field(default_factory=lambda: [])
     imus: list[ImuSensor] = field(default_factory=lambda: [])
     force_sensors: list[ForceSensor] = field(default_factory=lambda: [])
-    flat_feet_links: list[str] = field(default_factory=lambda: [])
+    collision_geometries: list[CollisionGeometry] = field(default_factory=lambda: [])
     explicit_contacts: ExplicitFloorContacts | None = field(default_factory=ExplicitFloorContacts)
     remove_redundancies: bool = field(default=True)
     floating_base: bool = field(default=True)
@@ -76,6 +82,8 @@ def convert_to_mjcf_metadata(metadata: ConversionMetadata) -> "ConversionMetadat
 
     from urdf2mjcf.model import (
         Angle,
+        CollisionGeometry as CollisionGeometryRef,
+        CollisionType,
         ConversionMetadata as ConversionMetadataRef,
         ExplicitFloorContacts as ExplicitFloorContactsRef,
         ForceSensor as ForceSensorRef,
@@ -118,7 +126,13 @@ def convert_to_mjcf_metadata(metadata: ConversionMetadata) -> "ConversionMetadat
             )
             for fs in metadata.force_sensors
         ],
-        flat_feet_links=metadata.flat_feet_links,
+        collision_geometries=[
+            CollisionGeometryRef(
+                name=cg.name,
+                collision_type=CollisionType(cg.collision_type.upper()),
+            )
+            for cg in metadata.collision_geometries
+        ],
         explicit_contacts=(
             None
             if metadata.explicit_contacts is None
