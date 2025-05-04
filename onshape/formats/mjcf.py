@@ -44,13 +44,22 @@ class ExplicitFloorContacts:
 
 
 @dataclass
+class CollisionGeometry:
+    name: str = field()
+    collision_type: str = field()
+    sphere_radius: float = field(default=0.01)
+    axis_order: tuple[int, int, int] = field(default=(0, 1, 2))
+    flip_axis: bool = field(default=False)
+
+
+@dataclass
 class ConversionMetadata:
     suffix: str | None = field(default=None)
     freejoint: bool = field(default=True)
     joint_params: list[JointParam] = field(default_factory=lambda: [])
     imus: list[ImuSensor] = field(default_factory=lambda: [])
     force_sensors: list[ForceSensor] = field(default_factory=lambda: [])
-    flat_feet_links: list[str] = field(default_factory=lambda: [])
+    collision_geometries: list[CollisionGeometry] = field(default_factory=lambda: [])
     explicit_contacts: ExplicitFloorContacts | None = field(default_factory=ExplicitFloorContacts)
     remove_redundancies: bool = field(default=True)
     floating_base: bool = field(default=True)
@@ -76,6 +85,8 @@ def convert_to_mjcf_metadata(metadata: ConversionMetadata) -> "ConversionMetadat
 
     from urdf2mjcf.model import (
         Angle,
+        CollisionGeometry as CollisionGeometryRef,
+        CollisionType,
         ConversionMetadata as ConversionMetadataRef,
         ExplicitFloorContacts as ExplicitFloorContactsRef,
         ForceSensor as ForceSensorRef,
@@ -85,6 +96,10 @@ def convert_to_mjcf_metadata(metadata: ConversionMetadata) -> "ConversionMetadat
 
     if metadata.angle not in get_args(Angle):
         raise ValueError(f"Invalid angle type: {metadata.angle}. Must be one of {get_args(Angle)}")
+
+    for cg in metadata.collision_geometries:
+        if not hasattr(CollisionType, cg.collision_type.upper()):
+            raise ValueError(f"Bad collision type: {cg.collision_type}. Must be in {CollisionType.__members__.keys()}")
 
     return ConversionMetadataRef(
         freejoint=metadata.freejoint,
@@ -118,7 +133,16 @@ def convert_to_mjcf_metadata(metadata: ConversionMetadata) -> "ConversionMetadat
             )
             for fs in metadata.force_sensors
         ],
-        flat_feet_links=metadata.flat_feet_links,
+        collision_geometries=[
+            CollisionGeometryRef(
+                name=cg.name,
+                collision_type=getattr(CollisionType, cg.collision_type.upper()),
+                sphere_radius=cg.sphere_radius,
+                axis_order=cg.axis_order,
+                flip_axis=cg.flip_axis,
+            )
+            for cg in metadata.collision_geometries
+        ],
         explicit_contacts=(
             None
             if metadata.explicit_contacts is None
