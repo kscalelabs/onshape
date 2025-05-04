@@ -97,13 +97,13 @@ def convert_to_mjcf_metadata(metadata: ConversionMetadata) -> "ConversionMetadat
     from urdf2mjcf.model import (
         Angle,
         CollisionGeometry as CollisionGeometryRef,
+        CollisionParams as CollisionParamsRef,
         CollisionType,
         ConversionMetadata as ConversionMetadataRef,
         ExplicitFloorContacts as ExplicitFloorContactsRef,
         ForceSensor as ForceSensorRef,
         ImuSensor as ImuSensorRef,
         JointParam as JointParamRef,
-        CollisionParams as CollisionParamsRef,
     )
 
     if metadata.angle not in get_args(Angle):
