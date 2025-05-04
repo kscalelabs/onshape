@@ -21,7 +21,7 @@ from onshape.onshape.schema.part import PartDynamics, PartMetadata, ThumbnailInf
 
 logger = logging.getLogger(__name__)
 
-RETRY_STATUS_CODES = (429, 500, 502, 503, 504)
+RETRY_STATUS_CODES = (400, 429, 500, 502, 503, 504)
 
 
 def escape_url(s: str) -> str:
