@@ -45,8 +45,9 @@ class ExplicitFloorContacts:
 
 @dataclass
 class CollisionGeometry:
-    name: str
-    collision_type: str
+    name: str = field()
+    collision_type: str = field()
+    sphere_radius: float = field(default=0.01)
 
 
 @dataclass
@@ -94,6 +95,10 @@ def convert_to_mjcf_metadata(metadata: ConversionMetadata) -> "ConversionMetadat
     if metadata.angle not in get_args(Angle):
         raise ValueError(f"Invalid angle type: {metadata.angle}. Must be one of {get_args(Angle)}")
 
+    for cg in metadata.collision_geometries:
+        if not hasattr(CollisionType, cg.collision_type.upper()):
+            raise ValueError(f"Bad collision type: {cg.collision_type}. Must be in {CollisionType.__members__.keys()}")
+
     return ConversionMetadataRef(
         freejoint=metadata.freejoint,
         joint_params=[
@@ -129,7 +134,8 @@ def convert_to_mjcf_metadata(metadata: ConversionMetadata) -> "ConversionMetadat
         collision_geometries=[
             CollisionGeometryRef(
                 name=cg.name,
-                collision_type=CollisionType(cg.collision_type.upper()),
+                collision_type=getattr(CollisionType, cg.collision_type.upper()),
+                sphere_radius=cg.sphere_radius,
             )
             for cg in metadata.collision_geometries
         ],
