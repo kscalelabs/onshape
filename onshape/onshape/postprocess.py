@@ -118,7 +118,7 @@ async def postprocess(
 
     # Adds a base linkage.
     if config.add_base_linkage:
-        add_base_linkage(urdf_path, base_rpy=config.base_rpy)
+        add_base_linkage(urdf_path, base_xyz=config.base_xyz, base_rpy=config.base_rpy)
 
     # Remove internal triangles from the meshes in the URDF.
     if config.remove_internal_geometries:
