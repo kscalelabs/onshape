@@ -12,8 +12,8 @@ logger = logging.getLogger(__name__)
 def add_base_linkage(
     urdf_path: Path,
     base_rpy: tuple[float, float, float] = (0.0, 0.0, 0.0),
-    link_name: str = "floating_base_link",
-    joint_name: str = "floating_base_joint",
+    link_name: str = "base",
+    joint_name: str = "base_joint",
     joint_type: str = "fixed",
 ) -> None:
     """Adds a new base linkage to the URDF.
