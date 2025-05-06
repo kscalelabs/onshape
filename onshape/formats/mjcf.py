@@ -124,6 +124,7 @@ def convert_to_mjcf_metadata(metadata: ConversionMetadata) -> "ConversionMetadat
         ) from e
 
     from urdf2mjcf.model import (
+        ActuatorParam as ActuatorParamRef,
         Angle,
         CollisionGeometry as CollisionGeometryRef,
         CollisionParams as CollisionParamsRef,
@@ -133,7 +134,6 @@ def convert_to_mjcf_metadata(metadata: ConversionMetadata) -> "ConversionMetadat
         ForceSensor as ForceSensorRef,
         ImuSensor as ImuSensorRef,
         JointParam as JointParamRef,
-        ActuatorParam as ActuatorParamRef,
     )
 
     if metadata.angle not in get_args(Angle):
@@ -147,8 +147,7 @@ def convert_to_mjcf_metadata(metadata: ConversionMetadata) -> "ConversionMetadat
     joint_name_to_metadata = None
     if metadata.joint_name_to_metadata:
         joint_name_to_metadata = {
-            name: JointParamRef.from_dict(vars(param))
-            for name, param in metadata.joint_name_to_metadata.items()
+            name: JointParamRef.from_dict(vars(param)) for name, param in metadata.joint_name_to_metadata.items()
         }
 
     # Convert our dataclass ActuatorParam to Pydantic model ActuatorParam if needed
