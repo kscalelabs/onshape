@@ -2,7 +2,7 @@
 
 import argparse
 import json
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Self, Sequence, cast
 
@@ -37,6 +37,7 @@ class JointLimits:
     axial_z_min_expression: str | None = field(default=None)
     axial_z_max_expression: str | None = field(default=None)
 
+
 @dataclass
 class JointMetadata:
     actuator_type: str
@@ -45,7 +46,7 @@ class JointMetadata:
     frictionloss: float
     vin: float | None
     kt: float | None
-    
+
     def to_dict(self) -> dict:
         """Convert actuator to a plain dictionary for cross-repo compatibility."""
         return {k: v for k, v in asdict(self).items()}

@@ -105,7 +105,6 @@ def convert_to_mjcf_metadata(metadata: ConversionMetadata) -> "ConversionMetadat
         ExplicitFloorContacts as ExplicitFloorContactsRef,
         ForceSensor as ForceSensorRef,
         ImuSensor as ImuSensorRef,
-        JointParam as JointParamRef,
     )
 
     if metadata.angle not in get_args(Angle):
