@@ -23,7 +23,6 @@ def add_base_linkage(
         urdf_path: The path to the URDF file.
         base_xyz: The XYZ to apply to the base linkage to set the robot's position.
         base_rpy: The RPY to apply to the base linkage to orient the robot.
-        base_xyz: The XYZ to apply to the base linkage to position the robot.
         link_name: The name of the new link to add.
         joint_name: The name of the joint connecting the new link.
         joint_type: The type of the joint (default is 'fixed').
@@ -65,9 +64,7 @@ def add_base_linkage(
     new_joint = ET.Element("joint", name=joint_name, type=joint_type)
     ET.SubElement(new_joint, "parent", link=link_name)
     ET.SubElement(new_joint, "child", link=child_link_name)
-    ET.SubElement(
-        new_joint, "origin", xyz=" ".join(f"{x:.2f}" for x in base_xyz), rpy=" ".join(f"{r:.2f}" for r in base_rpy)
-    )
+    ET.SubElement(new_joint, "origin", xyz="0 0 0", rpy=" ".join(f"{r:.2f}" for r in base_rpy))
 
     # Insert the new link and joint at the start of the URDF
     root.insert(0, new_link)
@@ -91,30 +88,9 @@ def main() -> None:
         default="fixed",
         help="The type of the joint (default is 'fixed')",
     )
-    parser.add_argument(
-        "--base_rpy",
-        type=float,
-        nargs=3,
-        default=(0.0, 0.0, 0.0),
-        help="The RPY to apply to the base linkage (default is 0 0 0)",
-    )
-    parser.add_argument(
-        "--base_xyz",
-        type=float,
-        nargs=3,
-        default=(0.0, 0.0, 0.0),
-        help="The XYZ to apply to the base linkage (default is 0 0 0)",
-    )
     args = parser.parse_args()
 
-    add_base_linkage(
-        args.urdf_path,
-        base_rpy=args.base_rpy,
-        base_xyz=args.base_xyz,
-        link_name=args.link_name,
-        joint_name=args.joint_name,
-        joint_type=args.joint_type,
-    )
+    add_base_linkage(args.urdf_path, args.link_name, args.joint_name, args.joint_type)
 
 
 if __name__ == "__main__":
