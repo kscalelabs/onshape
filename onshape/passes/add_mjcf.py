@@ -5,6 +5,7 @@ import logging
 from pathlib import Path
 
 from onshape.formats.mjcf import ConversionMetadata, convert_to_mjcf_metadata
+from onshape.onshape.config import JointMetadata, ActuatorMetadata
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +30,8 @@ def convert_urdf_to_mjcf(
     urdf_file: str | Path,
     mjcf_file: str | Path | None = None,
     metadata: ConversionMetadata | None = None,
+    joint_metadata: dict[str, JointMetadata] | None = None,
+    actuator_params: dict[str, ActuatorMetadata] | None = None,
 ) -> list[Path]:
     """Convert URDF to MJCF format.
 
@@ -48,6 +51,7 @@ def convert_urdf_to_mjcf(
 
     try:
         from urdf2mjcf.convert import convert_urdf_to_mjcf
+        from urdf2mjcf.model import ActuatorParam, JointParam
     except ImportError as e:
         raise ImportError(
             "Please install the package with `urdf2mjcf` as a dependency, using `pip install 'onshape[mujoco]'`"
@@ -56,15 +60,27 @@ def convert_urdf_to_mjcf(
     # Not sure how to avoid this
     if metadata is None:
         urdf2mjcf_metadata = None
+        urdf2mjcf_actuator_params = {}
+        urdf2mjcf_joint_metadata = {}
     else:
         urdf2mjcf_metadata = convert_to_mjcf_metadata(metadata)
-        urdf2mjcf_metadata.joint_name_to_metadata = metadata.joint_name_to_metadata
-        urdf2mjcf_metadata.actuator_type_to_metadata = metadata.actuator_type_to_metadata
+        
+        urdf2mjcf_actuator_params = {}
+        if actuator_params:
+            for actuator_type, actuator_data in actuator_params.items():
+                urdf2mjcf_actuator_params[actuator_type] = ActuatorParam.from_dict(actuator_data.to_dict())
+        
+        urdf2mjcf_joint_metadata = {}
+        if joint_metadata:
+            for joint_name, joint_data in joint_metadata.items():
+                urdf2mjcf_joint_metadata[joint_name] = JointParam.from_dict(joint_data)
 
     convert_urdf_to_mjcf(
         urdf_path=urdf_file,
         mjcf_path=mjcf_file,
         metadata=urdf2mjcf_metadata,
+        joint_metadata=urdf2mjcf_joint_metadata,
+        actuator_params=urdf2mjcf_actuator_params,
     )
 
     return [mjcf_file]

@@ -123,16 +123,6 @@ def convert_to_mjcf_metadata(metadata: ConversionMetadata) -> "ConversionMetadat
             solref=metadata.collision_params.solref,
             friction=metadata.collision_params.friction,
         ),
-        joint_params=[
-            JointParamRef(
-                name=param.name,
-                suffixes=param.suffixes,
-                armature=param.armature,
-                frictionloss=param.frictionloss,
-                actuatorfrc=param.actuatorfrc,
-            )
-            for param in metadata.joint_params
-        ],
         imus=[
             ImuSensorRef(
                 body_name=imu.body_name,
@@ -179,4 +169,6 @@ def convert_to_mjcf_metadata(metadata: ConversionMetadata) -> "ConversionMetadat
         add_floor=metadata.add_floor,
         backlash=metadata.backlash,
         backlash_damping=metadata.backlash_damping,
+        joint_name_to_metadata=metadata.joint_name_to_metadata,
+        actuator_type_to_metadata=metadata.actuator_type_to_metadata,
     )

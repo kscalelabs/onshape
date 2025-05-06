@@ -136,19 +136,25 @@ async def postprocess(
     paths = [urdf_path]
     if config.add_mjcf:
         for metadata in config.mjcf_metadata or []:
-            # Would like to avoid this, but how?
-            metadata.joint_name_to_metadata = config.joint_metadata
-            metadata.actuator_type_to_metadata = config.actuators
             if metadata.suffix is not None:
                 paths.extend(
                     convert_urdf_to_mjcf(
                         urdf_file=urdf_path,
                         mjcf_file=urdf_path.with_suffix(f".{metadata.suffix}.mjcf"),
                         metadata=metadata,
+                        joint_metadata=config.joint_metadata,
+                        actuator_params=config.actuators_metadata,
                     )
                 )
             else:
-                paths.extend(convert_urdf_to_mjcf(urdf_path, metadata=metadata))
+                paths.extend(
+                    convert_urdf_to_mjcf(
+                        urdf_file=urdf_path,
+                        metadata=metadata,
+                        joint_metadata=config.joint_metadata,
+                        actuator_params=config.actuators_metadata,
+                    )
+                )
 
     if config.remove_extra_meshes:
         remove_extra_meshes(urdf_path)

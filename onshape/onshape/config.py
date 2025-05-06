@@ -2,7 +2,7 @@
 
 import argparse
 import json
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, asdict
 from pathlib import Path
 from typing import Self, Sequence, cast
 
@@ -37,9 +37,29 @@ class JointLimits:
     axial_z_min_expression: str | None = field(default=None)
     axial_z_max_expression: str | None = field(default=None)
 
+@dataclass
+class JointMetadata:
+    actuator_type: str
+    armature: float
+    damping: float | None
+    frictionloss: float
+    vin: float | None
+    kt: float | None
+    
+    def to_dict(self) -> dict:
+        """Convert actuator to a plain dictionary for cross-repo compatibility."""
+        return {k: v for k, v in asdict(self).items()}
+
+    @classmethod
+    def from_json(cls, json_path: Path) -> Self:
+        """Load actuator parameters from a JSON file."""
+        with open(json_path, "r") as f:
+            data = json.load(f)
+        return cls(**data)
+
 
 @dataclass
-class Actuator:
+class ActuatorMetadata:
     actuator_type: str
     sysid: str = ""
     max_torque: float = 0.0
@@ -52,6 +72,10 @@ class Actuator:
     R: float | None = None
     max_pwm: float | None = None
     error_gain: float | None = None
+
+    def to_dict(self) -> dict:
+        """Convert actuator to a plain dictionary for cross-repo compatibility."""
+        return {k: v for k, v in asdict(self).items()}
 
     @classmethod
     def from_json(cls, json_path: Path) -> Self:
@@ -304,11 +328,11 @@ class PostprocessConfig:
         default=None,
         metadata={"help": "The MJCF metadata(s) to use for the URDF."},
     )
-    joint_metadata: dict[str, dict] | None = field(
+    joint_metadata: dict[str, JointMetadata] | None = field(
         default=None,
         metadata={"help": "The joint metadata to use for the URDF."},
     )
-    actuators: dict[str, Actuator] = field(
+    actuators_metadata: dict[str, ActuatorMetadata] = field(
         default_factory=lambda: {},
         metadata={"help": "Dictionary of actuator types to actuator parameters."},
     )
