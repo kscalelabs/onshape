@@ -236,13 +236,13 @@ class PostprocessConfig:
         default=True,
         metadata={"help": "Adds a base linkage to the URDF."},
     )
+    base_xyz: tuple[float, float, float] = field(
+        default=(0.0, 0.0, 0.0),
+        metadata={"help": "The XYZ to apply to the base linkage to set the robot's position."},
+    )
     base_rpy: tuple[float, float, float] = field(
         default=(0.0, 0.0, 0.0),
         metadata={"help": "The RPY to apply to the base linkage to orient the robot."},
-    )
-    base_xyz: tuple[float, float, float] = field(
-        default=(0.0, 0.0, 0.0),
-        metadata={"help": "The XYZ to apply to the base linkage to position the robot."},
     )
     voxel_size: float = field(
         default=0.00002,
