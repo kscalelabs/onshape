@@ -5,7 +5,7 @@ import logging
 from pathlib import Path
 
 from onshape.formats.mjcf import ConversionMetadata, convert_to_mjcf_metadata
-from onshape.onshape.config import JointMetadata, ActuatorMetadata
+from onshape.onshape.config import ActuatorMetadata, JointMetadata
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +39,8 @@ def convert_urdf_to_mjcf(
         urdf_file: Path to input URDF file
         mjcf_file: Optional path for output MJCF file
         metadata: Optional metadata for the conversion
+        joint_metadata: Optional joint metadata for the conversion
+        actuator_params: Optional actuator metadata for the conversion
 
     Returns:
         Path to the generated MJCF file
@@ -64,16 +66,16 @@ def convert_urdf_to_mjcf(
         urdf2mjcf_joint_metadata = {}
     else:
         urdf2mjcf_metadata = convert_to_mjcf_metadata(metadata)
-        
-        urdf2mjcf_actuator_params = {}
-        if actuator_params:
-            for actuator_type, actuator_data in actuator_params.items():
-                urdf2mjcf_actuator_params[actuator_type] = ActuatorParam.from_dict(actuator_data.to_dict())
-        
-        urdf2mjcf_joint_metadata = {}
-        if joint_metadata:
-            for joint_name, joint_data in joint_metadata.items():
-                urdf2mjcf_joint_metadata[joint_name] = JointParam.from_dict(joint_data)
+
+        urdf2mjcf_actuator_params = {
+            actuator_type: ActuatorParam.from_dict(actuator_data.to_dict())
+            for actuator_type, actuator_data in (actuator_params or {}).items()
+        }
+
+        urdf2mjcf_joint_metadata = {
+            joint_name: JointParam.from_dict(joint_data)
+            for joint_name, joint_data in (joint_metadata or {}).items()
+        }
 
     convert_urdf_to_mjcf(
         urdf_path=urdf_file,
