@@ -1033,9 +1033,6 @@ def get_urdf_joint(
     if config is None:
         config = DownloadConfig()
 
-    suffix_to_joint_effort = [(k.lower().strip(), v) for k, v in config.suffix_to_joint_effort.items()]
-    suffix_to_joint_velocity = [(k.lower().strip(), v) for k, v in config.suffix_to_joint_velocity.items()]
-
     parent_part_to_mate_tf = joint.parent_entity.matedCS.part_to_mate_tf
     parent_stl_origin_to_mate_tf = parent_stl_origin_to_part_tf @ parent_part_to_mate_tf
 
@@ -1055,15 +1052,30 @@ def get_urdf_joint(
 
     def get_effort_and_velocity(name: str, default_effort: float, default_velocity: float) -> tuple[float, float]:
         effort = default_effort
-        for suffix, value in suffix_to_joint_effort:
-            if name.lower().endswith(suffix):
-                effort = value
-                break
         velocity = default_velocity
-        for suffix, value in suffix_to_joint_velocity:
-            if name.lower().endswith(suffix):
-                velocity = value
-                break
+
+        dof_name = name.split(":")[-1]
+
+        if config.joint_metadata is None:
+            raise ValueError("Joint metadata is not set")
+        if dof_name not in config.joint_metadata:
+            raise ValueError(f"Joint {name} not found in joint metadata")
+
+        actuator_type = config.joint_metadata[dof_name]["actuator_type"]
+        if actuator_type is None:
+            raise ValueError(f"Joint {name} must have an actuator type")
+        if actuator_type not in config.actuators:
+            raise ValueError(f"Actuator type {actuator_type} for joint {name} not found in actuator metadata")
+
+        actuator = config.actuators[actuator_type]
+        if actuator.max_torque <= 0:
+            raise ValueError(f"Actuator {actuator_type} for joint {name} must have a positive max torque")
+        if actuator.max_velocity <= 0:
+            raise ValueError(f"Actuator {actuator_type} for joint {name} must have a positive max velocity")
+
+        effort = actuator.max_torque
+        velocity = actuator.max_velocity
+
         return effort, velocity
 
     def get_joint_limits(

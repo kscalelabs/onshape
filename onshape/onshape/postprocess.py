@@ -118,7 +118,7 @@ async def postprocess(
 
     # Adds a base linkage.
     if config.add_base_linkage:
-        add_base_linkage(urdf_path, base_rpy=config.base_rpy)
+        add_base_linkage(urdf_path, base_rpy=config.base_rpy, base_xyz=config.base_xyz)
 
     # Remove internal triangles from the meshes in the URDF.
     if config.remove_internal_geometries:
@@ -136,6 +136,9 @@ async def postprocess(
     paths = [urdf_path]
     if config.add_mjcf:
         for metadata in config.mjcf_metadata or []:
+            # Would like to avoid this, but how?
+            metadata.joint_name_to_metadata = config.joint_metadata
+            metadata.actuator_type_to_metadata = config.actuators
             if metadata.suffix is not None:
                 paths.extend(
                     convert_urdf_to_mjcf(

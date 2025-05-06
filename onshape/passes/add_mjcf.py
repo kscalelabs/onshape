@@ -1,9 +1,12 @@
 """Defines a pass to get an MJCF file from the URDF."""
 
 import argparse
+import logging
 from pathlib import Path
 
 from onshape.formats.mjcf import ConversionMetadata, convert_to_mjcf_metadata
+
+logger = logging.getLogger(__name__)
 
 
 def convert_joint_type(urdf_type: str) -> str:
@@ -50,10 +53,18 @@ def convert_urdf_to_mjcf(
             "Please install the package with `urdf2mjcf` as a dependency, using `pip install 'onshape[mujoco]'`"
         ) from e
 
+    # Not sure how to avoid this
+    if metadata is None:
+        urdf2mjcf_metadata = None
+    else:
+        urdf2mjcf_metadata = convert_to_mjcf_metadata(metadata)
+        urdf2mjcf_metadata.joint_name_to_metadata = metadata.joint_name_to_metadata
+        urdf2mjcf_metadata.actuator_type_to_metadata = metadata.actuator_type_to_metadata
+
     convert_urdf_to_mjcf(
         urdf_path=urdf_file,
         mjcf_path=mjcf_file,
-        metadata=None if metadata is None else convert_to_mjcf_metadata(metadata),
+        metadata=urdf2mjcf_metadata,
     )
 
     return [mjcf_file]

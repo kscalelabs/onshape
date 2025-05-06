@@ -80,6 +80,8 @@ class ConversionMetadata:
     add_floor: bool = field(default=True)
     backlash: float | None = field(default=None)
     backlash_damping: float = field(default=0.01)
+    joint_name_to_metadata: dict[str, str] | None = field(default=None)
+    actuator_type_to_metadata: dict[str, str] | None = field(default=None)
 
 
 def convert_to_mjcf_metadata(metadata: ConversionMetadata) -> "ConversionMetadataRef":

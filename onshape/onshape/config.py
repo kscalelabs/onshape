@@ -1,6 +1,7 @@
 """Defines the config class."""
 
 import argparse
+import json
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Self, Sequence, cast
@@ -35,6 +36,29 @@ class JointLimits:
     z_max_expression: str | None = field(default=None)
     axial_z_min_expression: str | None = field(default=None)
     axial_z_max_expression: str | None = field(default=None)
+
+
+@dataclass
+class Actuator:
+    actuator_type: str
+    sysid: str = ""
+    max_torque: float = 0.0
+    max_velocity: float = 0.0
+    armature: float = 0.0
+    damping: float | None = None
+    frictionloss: float = 0.0
+    vin: float | None = None
+    kt: float | None = None
+    R: float | None = None
+    max_pwm: float | None = None
+    error_gain: float | None = None
+
+    @classmethod
+    def from_json(cls, json_path: Path) -> Self:
+        """Load actuator parameters from a JSON file."""
+        with open(json_path, "r") as f:
+            data = json.load(f)
+        return cls(**data)
 
 
 @dataclass
@@ -216,6 +240,10 @@ class PostprocessConfig:
         default=(0.0, 0.0, 0.0),
         metadata={"help": "The RPY to apply to the base linkage to orient the robot."},
     )
+    base_xyz: tuple[float, float, float] = field(
+        default=(0.0, 0.0, 0.0),
+        metadata={"help": "The XYZ to apply to the base linkage to position the robot."},
+    )
     voxel_size: float = field(
         default=0.00002,
         metadata={"help": "The voxel size to use for simplifying meshes."},
@@ -275,6 +303,14 @@ class PostprocessConfig:
     mjcf_metadata: list[ConversionMetadata] | None = field(
         default=None,
         metadata={"help": "The MJCF metadata(s) to use for the URDF."},
+    )
+    joint_metadata: dict[str, dict] | None = field(
+        default=None,
+        metadata={"help": "The joint metadata to use for the URDF."},
+    )
+    actuators: dict[str, Actuator] = field(
+        default_factory=lambda: {},
+        metadata={"help": "Dictionary of actuator types to actuator parameters."},
     )
     package_tgz: bool = field(
         default=True,
