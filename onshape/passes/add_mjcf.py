@@ -73,8 +73,7 @@ def convert_urdf_to_mjcf(
         }
 
         urdf2mjcf_joint_metadata = {
-            joint_name: JointParam.from_dict(joint_data)
-            for joint_name, joint_data in (joint_metadata or {}).items()
+            joint_name: JointParam.from_dict(joint_data) for joint_name, joint_data in (joint_metadata or {}).items()
         }
 
     convert_urdf_to_mjcf(
