@@ -22,11 +22,38 @@ class CollisionParams:
 
 @dataclass
 class JointParam:
-    name: str = field()
-    suffixes: list[str] = field(default_factory=lambda: [])
-    armature: float | None = field(default=None)
-    frictionloss: float | None = field(default=None)
-    actuatorfrc: float | None = field(default=None)
+    id: int
+    nn_id: int
+    kp: float
+    kd: float
+    soft_torque_limit: float
+    actuator_type: str | None = field(default=None)
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "JointParam":
+        """Create JointParam from a plain dictionary."""
+        return cls(**data)
+
+
+@dataclass
+class ActuatorParam:
+    actuator_type: str
+    sysid: str = field(default="")
+    max_torque: float = field(default=0.0)
+    max_velocity: float = field(default=0.0)
+    armature: float = field(default=0.0)
+    damping: float | None = field(default=None)
+    frictionloss: float = field(default=0.0)
+    vin: float | None = field(default=None)
+    kt: float | None = field(default=None)
+    R: float | None = field(default=None)
+    max_pwm: float | None = field(default=None)
+    error_gain: float | None = field(default=None)
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "ActuatorParam":
+        """Create ActuatorParam from a plain dictionary."""
+        return cls(**data)
 
 
 @dataclass
@@ -80,8 +107,8 @@ class ConversionMetadata:
     add_floor: bool = field(default=True)
     backlash: float | None = field(default=None)
     backlash_damping: float = field(default=0.01)
-    joint_name_to_metadata: dict[str, str] | None = field(default=None)
-    actuator_type_to_metadata: dict[str, str] | None = field(default=None)
+    joint_name_to_metadata: dict[str, JointParam] | None = field(default=None)
+    actuator_type_to_metadata: dict[str, ActuatorParam] | None = field(default=None)
 
 
 def convert_to_mjcf_metadata(metadata: ConversionMetadata) -> "ConversionMetadataRef":
@@ -105,6 +132,8 @@ def convert_to_mjcf_metadata(metadata: ConversionMetadata) -> "ConversionMetadat
         ExplicitFloorContacts as ExplicitFloorContactsRef,
         ForceSensor as ForceSensorRef,
         ImuSensor as ImuSensorRef,
+        JointParam as JointParamRef,
+        ActuatorParam as ActuatorParamRef,
     )
 
     if metadata.angle not in get_args(Angle):
@@ -113,6 +142,22 @@ def convert_to_mjcf_metadata(metadata: ConversionMetadata) -> "ConversionMetadat
     for cg in metadata.collision_geometries:
         if not hasattr(CollisionType, cg.collision_type.upper()):
             raise ValueError(f"Bad collision type: {cg.collision_type}. Must be in {CollisionType.__members__.keys()}")
+
+    # Convert our dataclass JointParam to Pydantic model JointParam if needed
+    joint_name_to_metadata = None
+    if metadata.joint_name_to_metadata:
+        joint_name_to_metadata = {
+            name: JointParamRef.from_dict(vars(param))
+            for name, param in metadata.joint_name_to_metadata.items()
+        }
+
+    # Convert our dataclass ActuatorParam to Pydantic model ActuatorParam if needed
+    actuator_type_to_metadata = None
+    if metadata.actuator_type_to_metadata:
+        actuator_type_to_metadata = {
+            name: ActuatorParamRef.model_validate(vars(param))
+            for name, param in metadata.actuator_type_to_metadata.items()
+        }
 
     return ConversionMetadataRef(
         freejoint=metadata.freejoint,
@@ -168,6 +213,6 @@ def convert_to_mjcf_metadata(metadata: ConversionMetadata) -> "ConversionMetadat
         add_floor=metadata.add_floor,
         backlash=metadata.backlash,
         backlash_damping=metadata.backlash_damping,
-        joint_name_to_metadata=metadata.joint_name_to_metadata,
-        actuator_type_to_metadata=metadata.actuator_type_to_metadata,
+        joint_name_to_metadata=joint_name_to_metadata,
+        actuator_type_to_metadata=actuator_type_to_metadata,
     )
