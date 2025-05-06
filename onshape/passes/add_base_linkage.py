@@ -13,7 +13,6 @@ def add_base_linkage(
     urdf_path: Path,
     base_xyz: tuple[float, float, float] = (0.0, 0.0, 0.0),
     base_rpy: tuple[float, float, float] = (0.0, 0.0, 0.0),
-    base_xyz: tuple[float, float, float] = (0.0, 0.0, 0.0),
     link_name: str = "base",
     joint_name: str = "base_joint",
     joint_type: str = "fixed",
