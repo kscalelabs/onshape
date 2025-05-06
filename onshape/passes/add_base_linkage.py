@@ -43,13 +43,21 @@ def add_base_linkage(
     ET.SubElement(geometry, "sphere", radius="0.01")
     material = ET.SubElement(visual, "material", name=f"{link_name}_material")
     ET.SubElement(material, "color", rgba="1 0 0 1")
-    ET.SubElement(visual, "origin", xyz="0 0 0", rpy=" ".join(f"{r:.2f}" for r in base_rpy))
+    ET.SubElement(
+        visual,
+        "origin",
+        xyz=" ".join(f"{x:.2f}" for x in base_xyz),
+        rpy=" ".join(f"{r:.2f}" for r in base_rpy),
+    )
 
     inertial = ET.SubElement(new_link, "inertial", name=f"{link_name}_inertial")
     ET.SubElement(inertial, "mass", value="0.001")
-    ET.SubElement(inertial, "inertia", ixx="0.000001", iyy="0.000001", izz="0.000002", ixy="0", ixz="0", iyz="0")
+    ET.SubElement(inertial, "inertia", ixx="0.000001", iyy="0.000001", izz="0.000001", ixy="0", ixz="0", iyz="0")
     ET.SubElement(
-        inertial, "origin", xyz=" ".join(f"{x:.2f}" for x in base_xyz), rpy=" ".join(f"{r:.2f}" for r in base_rpy)
+        inertial,
+        "origin",
+        xyz=" ".join(f"{x:.2f}" for x in base_xyz),
+        rpy=" ".join(f"{r:.2f}" for r in base_rpy),
     )
 
     # Create a new joint element
