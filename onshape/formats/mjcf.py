@@ -4,6 +4,8 @@ import logging
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, cast, get_args
 
+from onshape.formats.common import ActuatorMetadata, JointMetadata
+
 logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
@@ -18,15 +20,6 @@ class CollisionParams:
     solref: list[float] = field(default_factory=lambda: [0.005, 1.0])
     solimp: list[float] = field(default_factory=lambda: [0.99, 0.999, 0.00001])
     friction: list[float] = field(default_factory=lambda: [0.8, 0.02, 0.01])
-
-
-@dataclass
-class JointParam:
-    name: str = field()
-    suffixes: list[str] = field(default_factory=lambda: [])
-    armature: float | None = field(default=None)
-    frictionloss: float | None = field(default=None)
-    actuatorfrc: float | None = field(default=None)
 
 
 @dataclass
@@ -60,6 +53,9 @@ class CollisionGeometry:
     sphere_radius: float = field(default=0.01)
     axis_order: tuple[int, int, int] = field(default=(0, 1, 2))
     flip_axis: bool = field(default=False)
+    offset_x: float = field(default=0.0)
+    offset_y: float = field(default=0.0)
+    offset_z: float = field(default=0.0)
 
 
 @dataclass
@@ -67,7 +63,6 @@ class ConversionMetadata:
     suffix: str | None = field(default=None)
     freejoint: bool = field(default=True)
     collision_params: CollisionParams = field(default_factory=lambda: CollisionParams())
-    joint_params: list[JointParam] = field(default_factory=lambda: [])
     imus: list[ImuSensor] = field(default_factory=lambda: [])
     force_sensors: list[ForceSensor] = field(default_factory=lambda: [])
     collision_geometries: list[CollisionGeometry] = field(default_factory=lambda: [])
@@ -80,6 +75,8 @@ class ConversionMetadata:
     add_floor: bool = field(default=True)
     backlash: float | None = field(default=None)
     backlash_damping: float = field(default=0.01)
+    joint_name_to_metadata: dict[str, JointMetadata] | None = field(default=None)
+    actuator_type_to_metadata: dict[str, ActuatorMetadata] | None = field(default=None)
 
 
 def convert_to_mjcf_metadata(metadata: ConversionMetadata) -> "ConversionMetadataRef":
@@ -95,6 +92,7 @@ def convert_to_mjcf_metadata(metadata: ConversionMetadata) -> "ConversionMetadat
         ) from e
 
     from urdf2mjcf.model import (
+        ActuatorMetadata as ActuatorMetadataRef,
         Angle,
         CollisionGeometry as CollisionGeometryRef,
         CollisionParams as CollisionParamsRef,
@@ -103,7 +101,7 @@ def convert_to_mjcf_metadata(metadata: ConversionMetadata) -> "ConversionMetadat
         ExplicitFloorContacts as ExplicitFloorContactsRef,
         ForceSensor as ForceSensorRef,
         ImuSensor as ImuSensorRef,
-        JointParam as JointParamRef,
+        JointMetadata as JointMetadataRef,
     )
 
     if metadata.angle not in get_args(Angle):
@@ -113,6 +111,18 @@ def convert_to_mjcf_metadata(metadata: ConversionMetadata) -> "ConversionMetadat
         if not hasattr(CollisionType, cg.collision_type.upper()):
             raise ValueError(f"Bad collision type: {cg.collision_type}. Must be in {CollisionType.__members__.keys()}")
 
+    joint_name_to_metadata = (
+        {name: JointMetadataRef.from_dict(vars(param)) for name, param in metadata.joint_name_to_metadata.items()}
+        if metadata.joint_name_to_metadata
+        else None
+    )
+
+    actuator_type_to_metadata = (
+        {typ: ActuatorMetadataRef.from_dict(vars(param)) for typ, param in metadata.actuator_type_to_metadata.items()}
+        if metadata.actuator_type_to_metadata
+        else None
+    )
+
     return ConversionMetadataRef(
         freejoint=metadata.freejoint,
         collision_params=CollisionParamsRef(
@@ -121,16 +131,6 @@ def convert_to_mjcf_metadata(metadata: ConversionMetadata) -> "ConversionMetadat
             solref=metadata.collision_params.solref,
             friction=metadata.collision_params.friction,
         ),
-        joint_params=[
-            JointParamRef(
-                name=param.name,
-                suffixes=param.suffixes,
-                armature=param.armature,
-                frictionloss=param.frictionloss,
-                actuatorfrc=param.actuatorfrc,
-            )
-            for param in metadata.joint_params
-        ],
         imus=[
             ImuSensorRef(
                 body_name=imu.body_name,
@@ -158,6 +158,9 @@ def convert_to_mjcf_metadata(metadata: ConversionMetadata) -> "ConversionMetadat
                 sphere_radius=cg.sphere_radius,
                 axis_order=cg.axis_order,
                 flip_axis=cg.flip_axis,
+                offset_x=cg.offset_x,
+                offset_y=cg.offset_y,
+                offset_z=cg.offset_z,
             )
             for cg in metadata.collision_geometries
         ],
@@ -177,4 +180,6 @@ def convert_to_mjcf_metadata(metadata: ConversionMetadata) -> "ConversionMetadat
         add_floor=metadata.add_floor,
         backlash=metadata.backlash,
         backlash_damping=metadata.backlash_damping,
+        joint_name_to_metadata=joint_name_to_metadata,
+        actuator_type_to_metadata=actuator_type_to_metadata,
     )

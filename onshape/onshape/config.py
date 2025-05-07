@@ -8,6 +8,7 @@ from typing import Self, Sequence, cast
 from omegaconf import MISSING, OmegaConf
 from omegaconf.errors import ConfigKeyError
 
+from onshape.formats.common import ActuatorMetadata, JointMetadata
 from onshape.formats.mjcf import ConversionMetadata
 from onshape.onshape.schema.assembly import Key, MatedEntity, MateType
 
@@ -279,6 +280,14 @@ class PostprocessConfig:
     mjcf_metadata: list[ConversionMetadata] | None = field(
         default=None,
         metadata={"help": "The MJCF metadata(s) to use for the URDF."},
+    )
+    joint_metadata: dict[str, JointMetadata] | None = field(
+        default=None,
+        metadata={"help": "The joint metadata to use for the URDF."},
+    )
+    actuators_metadata: dict[str, ActuatorMetadata] | None = field(
+        default=None,
+        metadata={"help": "Dictionary of actuator types to actuator parameters."},
     )
     package_tgz: bool = field(
         default=True,
