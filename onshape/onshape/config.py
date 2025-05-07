@@ -337,8 +337,8 @@ class PostprocessConfig:
         default=None,
         metadata={"help": "The joint metadata to use for the URDF."},
     )
-    actuators_metadata: dict[str, ActuatorMetadata] = field(
-        default_factory=lambda: {},
+    actuators_metadata: dict[str, ActuatorMetadata] | None = field(
+        default=None,
         metadata={"help": "Dictionary of actuator types to actuator parameters."},
     )
     package_tgz: bool = field(
