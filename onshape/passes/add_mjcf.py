@@ -53,35 +53,27 @@ def convert_urdf_to_mjcf(
 
     try:
         from urdf2mjcf.convert import convert_urdf_to_mjcf
-        from urdf2mjcf.model import ActuatorParam, JointParam
+        from urdf2mjcf.model import ActuatorMetadata, JointMetadata
     except ImportError as e:
         raise ImportError(
             "Please install the package with `urdf2mjcf` as a dependency, using `pip install 'onshape[mujoco]'`"
         ) from e
 
-    # Not sure how to avoid this
-    if metadata is None:
-        urdf2mjcf_metadata = None
-        urdf2mjcf_actuator_params = {}
-        urdf2mjcf_joint_metadata = {}
-    else:
-        urdf2mjcf_metadata = convert_to_mjcf_metadata(metadata)
+    mjcf_joint_metadata = None if joint_metadata is None else {
+        joint_name: JointMetadata.from_dict(joint_data) for joint_name, joint_data in joint_metadata.items()
+    }
 
-        urdf2mjcf_actuator_params = {
-            actuator_type: ActuatorParam.from_dict(actuator_data.to_dict())
-            for actuator_type, actuator_data in (actuator_params or {}).items()
-        }
-
-        urdf2mjcf_joint_metadata = {
-            joint_name: JointParam.from_dict(joint_data) for joint_name, joint_data in (joint_metadata or {}).items()
-        }
+    mjcf_actuator_metadata = None if actuator_params is None else {
+        actuator_type: ActuatorMetadata.from_dict(actuator_data.to_dict())
+        for actuator_type, actuator_data in actuator_params.items()
+    }
 
     convert_urdf_to_mjcf(
         urdf_path=urdf_file,
         mjcf_path=mjcf_file,
-        metadata=urdf2mjcf_metadata,
-        joint_metadata=urdf2mjcf_joint_metadata,
-        actuator_params=urdf2mjcf_actuator_params,
+        metadata=None if metadata is None else convert_to_mjcf_metadata(metadata),
+        joint_metadata=mjcf_joint_metadata,
+        actuator_metadata=mjcf_actuator_metadata,
     )
 
     return [mjcf_file]
