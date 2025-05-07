@@ -92,7 +92,7 @@ def convert_to_mjcf_metadata(metadata: ConversionMetadata) -> "ConversionMetadat
         ) from e
 
     from urdf2mjcf.model import (
-        ActuatorMetadata as ActuatorParamRef,
+        ActuatorMetadata as ActuatorMetadataRef,
         Angle,
         CollisionGeometry as CollisionGeometryRef,
         CollisionParams as CollisionParamsRef,
@@ -111,18 +111,16 @@ def convert_to_mjcf_metadata(metadata: ConversionMetadata) -> "ConversionMetadat
         if not hasattr(CollisionType, cg.collision_type.upper()):
             raise ValueError(f"Bad collision type: {cg.collision_type}. Must be in {CollisionType.__members__.keys()}")
 
-    # Convert our dataclass JointParam to Pydantic model JointParam if needed
     joint_name_to_metadata = None
     if metadata.joint_name_to_metadata:
         joint_name_to_metadata = {
             name: JointMetadataRef.from_dict(vars(param)) for name, param in metadata.joint_name_to_metadata.items()
         }
 
-    # Convert our dataclass ActuatorParam to Pydantic model ActuatorParam if needed
     actuator_type_to_metadata = None
     if metadata.actuator_type_to_metadata:
         actuator_type_to_metadata = {
-            name: ActuatorParamRef.model_validate(vars(param))
+            name: ActuatorMetadataRef.from_dict(vars(param))
             for name, param in metadata.actuator_type_to_metadata.items()
         }
 

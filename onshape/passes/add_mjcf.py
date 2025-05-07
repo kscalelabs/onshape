@@ -62,19 +62,13 @@ def convert_urdf_to_mjcf(
     mjcf_joint_metadata = (
         None
         if joint_metadata is None
-        else {
-            joint_name: JointMetadata.from_dict(joint_metadata.to_dict())
-            for joint_name, joint_metadata in joint_metadata.items()
-        }
+        else {name: JointMetadata.from_dict(meta.to_dict()) for name, meta in joint_metadata.items()}
     )
 
     mjcf_actuator_metadata = (
         None
         if actuator_metadata is None
-        else {
-            actuator_type: ActuatorMetadata.from_dict(actuator_metadata.to_dict())
-            for actuator_type, actuator_metadata in actuator_metadata.items()
-        }
+        else {typ: ActuatorMetadata.from_dict(meta.to_dict()) for typ, meta in actuator_metadata.items()}
     )
 
     convert_urdf_to_mjcf(

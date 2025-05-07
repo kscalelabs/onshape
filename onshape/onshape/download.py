@@ -1065,7 +1065,11 @@ def get_urdf_joint(
         if actuator_type is None:
             raise ValueError(f"Joint {name} must have an actuator type")
         if actuator_type not in config.actuators_metadata:
-            raise ValueError(f"Actuator type {actuator_type} for joint {name} not found in actuator metadata")
+            available_actuator_types = ", ".join(config.actuators_metadata.keys())
+            raise ValueError(
+                f"Actuator type {actuator_type} for joint {name} not found in actuator metadata. "
+                f"Available actuator types: {available_actuator_types or 'none'}"
+            )
 
         actuator = config.actuators_metadata[actuator_type]
         if actuator.max_torque <= 0:
