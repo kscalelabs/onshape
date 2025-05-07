@@ -1,14 +1,14 @@
 """Defines the config class."""
 
 import argparse
-import json
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Self, Sequence, cast
 
 from omegaconf import MISSING, OmegaConf
 from omegaconf.errors import ConfigKeyError
 
+from onshape.formats.common import ActuatorMetadata, JointMetadata
 from onshape.formats.mjcf import ConversionMetadata
 from onshape.onshape.schema.assembly import Key, MatedEntity, MateType
 
@@ -36,58 +36,6 @@ class JointLimits:
     z_max_expression: str | None = field(default=None)
     axial_z_min_expression: str | None = field(default=None)
     axial_z_max_expression: str | None = field(default=None)
-
-
-@dataclass
-class JointMetadata:
-    actuator_type: str
-    id: int
-    nn_id: int
-    kp: float
-    kd: float
-    soft_torque_limit: float
-
-    @classmethod
-    def from_dict(cls, data: dict) -> Self:
-        return cls(**data)
-
-    def to_dict(self) -> dict:
-        """Convert actuator to a plain dictionary for cross-repo compatibility."""
-        return {k: v for k, v in asdict(self).items()}
-
-    @classmethod
-    def from_json(cls, json_path: Path) -> Self:
-        """Load actuator parameters from a JSON file."""
-        with open(json_path, "r") as f:
-            data = json.load(f)
-        return cls(**data)
-
-
-@dataclass
-class ActuatorMetadata:
-    actuator_type: str
-    sysid: str = ""
-    max_torque: float = 0.0
-    max_velocity: float = 0.0
-    armature: float = 0.0
-    damping: float = 0.0
-    frictionloss: float = 0.0
-    vin: float | None = None
-    kt: float | None = None
-    R: float | None = None
-    max_pwm: float | None = None
-    error_gain: float | None = None
-
-    def to_dict(self) -> dict:
-        """Convert actuator to a plain dictionary for cross-repo compatibility."""
-        return {k: v for k, v in asdict(self).items()}
-
-    @classmethod
-    def from_json(cls, json_path: Path) -> Self:
-        """Load actuator parameters from a JSON file."""
-        with open(json_path, "r") as f:
-            data = json.load(f)
-        return cls(**data)
 
 
 @dataclass

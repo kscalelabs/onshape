@@ -4,8 +4,8 @@ import argparse
 import logging
 from pathlib import Path
 
+from onshape.formats.common import ActuatorMetadata, JointMetadata
 from onshape.formats.mjcf import ConversionMetadata, convert_to_mjcf_metadata
-from onshape.onshape.config import ActuatorMetadata, JointMetadata
 
 logger = logging.getLogger(__name__)
 

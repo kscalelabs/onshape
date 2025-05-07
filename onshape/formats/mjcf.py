@@ -4,6 +4,8 @@ import logging
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, cast, get_args
 
+from onshape.formats.common import ActuatorMetadata, JointMetadata
+
 logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
@@ -18,42 +20,6 @@ class CollisionParams:
     solref: list[float] = field(default_factory=lambda: [0.005, 1.0])
     solimp: list[float] = field(default_factory=lambda: [0.99, 0.999, 0.00001])
     friction: list[float] = field(default_factory=lambda: [0.8, 0.02, 0.01])
-
-
-@dataclass
-class JointMetadata:
-    id: int
-    nn_id: int
-    kp: float
-    kd: float
-    soft_torque_limit: float
-    actuator_type: str | None = field(default=None)
-
-    @classmethod
-    def from_dict(cls, data: dict) -> "JointMetadata":
-        """Create JointParam from a plain dictionary."""
-        return cls(**data)
-
-
-@dataclass
-class ActuatorMetadata:
-    actuator_type: str
-    sysid: str = field(default="")
-    max_torque: float = field(default=0.0)
-    max_velocity: float = field(default=0.0)
-    armature: float = field(default=0.0)
-    damping: float = field(default=0.0)
-    frictionloss: float = field(default=0.0)
-    vin: float | None = field(default=None)
-    kt: float | None = field(default=None)
-    R: float | None = field(default=None)
-    max_pwm: float | None = field(default=None)
-    error_gain: float | None = field(default=None)
-
-    @classmethod
-    def from_dict(cls, data: dict) -> "ActuatorMetadata":
-        """Create ActuatorParam from a plain dictionary."""
-        return cls(**data)
 
 
 @dataclass
