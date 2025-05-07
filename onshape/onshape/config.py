@@ -41,11 +41,11 @@ class JointLimits:
 @dataclass
 class JointMetadata:
     actuator_type: str
-    armature: float
-    damping: float | None
-    frictionloss: float
-    vin: float | None
-    kt: float | None
+    id: int
+    nn_id: int
+    kp: float
+    kd: float
+    soft_torque_limit: float
 
     def to_dict(self) -> dict:
         """Convert actuator to a plain dictionary for cross-repo compatibility."""
@@ -66,7 +66,7 @@ class ActuatorMetadata:
     max_torque: float = 0.0
     max_velocity: float = 0.0
     armature: float = 0.0
-    damping: float | None = None
+    damping: float = 0.0
     frictionloss: float = 0.0
     vin: float | None = None
     kt: float | None = None
