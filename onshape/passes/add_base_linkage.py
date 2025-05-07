@@ -64,7 +64,9 @@ def add_base_linkage(
     new_joint = ET.Element("joint", name=joint_name, type=joint_type)
     ET.SubElement(new_joint, "parent", link=link_name)
     ET.SubElement(new_joint, "child", link=child_link_name)
-    ET.SubElement(new_joint, "origin", xyz="0 0 0", rpy=" ".join(f"{r:.2f}" for r in base_rpy))
+    ET.SubElement(
+        new_joint, "origin", xyz=" ".join(f"{x:.2f}" for x in base_xyz), rpy=" ".join(f"{r:.2f}" for r in base_rpy)
+    )
 
     # Insert the new link and joint at the start of the URDF
     root.insert(0, new_link)
