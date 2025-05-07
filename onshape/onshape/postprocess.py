@@ -143,7 +143,7 @@ async def postprocess(
                         mjcf_file=urdf_path.with_suffix(f".{metadata.suffix}.mjcf"),
                         metadata=metadata,
                         joint_metadata=config.joint_metadata,
-                        actuator_params=config.actuators_metadata,
+                        actuator_metadata=config.actuators_metadata,
                     )
                 )
             else:
@@ -152,7 +152,7 @@ async def postprocess(
                         urdf_file=urdf_path,
                         metadata=metadata,
                         joint_metadata=config.joint_metadata,
-                        actuator_params=config.actuators_metadata,
+                        actuator_metadata=config.actuators_metadata,
                     )
                 )
 

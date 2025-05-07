@@ -31,7 +31,7 @@ def convert_urdf_to_mjcf(
     mjcf_file: str | Path | None = None,
     metadata: ConversionMetadata | None = None,
     joint_metadata: dict[str, JointMetadata] | None = None,
-    actuator_params: dict[str, ActuatorMetadata] | None = None,
+    actuator_metadata: dict[str, ActuatorMetadata] | None = None,
 ) -> list[Path]:
     """Convert URDF to MJCF format.
 
@@ -59,14 +59,20 @@ def convert_urdf_to_mjcf(
             "Please install the package with `urdf2mjcf` as a dependency, using `pip install 'onshape[mujoco]'`"
         ) from e
 
-    mjcf_joint_metadata = None if joint_metadata is None else {
-        joint_name: JointMetadata.from_dict(joint_data) for joint_name, joint_data in joint_metadata.items()
-    }
+    mjcf_joint_metadata = (
+        None
+        if joint_metadata is None
+        else {joint_name: JointMetadata.from_dict(joint_data) for joint_name, joint_data in joint_metadata.items()}
+    )
 
-    mjcf_actuator_metadata = None if actuator_params is None else {
-        actuator_type: ActuatorMetadata.from_dict(actuator_data.to_dict())
-        for actuator_type, actuator_data in actuator_params.items()
-    }
+    mjcf_actuator_metadata = (
+        None
+        if actuator_metadata is None
+        else {
+            actuator_type: ActuatorMetadata.from_dict(actuator_data.to_dict())
+            for actuator_type, actuator_data in actuator_metadata.items()
+        }
+    )
 
     convert_urdf_to_mjcf(
         urdf_path=urdf_file,
