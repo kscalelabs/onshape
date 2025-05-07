@@ -42,7 +42,7 @@ class ActuatorParam:
     max_torque: float = field(default=0.0)
     max_velocity: float = field(default=0.0)
     armature: float = field(default=0.0)
-    damping: float | None = field(default=None)
+    damping: float = field(default=0.0)
     frictionloss: float = field(default=0.0)
     vin: float | None = field(default=None)
     kt: float | None = field(default=None)
@@ -87,6 +87,9 @@ class CollisionGeometry:
     sphere_radius: float = field(default=0.01)
     axis_order: tuple[int, int, int] = field(default=(0, 1, 2))
     flip_axis: bool = field(default=False)
+    offset_x: float = field(default=0.0)
+    offset_y: float = field(default=0.0)
+    offset_z: float = field(default=0.0)
 
 
 @dataclass
@@ -124,7 +127,7 @@ def convert_to_mjcf_metadata(metadata: ConversionMetadata) -> "ConversionMetadat
         ) from e
 
     from urdf2mjcf.model import (
-        ActuatorParam as ActuatorParamRef,
+        ActuatorMetadata as ActuatorParamRef,
         Angle,
         CollisionGeometry as CollisionGeometryRef,
         CollisionParams as CollisionParamsRef,
@@ -133,7 +136,7 @@ def convert_to_mjcf_metadata(metadata: ConversionMetadata) -> "ConversionMetadat
         ExplicitFloorContacts as ExplicitFloorContactsRef,
         ForceSensor as ForceSensorRef,
         ImuSensor as ImuSensorRef,
-        JointParam as JointParamRef,
+        JointMetadata as JointParamRef,
     )
 
     if metadata.angle not in get_args(Angle):
@@ -193,6 +196,9 @@ def convert_to_mjcf_metadata(metadata: ConversionMetadata) -> "ConversionMetadat
                 sphere_radius=cg.sphere_radius,
                 axis_order=cg.axis_order,
                 flip_axis=cg.flip_axis,
+                offset_x=cg.offset_x,
+                offset_y=cg.offset_y,
+                offset_z=cg.offset_z,
             )
             for cg in metadata.collision_geometries
         ],
