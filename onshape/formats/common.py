@@ -24,12 +24,10 @@ class JointMetadata:
         return cls(**data)
 
     def to_dict(self) -> dict:
-        """Convert actuator to a plain dictionary for cross-repo compatibility."""
         return {k: v for k, v in asdict(self).items()}
 
     @classmethod
     def from_json(cls, json_path: Path) -> Self:
-        """Load actuator parameters from a JSON file."""
         with open(json_path, "r") as f:
             data = json.load(f)
         return cls(**data)
@@ -51,7 +49,6 @@ class ActuatorMetadata:
     error_gain: float | None = None
 
     def to_dict(self) -> dict:
-        """Convert actuator to a plain dictionary for cross-repo compatibility."""
         return {k: v for k, v in asdict(self).items()}
 
     @classmethod
@@ -60,7 +57,6 @@ class ActuatorMetadata:
 
     @classmethod
     def from_json(cls, json_path: Path) -> Self:
-        """Load actuator parameters from a JSON file."""
         with open(json_path, "r") as f:
             data = json.load(f)
         return cls(**data)

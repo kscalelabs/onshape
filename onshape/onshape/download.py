@@ -281,7 +281,7 @@ def get_graph(
     Returns:
         The graph of the assembly, along with a set of the ignored joints.
     """
-    graph: nx.Graph = nx.Graph()
+    graph = nx.Graph()
 
     if key_namer is None:
         key_namer = KeyNamer(assembly)

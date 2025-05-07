@@ -111,18 +111,17 @@ def convert_to_mjcf_metadata(metadata: ConversionMetadata) -> "ConversionMetadat
         if not hasattr(CollisionType, cg.collision_type.upper()):
             raise ValueError(f"Bad collision type: {cg.collision_type}. Must be in {CollisionType.__members__.keys()}")
 
-    joint_name_to_metadata = None
-    if metadata.joint_name_to_metadata:
-        joint_name_to_metadata = {
-            name: JointMetadataRef.from_dict(vars(param)) for name, param in metadata.joint_name_to_metadata.items()
-        }
+    joint_name_to_metadata = (
+        {name: JointMetadataRef.from_dict(vars(param)) for name, param in metadata.joint_name_to_metadata.items()}
+        if metadata.joint_name_to_metadata
+        else None
+    )
 
-    actuator_type_to_metadata = None
-    if metadata.actuator_type_to_metadata:
-        actuator_type_to_metadata = {
-            name: ActuatorMetadataRef.from_dict(vars(param))
-            for name, param in metadata.actuator_type_to_metadata.items()
-        }
+    actuator_type_to_metadata = (
+        {typ: ActuatorMetadataRef.from_dict(vars(param)) for typ, param in metadata.actuator_type_to_metadata.items()}
+        if metadata.actuator_type_to_metadata
+        else None
+    )
 
     return ConversionMetadataRef(
         freejoint=metadata.freejoint,
