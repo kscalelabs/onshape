@@ -40,7 +40,7 @@ def convert_urdf_to_mjcf(
         mjcf_file: Optional path for output MJCF file
         metadata: Optional metadata for the conversion
         joint_metadata: Optional joint metadata for the conversion
-        actuator_params: Optional actuator metadata for the conversion
+        actuator_metadata: Optional actuator metadata for the conversion
 
     Returns:
         Path to the generated MJCF file
@@ -62,7 +62,10 @@ def convert_urdf_to_mjcf(
     mjcf_joint_metadata = (
         None
         if joint_metadata is None
-        else {joint_name: JointMetadata.from_dict(joint_data) for joint_name, joint_data in joint_metadata.items()}
+        else {
+            joint_name: JointMetadata.from_dict(joint_data.to_dict())
+            for joint_name, joint_data in joint_metadata.items()
+        }
     )
 
     mjcf_actuator_metadata = (

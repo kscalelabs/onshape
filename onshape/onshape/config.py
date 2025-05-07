@@ -47,6 +47,10 @@ class JointMetadata:
     kd: float
     soft_torque_limit: float
 
+    @classmethod
+    def from_dict(cls, data: dict) -> Self:
+        return cls(**data)
+
     def to_dict(self) -> dict:
         """Convert actuator to a plain dictionary for cross-repo compatibility."""
         return {k: v for k, v in asdict(self).items()}

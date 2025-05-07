@@ -281,7 +281,7 @@ def get_graph(
     Returns:
         The graph of the assembly, along with a set of the ignored joints.
     """
-    graph = nx.Graph()
+    graph: nx.Graph = nx.Graph()
 
     if key_namer is None:
         key_namer = KeyNamer(assembly)
@@ -1061,7 +1061,7 @@ def get_urdf_joint(
         if dof_name not in config.joint_metadata:
             raise ValueError(f"Joint {name} not found in joint metadata")
 
-        actuator_type = config.joint_metadata[dof_name]["actuator_type"]
+        actuator_type = config.joint_metadata[dof_name].actuator_type
         if actuator_type is None:
             raise ValueError(f"Joint {name} must have an actuator type")
         if actuator_type not in config.actuators_metadata:
