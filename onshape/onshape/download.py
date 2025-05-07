@@ -1057,7 +1057,10 @@ def get_urdf_joint(
         dof_name = name.split(":")[-1]
 
         if config.joint_metadata is None:
-            raise ValueError("Joint metadata is not set")
+            logger.warning(
+                "Missing joint metadata, using default effort: %s & velocity: %s", default_effort, default_velocity
+            )
+            return default_effort, default_velocity
         if dof_name not in config.joint_metadata:
             raise ValueError(f"Joint {name} not found in joint metadata")
 
