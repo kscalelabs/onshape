@@ -5,7 +5,7 @@ import logging
 import re
 import xml.etree.ElementTree as ET
 from pathlib import Path
-from typing import Mapping
+from typing import Callable, Mapping
 
 from onshape.formats.common import save_xml
 
@@ -50,16 +50,19 @@ def update_urdf_names(
     name_mapping: dict[str, str] = {}
     name_set: set[str] = set()
 
-    def cleanup_name(name: str) -> str:
+    def cleanup_identifier_name(name: str) -> str:
         base_name = name.split(":")[-1]
         base_name = re.sub(r"_\(\d+\)", "", base_name)
         base_name = re.sub(r"-", "_", base_name)
         return base_name
 
-    def get_unique_name(name: str, name_set: set[str]) -> str:
-        base_name = cleanup_name(name)
-        count = 2
-        unique_name = base_name
+    def cleanup_mesh_name(name: str) -> str:
+        base_name = name.split(":")[-1]
+        return re.sub(r"-", "_", base_name)
+
+    def get_unique_name(name: str, name_set: set[str], cleaner_func: Callable[[str], str]) -> str:
+        base_name = cleaner_func(name)
+        count, unique_name = 2, base_name
         while unique_name.lower() in name_set:
             unique_name = f"{base_name}_{count}"
             count += 1
@@ -69,14 +72,14 @@ def update_urdf_names(
     for joint in root.findall(".//joint"):
         if "name" in joint.attrib:
             old_name = joint.attrib["name"]
-            new_name = joint_name_map.get(old_name, get_unique_name(old_name, name_set))
+            new_name = joint_name_map.get(old_name, get_unique_name(old_name, name_set, cleanup_identifier_name))
             name_mapping[old_name] = new_name
             joint.attrib["name"] = new_name
 
     for link in root.findall(".//link"):
         if "name" in link.attrib:
             old_name = link.attrib["name"]
-            new_name = link_name_map.get(old_name, get_unique_name(old_name, name_set))
+            new_name = link_name_map.get(old_name, get_unique_name(old_name, name_set, cleanup_identifier_name))
             name_mapping[old_name] = new_name
             link.attrib["name"] = new_name
 
@@ -84,22 +87,30 @@ def update_urdf_names(
     for tag_name in ("material", "geometry", "visual", "inertial", "collision"):
         for tag in root.findall(f".//{tag_name}"):
             if "name" in tag.attrib:
-                tag.attrib["name"] = get_unique_name(tag.attrib["name"], name_set)
+                tag.attrib["name"] = get_unique_name(tag.attrib["name"], name_set, cleanup_identifier_name)
 
     # Cleans up mesh STL names (note, this requires renaming the mesh files).
+    # key: lowercase original rel-path  →  value: new Path on disk
     new_mesh_paths: dict[str, Path] = {}
     mesh_name_set: set[str] = set()
     for mesh in root.findall(".//mesh"):
         if "filename" in mesh.attrib:
-            mesh_relpath = mesh.attrib["filename"]
-            if mesh_relpath not in new_mesh_paths:
-                mesh_path = urdf_path.parent / mesh_relpath
+            mesh_relpath_raw = mesh.attrib["filename"]
+            mesh_relpath_key = mesh_relpath_raw.lower()   # ← case-insensitive key
+
+            if mesh_relpath_key not in new_mesh_paths:
+                mesh_path = urdf_path.parent / mesh_relpath_raw
                 if not mesh_path.exists():
                     raise FileNotFoundError(mesh_path)
-                new_mesh_path = mesh_path.with_name(get_unique_name(mesh_path.stem, mesh_name_set) + mesh_path.suffix)
-                new_mesh_paths[mesh_relpath] = new_mesh_path
+                new_mesh_path = mesh_path.with_name(
+                    get_unique_name(mesh_path.stem, mesh_name_set, cleanup_mesh_name) + mesh_path.suffix
+                )
+                new_mesh_paths[mesh_relpath_key] = new_mesh_path
                 mesh_path.rename(new_mesh_path)
-            mesh.attrib["filename"] = new_mesh_paths[mesh_relpath].relative_to(urdf_path.parent).as_posix()
+
+            mesh.attrib["filename"] = new_mesh_paths[mesh_relpath_key]\
+                                        .relative_to(urdf_path.parent)\
+                                        .as_posix()
 
     # Now we need to update all the other links and joints which reference
     # these names to be correct.
