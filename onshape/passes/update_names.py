@@ -90,21 +90,27 @@ def update_urdf_names(
                 tag.attrib["name"] = get_unique_name(tag.attrib["name"], name_set, cleanup_identifier_name)
 
     # Cleans up mesh STL names (note, this requires renaming the mesh files).
+    # key: lowercase original rel-path  →  value: new Path on disk
     new_mesh_paths: dict[str, Path] = {}
     mesh_name_set: set[str] = set()
     for mesh in root.findall(".//mesh"):
         if "filename" in mesh.attrib:
-            mesh_relpath = mesh.attrib["filename"]
-            if mesh_relpath not in new_mesh_paths:
-                mesh_path = urdf_path.parent / mesh_relpath
+            mesh_relpath_raw = mesh.attrib["filename"]
+            mesh_relpath_key = mesh_relpath_raw.lower()   # ← case-insensitive key
+
+            if mesh_relpath_key not in new_mesh_paths:
+                mesh_path = urdf_path.parent / mesh_relpath_raw
                 if not mesh_path.exists():
                     raise FileNotFoundError(mesh_path)
                 new_mesh_path = mesh_path.with_name(
                     get_unique_name(mesh_path.stem, mesh_name_set, cleanup_mesh_name) + mesh_path.suffix
                 )
-                new_mesh_paths[mesh_relpath] = new_mesh_path
+                new_mesh_paths[mesh_relpath_key] = new_mesh_path
                 mesh_path.rename(new_mesh_path)
-            mesh.attrib["filename"] = new_mesh_paths[mesh_relpath].relative_to(urdf_path.parent).as_posix()
+
+            mesh.attrib["filename"] = new_mesh_paths[mesh_relpath_key]\
+                                        .relative_to(urdf_path.parent)\
+                                        .as_posix()
 
     # Now we need to update all the other links and joints which reference
     # these names to be correct.
