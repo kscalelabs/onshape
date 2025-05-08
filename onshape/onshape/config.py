@@ -213,6 +213,10 @@ class PostprocessConfig:
         default=True,
         metadata={"help": "Adds a base linkage to the URDF."},
     )
+    actuators: list[str] | None = field(
+        default=None,
+        metadata={"help": "The names of the actuators to use."},
+    )
     base_xyz: tuple[float, float, float] = field(
         default=(0.0, 0.0, 0.0),
         metadata={"help": "The XYZ to apply to the base linkage to set the robot's position."},
