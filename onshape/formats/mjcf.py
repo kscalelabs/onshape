@@ -60,6 +60,7 @@ class CollisionGeometry:
 
 @dataclass
 class ConversionMetadata:
+    adjust_base_offset: bool = field(default=True)
     suffix: str | None = field(default=None)
     freejoint: bool = field(default=True)
     collision_params: CollisionParams = field(default_factory=lambda: CollisionParams())
@@ -124,6 +125,7 @@ def convert_to_mjcf_metadata(metadata: ConversionMetadata) -> "ConversionMetadat
     )
 
     return ConversionMetadataRef(
+        adjust_base_offset=metadata.adjust_base_offset,
         freejoint=metadata.freejoint,
         collision_params=CollisionParamsRef(
             condim=metadata.collision_params.condim,
