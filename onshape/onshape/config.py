@@ -217,6 +217,10 @@ class PostprocessConfig:
         default=None,
         metadata={"help": "The names of the actuators to use."},
     )
+    base_xyz: tuple[float, float, float] = field(
+        default=(0.0, 0.0, 0.0),
+        metadata={"help": "The XYZ to apply to the base linkage to set the robot's position."},
+    )
     base_rpy: tuple[float, float, float] = field(
         default=(0.0, 0.0, 0.0),
         metadata={"help": "The RPY to apply to the base linkage to orient the robot."},
