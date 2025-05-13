@@ -11,7 +11,6 @@ logger = logging.getLogger(__name__)
 
 def add_base_linkage(
     urdf_path: Path,
-    base_xyz: tuple[float, float, float] = (0.0, 0.0, 0.0),
     base_rpy: tuple[float, float, float] = (0.0, 0.0, 0.0),
     link_name: str = "base",
     joint_name: str = "base_joint",
@@ -21,7 +20,6 @@ def add_base_linkage(
 
     Args:
         urdf_path: The path to the URDF file.
-        base_xyz: The XYZ to apply to the base linkage to set the robot's position.
         base_rpy: The RPY to apply to the base linkage to orient the robot.
         link_name: The name of the new link to add.
         joint_name: The name of the joint connecting the new link.
@@ -46,8 +44,8 @@ def add_base_linkage(
     ET.SubElement(
         visual,
         "origin",
-        xyz=" ".join(f"{x:.2f}" for x in base_xyz),
-        rpy=" ".join(f"{r:.2f}" for r in base_rpy),
+        xyz="0 0 0",
+        rpy="0 0 0",
     )
 
     inertial = ET.SubElement(new_link, "inertial", name=f"{link_name}_inertial")
@@ -56,15 +54,20 @@ def add_base_linkage(
     ET.SubElement(
         inertial,
         "origin",
-        xyz=" ".join(f"{x:.2f}" for x in base_xyz),
-        rpy=" ".join(f"{r:.2f}" for r in base_rpy),
+        xyz="0 0 0",
+        rpy="0 0 0",
     )
 
     # Create a new joint element
     new_joint = ET.Element("joint", name=joint_name, type=joint_type)
     ET.SubElement(new_joint, "parent", link=link_name)
     ET.SubElement(new_joint, "child", link=child_link_name)
-    ET.SubElement(new_joint, "origin", xyz="0 0 0", rpy=" ".join(f"{r:.2f}" for r in base_rpy))
+    ET.SubElement(
+        new_joint,
+        "origin",
+        xyz="0 0 0",
+        rpy=" ".join(f"{r:.2f}" for r in base_rpy),
+    )
 
     # Insert the new link and joint at the start of the URDF
     root.insert(0, new_link)
