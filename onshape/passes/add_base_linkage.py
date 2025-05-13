@@ -46,8 +46,8 @@ def add_base_linkage(
     ET.SubElement(
         visual,
         "origin",
-        xyz=" ".join(f"{x:.2f}" for x in base_xyz),
-        rpy=" ".join(f"{r:.2f}" for r in base_rpy),
+        xyz=" ".join(f"{x:.6g}" for x in base_xyz),
+        rpy=" ".join(f"{r:.6g}" for r in base_rpy),
     )
 
     inertial = ET.SubElement(new_link, "inertial", name=f"{link_name}_inertial")
@@ -56,8 +56,8 @@ def add_base_linkage(
     ET.SubElement(
         inertial,
         "origin",
-        xyz=" ".join(f"{x:.2f}" for x in base_xyz),
-        rpy=" ".join(f"{r:.2f}" for r in base_rpy),
+        xyz=" ".join(f"{x:.6g}" for x in base_xyz),
+        rpy=" ".join(f"{r:.6g}" for r in base_rpy),
     )
 
     # Create a new joint element
@@ -67,8 +67,8 @@ def add_base_linkage(
     ET.SubElement(
         new_joint,
         "origin",
-        xyz=" ".join(f"{x:.2f}" for x in base_xyz),
-        rpy=" ".join(f"{r:.2f}" for r in base_rpy),
+        xyz=" ".join(f"{x:.6g}" for x in base_xyz),
+        rpy=" ".join(f"{r:.6g}" for r in base_rpy),
     )
 
     # Insert the new link and joint at the start of the URDF
