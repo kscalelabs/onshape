@@ -72,7 +72,7 @@ class ConversionMetadata:
     maxhullvert: int = field(default=64)
     angle: str = field(default="radian")
     floor_name: str = field(default="floor")
-    add_floor: bool = field(default=True)
+    add_floor: bool = field(default=False)
     backlash: float | None = field(default=None)
     backlash_damping: float = field(default=0.01)
     height_offset: float = field(default=0.0)
