@@ -76,6 +76,7 @@ class ConversionMetadata:
     backlash: float | None = field(default=None)
     backlash_damping: float = field(default=0.01)
     height_offset: float = field(default=0.0)
+    visualize_collision_meshes: bool = field(default=True)
     joint_name_to_metadata: dict[str, JointMetadata] | None = field(default=None)
     actuator_type_to_metadata: dict[str, ActuatorMetadata] | None = field(default=None)
 
@@ -182,6 +183,7 @@ def convert_to_mjcf_metadata(metadata: ConversionMetadata) -> "ConversionMetadat
         backlash=metadata.backlash,
         backlash_damping=metadata.backlash_damping,
         height_offset=metadata.height_offset,
+        visualize_collision_meshes=metadata.visualize_collision_meshes,
         joint_name_to_metadata=joint_name_to_metadata,
         actuator_type_to_metadata=actuator_type_to_metadata,
     )
