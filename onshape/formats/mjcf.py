@@ -59,6 +59,17 @@ class CollisionGeometry:
 
 
 @dataclass
+class WeldConstraint:
+    """Represents a weld constraint between two bodies.
+    
+    By default, body1 is set to "world" to create a fixed constraint in global space.
+    """
+    body1: str = field()
+    body2: str = field()#default_factory=lambda: "world")
+    solimp: list[float] = field(default_factory=lambda: [0.9, 0.95, 0.005]) # clamped to 0.005 for higher stiffness
+    solref: list[float] = field(default_factory=lambda: [0.005, 1.0]) # critical damping 1.0, very quick time constant to return to static
+
+@dataclass
 class ConversionMetadata:
     suffix: str | None = field(default=None)
     freejoint: bool = field(default=True)
@@ -67,6 +78,7 @@ class ConversionMetadata:
     force_sensors: list[ForceSensor] = field(default_factory=lambda: [])
     collision_geometries: list[CollisionGeometry] = field(default_factory=lambda: [])
     explicit_contacts: ExplicitFloorContacts | None = field(default_factory=ExplicitFloorContacts)
+    weld_constraints: list[WeldConstraint] = field(default_factory=lambda: [])
     remove_redundancies: bool = field(default=True)
     floating_base: bool = field(default=True)
     maxhullvert: int = field(default=64)
@@ -104,6 +116,7 @@ def convert_to_mjcf_metadata(metadata: ConversionMetadata) -> "ConversionMetadat
         ForceSensor as ForceSensorRef,
         ImuSensor as ImuSensorRef,
         JointMetadata as JointMetadataRef,
+        WeldConstraint as WeldConstraintRef,
     )
 
     if metadata.angle not in get_args(Angle):
@@ -174,6 +187,16 @@ def convert_to_mjcf_metadata(metadata: ConversionMetadata) -> "ConversionMetadat
                 class_name=metadata.explicit_contacts.class_name,
             )
         ),
+        weld_constraints=(
+            WeldConstraintRef(
+                body1=weld.body1,
+                body2=weld.body2,
+                solimp=weld.solimp,
+                solref=weld.solref,
+            )
+            for weld in metadata.weld_constraints
+        ),
+        
         remove_redundancies=metadata.remove_redundancies,
         floating_base=metadata.floating_base,
         maxhullvert=metadata.maxhullvert,
