@@ -61,13 +61,17 @@ class CollisionGeometry:
 @dataclass
 class WeldConstraint:
     """Represents a weld constraint between two bodies.
-    
+
     By default, body1 is set to "world" to create a fixed constraint in global space.
     """
+
     body1: str = field()
-    body2: str = field()#default_factory=lambda: "world")
-    solimp: list[float] = field(default_factory=lambda: [0.9, 0.95, 0.005]) # clamped to 0.005 for higher stiffness
-    solref: list[float] = field(default_factory=lambda: [0.005, 1.0]) # critical damping 1.0, very quick time constant to return to static
+    body2: str = field()  # default_factory=lambda: "world")
+    solimp: list[float] = field(default_factory=lambda: [0.9, 0.95, 0.005])  # clamped to 0.005 for higher stiffness
+    solref: list[float] = field(
+        default_factory=lambda: [0.005, 1.0]
+    )  # critical damping 1.0, very quick time constant to return to static
+
 
 @dataclass
 class ConversionMetadata:
@@ -196,7 +200,6 @@ def convert_to_mjcf_metadata(metadata: ConversionMetadata) -> "ConversionMetadat
             )
             for weld in metadata.weld_constraints
         ),
-        
         remove_redundancies=metadata.remove_redundancies,
         floating_base=metadata.floating_base,
         maxhullvert=metadata.maxhullvert,
