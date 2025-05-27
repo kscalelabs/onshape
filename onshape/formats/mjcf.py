@@ -191,7 +191,7 @@ def convert_to_mjcf_metadata(metadata: ConversionMetadata) -> "ConversionMetadat
                 class_name=metadata.explicit_contacts.class_name,
             )
         ),
-        weld_constraints=(
+        weld_constraints=[
             WeldConstraintRef(
                 body1=weld.body1,
                 body2=weld.body2,
@@ -199,7 +199,7 @@ def convert_to_mjcf_metadata(metadata: ConversionMetadata) -> "ConversionMetadat
                 solref=weld.solref,
             )
             for weld in metadata.weld_constraints
-        ),
+        ],
         remove_redundancies=metadata.remove_redundancies,
         floating_base=metadata.floating_base,
         maxhullvert=metadata.maxhullvert,
