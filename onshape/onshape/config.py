@@ -1,5 +1,7 @@
 """Defines the config class."""
 
+from __future__ import annotations
+
 import argparse
 from dataclasses import dataclass, field
 from pathlib import Path

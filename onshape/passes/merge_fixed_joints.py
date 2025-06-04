@@ -1,5 +1,7 @@
 """Defines functions for merging URDF parts at fixed joints."""
 
+from __future__ import annotations
+
 import argparse
 import logging
 import xml.etree.ElementTree as ET
@@ -238,10 +240,10 @@ def fuse_child_into_parent(root: ET.Element, joint: ET.Element, urdf_dir: Path) 
 
 
 def process_fixed_joints(
-    urdf_etree: ET.ElementTree,
+    urdf_etree: ET.ElementTree[ET.Element],
     urdf_path: Path,
     ignore_merging_fixed_joints: list[str] | None = None,
-) -> ET.ElementTree:
+) -> ET.ElementTree[ET.Element]:
     """Iteratively fuses all fixed joints until none remain.
 
     This greedily fuses all child links into their parent links at fixed joints,
@@ -257,6 +259,8 @@ def process_fixed_joints(
         The URDF element tree with all fixed joints fused.
     """
     root = urdf_etree.getroot()
+    if root is None:
+        raise ValueError("URDF ElementTree has no root element")
 
     ignore_set = set([] if ignore_merging_fixed_joints is None else ignore_merging_fixed_joints)
     visited_set: set[str] = set()

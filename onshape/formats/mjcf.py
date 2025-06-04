@@ -175,7 +175,7 @@ def convert_to_mjcf_metadata(metadata: ConversionMetadata) -> "ConversionMetadat
             SiteMetadataRef(
                 name=site.name,
                 body_name=site.body_name,
-                site_type=site.site_type,
+                site_type=cast(urdf2mjcf.model.SiteType | None, site.site_type),
                 pos=site.pos,
                 size=site.size,
             )

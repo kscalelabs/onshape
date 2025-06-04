@@ -1,5 +1,7 @@
 """Utility functions common to different formats."""
 
+from __future__ import annotations
+
 import io
 import json
 import re
@@ -64,9 +66,15 @@ class ActuatorMetadata:
         return cls(**data)
 
 
-def save_xml(path: str | Path | io.StringIO, tree: ET.ElementTree | ET.Element) -> None:
+def save_xml(
+    path: str | Path | io.StringIO,
+    tree: ET.ElementTree[ET.Element | None] | ET.ElementTree[ET.Element] | ET.Element,
+) -> None:
     if isinstance(tree, ET.ElementTree):
-        tree = tree.getroot()
+        root = tree.getroot()
+        if root is None:
+            raise ValueError("ElementTree has no root element")
+        tree = root
     xmlstr = minidom.parseString(ET.tostring(tree)).toprettyxml(indent="  ")
     xmlstr = re.sub(r"\n\s*\n", "\n", xmlstr)
     if isinstance(path, io.StringIO):

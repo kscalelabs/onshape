@@ -1,5 +1,7 @@
 """Defines functions for post-processing the downloaded URDF."""
 
+from __future__ import annotations
+
 import asyncio
 import logging
 import sys
