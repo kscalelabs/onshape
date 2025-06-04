@@ -281,7 +281,7 @@ def get_graph(
     Returns:
         The graph of the assembly, along with a set of the ignored joints.
     """
-    graph = nx.Graph()
+    graph: nx.Graph = nx.Graph()
 
     if key_namer is None:
         key_namer = KeyNamer(assembly)
@@ -376,7 +376,7 @@ def get_graph(
             ),
         )
 
-    return graph
+    return graph, set()
 
 
 def get_digraph(graph: nx.Graph, override_central_node: Key | None = None) -> tuple[nx.DiGraph, Key]:
@@ -387,7 +387,7 @@ def get_digraph(graph: nx.Graph, override_central_node: Key | None = None) -> tu
         override_central_node: The central node to use.
 
     Returns:
-        The central node of the graph and the directed graph
+        The directed graph and the central node of the graph.
     """
     # Gets the most central node as the "root" node.
     central_node: Key
@@ -395,7 +395,7 @@ def get_digraph(graph: nx.Graph, override_central_node: Key | None = None) -> tu
         central_node = override_central_node
     else:
         closeness_centrality = nx.closeness_centrality(graph)
-        central_node = max(closeness_centrality, key=closeness_centrality.get)
+        central_node = max(closeness_centrality.keys(), key=lambda k: closeness_centrality[k])
     return nx.bfs_tree(graph, central_node), central_node
 
 
@@ -749,7 +749,7 @@ async def check_document(
     key_namer = KeyNamer(assembly)
 
     try:
-        graph = get_graph(assembly, key_namer, key_to_part_instance, key_to_mate_feature)
+        graph, _ = get_graph(assembly, key_namer, key_to_part_instance, key_to_mate_feature)
 
     except ValueError as e:
         raise FailedCheckError(
