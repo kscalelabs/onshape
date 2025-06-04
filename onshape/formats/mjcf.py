@@ -23,6 +23,15 @@ class CollisionParams:
 
 
 @dataclass
+class SiteMetadata:
+    name: str = field()
+    body_name: str = field()
+    site_type: str | None = field(default=None)
+    pos: list[float] | None = field(default=None)  # (x, y, z)
+    size: list[float] | None = field(default=None)  # (size_x, size_y, size_z)
+
+
+@dataclass
 class ImuSensor:
     body_name: str = field()
     pos: list[float] | None = field(default=None)  # (x, y, z)
@@ -34,6 +43,14 @@ class ImuSensor:
 
 @dataclass
 class ForceSensor:
+    body_name: str = field()
+    site_name: str = field()
+    name: str | None = field(default=None)
+    noise: float | None = field(default=None)
+
+
+@dataclass
+class TouchSensor:
     body_name: str = field()
     site_name: str = field()
     name: str | None = field(default=None)
@@ -78,8 +95,10 @@ class ConversionMetadata:
     suffix: str | None = field(default=None)
     freejoint: bool = field(default=True)
     collision_params: CollisionParams = field(default_factory=lambda: CollisionParams())
+    sites: list[SiteMetadata] = field(default_factory=lambda: [])
     imus: list[ImuSensor] = field(default_factory=lambda: [])
     force_sensors: list[ForceSensor] = field(default_factory=lambda: [])
+    touch_sensors: list[TouchSensor] = field(default_factory=lambda: [])
     collision_geometries: list[CollisionGeometry] = field(default_factory=lambda: [])
     explicit_contacts: ExplicitFloorContacts | None = field(default_factory=ExplicitFloorContacts)
     weld_constraints: list[WeldConstraint] = field(default_factory=lambda: [])
@@ -120,6 +139,8 @@ def convert_to_mjcf_metadata(metadata: ConversionMetadata) -> "ConversionMetadat
         ForceSensor as ForceSensorRef,
         ImuSensor as ImuSensorRef,
         JointMetadata as JointMetadataRef,
+        SiteMetadata as SiteMetadataRef,
+        TouchSensor as TouchSensorRef,
         WeldConstraint as WeldConstraintRef,
     )
 
@@ -150,6 +171,16 @@ def convert_to_mjcf_metadata(metadata: ConversionMetadata) -> "ConversionMetadat
             solref=metadata.collision_params.solref,
             friction=metadata.collision_params.friction,
         ),
+        sites=[
+            SiteMetadataRef(
+                name=site.name,
+                body_name=site.body_name,
+                site_type=site.site_type,
+                pos=site.pos,
+                size=site.size,
+            )
+            for site in metadata.sites
+        ],
         imus=[
             ImuSensorRef(
                 body_name=imu.body_name,
@@ -169,6 +200,15 @@ def convert_to_mjcf_metadata(metadata: ConversionMetadata) -> "ConversionMetadat
                 noise=fs.noise,
             )
             for fs in metadata.force_sensors
+        ],
+        touch_sensors=[
+            TouchSensorRef(
+                body_name=ts.body_name,
+                site_name=ts.site_name,
+                name=ts.name,
+                noise=ts.noise,
+            )
+            for ts in metadata.touch_sensors
         ],
         collision_geometries=[
             CollisionGeometryRef(
