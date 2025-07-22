@@ -68,7 +68,7 @@ class ActuatorMetadata:
 
 def save_xml(
     path: str | Path | io.StringIO,
-    tree: ET.ElementTree[ET.Element | None] | ET.ElementTree[ET.Element] | ET.Element,
+    tree: ET.ElementTree | ET.Element,
 ) -> None:
     if isinstance(tree, ET.ElementTree):
         root = tree.getroot()
