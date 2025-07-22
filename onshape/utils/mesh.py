@@ -31,6 +31,9 @@ class Mesh:
             return False
         return np.allclose(self.points, other.points) and np.array_equal(self.faces, other.faces)
 
+    def __hash__(self) -> int:
+        return hash((self.points, self.faces))
+
     def save(self, file_path: Union[str, Path]) -> None:
         save_file(self, file_path)
 

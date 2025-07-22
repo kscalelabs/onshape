@@ -240,10 +240,10 @@ def fuse_child_into_parent(root: ET.Element, joint: ET.Element, urdf_dir: Path) 
 
 
 def process_fixed_joints(
-    urdf_etree: ET.ElementTree,
+    urdf_etree: ET.ElementTree[ET.Element],
     urdf_path: Path,
     ignore_merging_fixed_joints: list[str] | None = None,
-) -> ET.ElementTree:
+) -> ET.ElementTree[ET.Element]:
     """Iteratively fuses all fixed joints until none remain.
 
     This greedily fuses all child links into their parent links at fixed joints,
