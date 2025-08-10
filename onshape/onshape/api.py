@@ -242,3 +242,24 @@ class OnshapeApi:
 
         if self.post_wait > 0.0:
             await asyncio.sleep(self.post_wait)
+
+    async def get_onshape_variables(
+        self, document: DocumentInfo, element_id: str, configuration: str = "default"
+    ) -> list[dict]:
+        """Fetch Onshape variables (with values) for an element using workspace/version path.
+
+        Returns the raw JSON list from the Onshape Variables API:
+        [{ "variables": [{"name": str, "value": str}, ...]}, ...]
+        """
+        path = (
+            f"/api/variables/d/{document.document_id}/{document.item_kind}/{document.item_id}/e/{element_id}/variables"
+        )
+        data = await self._request(
+            "get",
+            path,
+            query={
+                "configuration": configuration,
+                "includeValuesAndReferencedVariables": True,
+            },
+        )
+        return data

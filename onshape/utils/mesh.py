@@ -26,6 +26,8 @@ class Mesh:
     points: NDArray
     faces: NDArray
 
+    __hash__ = None  # explicit: equal-by-content, not hashable
+
     def __eq__(self, other: Any) -> bool:  # noqa: ANN401
         if not isinstance(other, Mesh):
             return False
