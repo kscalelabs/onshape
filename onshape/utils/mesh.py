@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Literal, Union, cast, get_args
+from typing import Any, ClassVar, Literal, Union, cast, get_args
 
 import numpy as np
 import trimesh
@@ -26,7 +26,7 @@ class Mesh:
     points: NDArray
     faces: NDArray
 
-    __hash__ = None  # explicit: equal-by-content, not hashable
+    __hash__: ClassVar[Any] = None  # explicit: equal-by-content, not hashable
 
     def __eq__(self, other: Any) -> bool:  # noqa: ANN401
         if not isinstance(other, Mesh):
