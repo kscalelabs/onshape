@@ -19,6 +19,8 @@ from onshape.onshape.schema.elements import Elements, ElementType
 from onshape.onshape.schema.features import Features
 from onshape.onshape.schema.part import PartDynamics, PartMetadata, ThumbnailInfo
 
+Json = dict[str, Any] | list[Any]
+
 logger = logging.getLogger(__name__)
 
 RETRY_STATUS_CODES = (400, 429, 500, 502, 503, 504)
@@ -51,7 +53,7 @@ class OnshapeApi:
         headers: Mapping[str, str] | None = None,
         body: Mapping[str, Any] | None = None,
         base_url: str | None = None,
-    ) -> dict:
+    ) -> Json:
         async with self.semaphore:
             async with self.client.request(
                 method=method,
@@ -63,7 +65,7 @@ class OnshapeApi:
             ) as response:
                 await response.aread()
                 response.raise_for_status()
-                response_data = response.json()
+                response_data: Json = response.json()
 
         if self.post_wait > 0.0:
             await asyncio.sleep(self.post_wait)
@@ -242,3 +244,26 @@ class OnshapeApi:
 
         if self.post_wait > 0.0:
             await asyncio.sleep(self.post_wait)
+
+    async def get_onshape_variables(
+        self, document: DocumentInfo, element_id: str, configuration: str = "default"
+    ) -> list[dict]:
+        """Fetch Onshape variables (with values) for an element using workspace/version path.
+
+        Returns the raw JSON list from the Onshape Variables API:
+        [{ "variables": [{"name": str, "value": str}, ...]}, ...]
+        """
+        path = (
+            f"/api/variables/d/{document.document_id}/{document.item_kind}/{document.item_id}/e/{element_id}/variables"
+        )
+        data = await self._request(
+            "get",
+            path,
+            query={
+                "configuration": configuration,
+                "includeValuesAndReferencedVariables": True,
+            },
+        )
+        if not isinstance(data, list):
+            raise TypeError("Variables API: expected a list JSON payload")
+        return data
