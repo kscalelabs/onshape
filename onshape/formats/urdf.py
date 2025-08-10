@@ -407,5 +407,4 @@ class Robot:
         return robot
 
     def save(self, path: str | Path | io.StringIO) -> None:
-        tree = ET.ElementTree(self.to_xml())
-        save_xml(path, tree)
+        save_xml(path, self.to_xml())

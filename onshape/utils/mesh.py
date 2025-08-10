@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, ClassVar, Literal, Union, cast, get_args
+from typing import Any, Literal, Union, cast, get_args
 
 import numpy as np
 import trimesh
@@ -10,7 +10,7 @@ from numpy.typing import NDArray
 
 MeshType = Literal["stl", "obj"]
 
-COLLISION_SUFFIX = ".collision"
+COLLISION_SUFFIX = "_collision"
 
 
 @dataclass
@@ -26,12 +26,13 @@ class Mesh:
     points: NDArray
     faces: NDArray
 
-    __hash__: ClassVar[Any] = None  # explicit: equal-by-content, not hashable
-
     def __eq__(self, other: Any) -> bool:  # noqa: ANN401
         if not isinstance(other, Mesh):
             return False
         return np.allclose(self.points, other.points) and np.array_equal(self.faces, other.faces)
+
+    def __hash__(self) -> int:
+        return hash((self.points, self.faces))
 
     def save(self, file_path: Union[str, Path]) -> None:
         save_file(self, file_path)
