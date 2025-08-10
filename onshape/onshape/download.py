@@ -637,6 +637,7 @@ class CheckedDocument:
     joints: list[Joint]
     joint_limits: dict[ElementUid, JointLimits]
     mate_relations: dict[Key, MimicRelation]
+    onshape_variables: dict[str, str]
 
 
 def has_valid_joint_limits(
@@ -723,6 +724,25 @@ async def check_document(
             ],
             orig_errs=(e,),
         ) from e
+
+    # Fetch variables for the assembly to enable expression resolution of #vars
+    try:
+        # Use document info (w/v) and the assembly element id to fetch variables
+        raw_variables = await api.get_onshape_variables(
+            document_info,
+            assembly.rootAssembly.elementId,
+            configuration=assembly.rootAssembly.fullConfiguration or assembly.rootAssembly.configuration,
+        )
+        onshape_variables: dict[str, str] = {}
+        for entry in raw_variables:
+            for var in entry.get("variables", []):
+                name = var.get("name")
+                value = var.get("value")
+                if isinstance(name, str) and isinstance(value, str):
+                    onshape_variables[name] = value
+    except Exception:
+        # If the variables endpoint is unavailable or fails, proceed without variables
+        onshape_variables = {}
 
     # Checks that the assembly metadata is valid.
     try:
@@ -864,6 +884,7 @@ async def check_document(
         joints=joints,
         joint_limits=joint_limits,
         mate_relations=mate_relations,
+        onshape_variables=onshape_variables,
     )
 
 
@@ -1045,7 +1066,10 @@ def get_urdf_joint(
         part_id=feature_id,
     )
     joint_limits = doc.joint_limits.get(joint_info_key)
-    expression_resolver = ExpressionResolver(joint_assembly_id.configuration)
+    expression_resolver = ExpressionResolver(
+        joint_assembly_id.configuration,
+        onshape_variables=doc.onshape_variables,
+    )
 
     def resolve(expression: str | None) -> float | None:
         return None if expression is None else expression_resolver.read_expression(expression)
@@ -1062,6 +1086,8 @@ def get_urdf_joint(
             )
             return default_effort, default_velocity
         if dof_name not in config.joint_metadata:
+            available = ", ".join(sorted(config.joint_metadata.keys())) if hasattr(config, "joint_metadata") else "none"
+            logger.error("Joint %s not found in joint metadata. Available names: %s", name, available)
             raise ValueError(f"Joint {name} not found in joint metadata")
 
         actuator_type = config.joint_metadata[dof_name].actuator_type

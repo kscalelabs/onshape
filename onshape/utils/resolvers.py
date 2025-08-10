@@ -8,7 +8,11 @@ logger = logging.getLogger(__name__)
 
 
 class ExpressionResolver:
-    def __init__(self, configuration: str) -> None:
+    def __init__(
+        self,
+        configuration: str,
+        onshape_variables: dict[str, str] | None = None,
+    ) -> None:
         super().__init__()
 
         # Parses the configuration string to a dictionary.
@@ -17,6 +21,26 @@ class ExpressionResolver:
             for kv in configuration.split(";"):
                 key, value = kv.split("=")
                 self.configuration_parameters[key] = value
+
+        # Optional Onshape variables mapping fetched from Onshape Variables API
+        # Keys are variable names (without leading '#'), values are expression strings
+        self.onshape_variables: dict[str, str] = {} if onshape_variables is None else onshape_variables
+
+    def _lookup_symbol(self, symbol: str) -> str:
+        """Lookup a symbol in configuration parameters first, then in Onshape variables.
+
+        Args:
+            symbol: Name without leading '#'
+        Returns:
+            The expression string associated with the symbol
+        Raises:
+            KeyError if symbol not found in either mapping
+        """
+        if symbol in self.configuration_parameters:
+            return self.configuration_parameters[symbol]
+        if symbol in self.onshape_variables:
+            return self.onshape_variables[symbol]
+        raise KeyError(symbol)
 
     def read_expression(self, expression: str) -> float:
         """Reads an expression and returns a float value.
@@ -28,9 +52,12 @@ class ExpressionResolver:
             The float value of the expression.
         """
         if expression[0] == "#":
-            expression = self.configuration_parameters[expression[1:]]
+            # Replace with configured value or variable expression
+            referenced = self._lookup_symbol(expression[1:])
+            expression = referenced
         if expression[0:2] == "-#":
-            expression = "-" + self.configuration_parameters[expression[2:]]
+            referenced = self._lookup_symbol(expression[2:])
+            expression = "-" + referenced
 
         # Splitting the expression into value and unit.
         parts = re.split(r"[ +*]", expression)
