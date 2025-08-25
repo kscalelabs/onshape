@@ -17,6 +17,7 @@ class CollisionParams:
     condim: int = field(default=6)
     contype: int = field(default=0)
     conaffinity: int = field(default=1)
+    priority: int = field(default=1)
     solref: list[float] = field(default_factory=lambda: [0.005, 1.0])
     solimp: list[float] = field(default_factory=lambda: [0.99, 0.999, 0.00001])
     friction: list[float] = field(default_factory=lambda: [0.8, 0.02, 0.01])
@@ -168,7 +169,10 @@ def convert_to_mjcf_metadata(metadata: ConversionMetadata) -> "ConversionMetadat
         collision_params=CollisionParamsRef(
             condim=metadata.collision_params.condim,
             contype=metadata.collision_params.contype,
+            conaffinity=metadata.collision_params.conaffinity,
+            priority=metadata.collision_params.priority,
             solref=metadata.collision_params.solref,
+            solimp=metadata.collision_params.solimp,
             friction=metadata.collision_params.friction,
         ),
         sites=[
