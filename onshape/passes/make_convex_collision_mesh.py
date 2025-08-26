@@ -97,8 +97,8 @@ def get_convex_collision_meshes(urdf_path: Path, max_triangles: int | None = Non
         # make a new mesh for the collision mesh. Otherwise, we can just
         # overwrite the existing collision mesh.
         if visual_mesh_path == collision_mesh_path:
-            new_suffix = f"{COLLISION_SUFFIX}{collision_mesh_path.suffix}"
-            collision_output_mesh_path = collision_mesh_path.with_suffix(new_suffix)
+            collision_output_mesh_name = f"{collision_mesh_path.stem}{COLLISION_SUFFIX}{collision_mesh_path.suffix}"
+            collision_output_mesh_path = collision_mesh_path.with_name(collision_output_mesh_name)
             collision_mesh_elem.attrib["filename"] = collision_output_mesh_path.relative_to(urdf_path.parent).as_posix()
             has_change = True
         else:

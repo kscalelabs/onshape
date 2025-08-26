@@ -10,7 +10,7 @@ from numpy.typing import NDArray
 
 MeshType = Literal["stl", "obj"]
 
-COLLISION_SUFFIX = ".collision"
+COLLISION_SUFFIX = "_collision"
 
 
 @dataclass
