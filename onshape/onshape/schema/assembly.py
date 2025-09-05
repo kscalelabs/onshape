@@ -259,6 +259,7 @@ class AssemblyMetadata(BaseModel):
 class PartBodyType(str, Enum):
     sheet = "sheet"
     solid = "solid"
+    composite = "composite"
 
 
 class Part(BaseModel):
